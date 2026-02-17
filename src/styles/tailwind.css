@@ -1,0 +1,233 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Background Colors - Deep Purple/Indigo Theme */
+    --color-background: #1a0f2e; /* deep purple background */
+    --color-foreground: #f5f3ff; /* light lavender text */
+    --color-card: #2d1b4e; /* rich purple card */
+    --color-card-foreground: #faf8ff; /* near white text */
+    --color-popover: #2d1b4e; /* rich purple popover */
+    --color-popover-foreground: #faf8ff; /* near white text */
+    
+    /* Muted Colors */
+    --color-muted: #3d2a5c; /* medium purple */
+    --color-muted-foreground: #c4b5fd; /* light purple text */
+    
+    /* Border & Input */
+    --color-border: rgba(196, 181, 253, 0.2); /* light purple border */
+    --color-input: rgba(196, 181, 253, 0.15); /* light purple input */
+    --color-ring: #fbbf24; /* gold ring */
+    
+    /* Primary (Celebrity/Gold) */
+    --color-primary: #fbbf24; /* warm gold */
+    --color-primary-foreground: #1a0f2e; /* deep purple text */
+    
+    /* Secondary (Fashion/Rose Gold) */
+    --color-secondary: #f4a6b8; /* rose gold */
+    --color-secondary-foreground: #1a0f2e; /* deep purple text */
+    
+    /* Accent (News/Emerald) */
+    --color-accent: #34d399; /* emerald accent */
+    --color-accent-foreground: #1a0f2e; /* deep purple text */
+    
+    /* Destructive */
+    --color-destructive: #f87171; /* soft red */
+    --color-destructive-foreground: #faf8ff; /* near white */
+    
+    /* Success */
+    --color-success: #34d399; /* emerald */
+    --color-success-foreground: #1a0f2e; /* deep purple text */
+    
+    /* Warning */
+    --color-warning: #fbbf24; /* gold */
+    --color-warning-foreground: #1a0f2e; /* deep purple text */
+    
+    /* Error */
+    --color-error: #f87171; /* soft red */
+    --color-error-foreground: #faf8ff; /* near white */
+  }
+}
+
+@layer utilities {
+  /* Glassmorphism Effect */
+  .glass-card {
+    background: rgba(45, 27, 78, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(196, 181, 253, 0.2);
+  }
+  
+  /* Glow Effects */
+  .glow-gold {
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+  }
+  
+  .glow-rose {
+    box-shadow: 0 0 20px rgba(244, 166, 184, 0.4);
+  }
+  
+  .glow-emerald {
+    box-shadow: 0 0 20px rgba(52, 211, 153, 0.4);
+  }
+  
+  /* Text Gradients */
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #fbbf24 0%, #fde68a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .text-gradient-rose {
+    background: linear-gradient(135deg, #f4a6b8 0%, #fda4af 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Custom Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(196, 181, 253, 0.1);
+    border-radius: 3px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(196, 181, 253, 0.3);
+    border-radius: 3px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(196, 181, 253, 0.5);
+  }
+}
+
+@layer components {
+  /* Animation Keyframes */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes fadeInBlur {
+    from {
+      opacity: 0;
+      filter: blur(8px);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+    }
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+  
+  @keyframes pulse-glow {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+  
+  @keyframes marquee-up {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(-50%);
+    }
+  }
+  
+  @keyframes marquee-down {
+    from {
+      transform: translateY(-50%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes draw-line {
+    from {
+      stroke-dashoffset: 1000;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  
+  /* Animation Classes */
+  .animate-fade-in-up {
+    animation: fadeInUp 0.8s ease-out forwards;
+  }
+  
+  .animate-fade-in-blur {
+    animation: fadeInBlur 0.8s ease-out forwards;
+  }
+  
+  .animate-float {
+    animation: float 8s ease-in-out infinite;
+  }
+  
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  
+  .animate-marquee-up {
+    animation: marquee-up 40s linear infinite;
+  }
+  
+  .animate-marquee-down {
+    animation: marquee-down 40s linear infinite;
+  }
+  
+  /* Staggered Animation Delays */
+  .delay-100 {
+    animation-delay: 0.1s;
+  }
+  
+  .delay-200 {
+    animation-delay: 0.2s;
+  }
+  
+  .delay-300 {
+    animation-delay: 0.3s;
+  }
+  
+  .delay-400 {
+    animation-delay: 0.4s;
+  }
+  
+  .delay-500 {
+    animation-delay: 0.5s;
+  }
+  
+  .delay-600 {
+    animation-delay: 0.6s;
+  }
+  
+  .delay-700 {
+    animation-delay: 0.7s;
+  }
+}
