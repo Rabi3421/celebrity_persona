@@ -1,0 +1,832 @@
+{
+  "info": {
+    "name": "Celebrity Persona Auth API",
+    "description": "Complete authentication system with User, Admin, and SuperAdmin roles",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4028",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resetToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "specialKey",
+      "value": "celeb_persona_super_admin_key_2026_secure",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "SuperAdmin APIs",
+      "item": [
+        {
+          "name": "Create SuperAdmin (Special Key Required)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"superadmin@celebritypersona.com\",\n  \"password\": \"SuperAdmin123!\",\n  \"specialKey\": \"{{specialKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/superadmin/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "superadmin", "create"]
+            },
+            "description": "Create a SuperAdmin account. Only one SuperAdmin can exist. Requires special key."
+          }
+        },
+        {
+          "name": "SuperAdmin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"superadmin@celebritypersona.com\",\n  \"password\": \"SuperAdmin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/superadmin/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "superadmin", "login"]
+            },
+            "description": "SuperAdmin login. Returns access and refresh tokens."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data) {",
+                  "        pm.environment.set('accessToken', response.data.accessToken);",
+                  "        pm.environment.set('refreshToken', response.data.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get SuperAdmin Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/superadmin/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "superadmin", "profile"]
+            },
+            "description": "Get SuperAdmin profile information. Requires SuperAdmin access token."
+          }
+        },
+        {
+          "name": "Update SuperAdmin Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"SuperAdmin123!\",\n  \"newPassword\": \"NewSuperAdmin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/superadmin/update-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "superadmin", "update-password"]
+            },
+            "description": "Update SuperAdmin password. Requires current password and SuperAdmin access token."
+          }
+        },
+        {
+          "name": "SuperAdmin Reset Password - Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"superadmin@celebritypersona.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/superadmin/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "superadmin", "reset-password"]
+            },
+            "description": "Request password reset for SuperAdmin. Returns reset token (in production, this should be sent via email)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.resetToken) {",
+                  "        pm.environment.set('resetToken', response.resetToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "SuperAdmin Reset Password - Confirm",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{resetToken}}\",\n  \"newPassword\": \"ResetSuperAdmin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/superadmin/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "superadmin", "reset-password"]
+            },
+            "description": "Confirm password reset using reset token."
+          }
+        },
+        {
+          "name": "Create User/Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Admin\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin123!\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/superadmin/create-user",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "superadmin", "create-user"]
+            },
+            "description": "SuperAdmin can create users and admins. Role can be 'user' or 'admin'."
+          }
+        },
+        {
+          "name": "Manage Users - Get All",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/superadmin/manage-users?page=1&limit=10&role=admin&search=test",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "superadmin", "manage-users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "role",
+                  "value": "admin",
+                  "description": "Optional: filter by role (user or admin)"
+                },
+                {
+                  "key": "search",
+                  "value": "test",
+                  "description": "Optional: search by name or email"
+                }
+              ]
+            },
+            "description": "Get all users and admins with pagination and filtering options."
+          }
+        },
+        {
+          "name": "Manage Users - Update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"USER_ID_HERE\",\n  \"name\": \"Updated Name\",\n  \"email\": \"updated@example.com\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/superadmin/manage-users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "superadmin", "manage-users"]
+            },
+            "description": "Update user/admin details."
+          }
+        },
+        {
+          "name": "Manage Users - Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"USER_ID_HERE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/superadmin/manage-users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "superadmin", "manage-users"]
+            },
+            "description": "Delete user/admin account."
+          }
+        },
+        {
+          "name": "Delete SuperAdmin (Special Key Required)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"specialKey\": \"{{specialKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/superadmin/delete",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "superadmin", "delete"]
+            },
+            "description": "Delete SuperAdmin account. Requires special key. Use with caution!"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin APIs",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/admin/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "admin", "login"]
+            },
+            "description": "Admin login. Returns access and refresh tokens."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data) {",
+                  "        pm.environment.set('accessToken', response.data.accessToken);",
+                  "        pm.environment.set('refreshToken', response.data.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Admin Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/admin/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "admin", "profile"]
+            },
+            "description": "Get Admin profile information. Requires Admin access token."
+          }
+        },
+        {
+          "name": "Update Admin Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Admin123!\",\n  \"newPassword\": \"NewAdmin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/admin/update-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "admin", "update-password"]
+            },
+            "description": "Update Admin password. Requires current password and Admin access token."
+          }
+        },
+        {
+          "name": "Admin Reset Password - Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/admin/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "admin", "reset-password"]
+            },
+            "description": "Request password reset for Admin."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.resetToken) {",
+                  "        pm.environment.set('resetToken', response.resetToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Reset Password - Confirm",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{resetToken}}\",\n  \"newPassword\": \"ResetAdmin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/admin/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "admin", "reset-password"]
+            },
+            "description": "Confirm password reset using reset token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "User APIs",
+      "item": [
+        {
+          "name": "User Signup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"user@example.com\",\n  \"password\": \"User123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/user/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "user", "signup"]
+            },
+            "description": "User registration. Creates a new user account."
+          }
+        },
+        {
+          "name": "User Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"User123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/user/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "user", "login"]
+            },
+            "description": "User login. Returns access and refresh tokens."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data) {",
+                  "        pm.environment.set('accessToken', response.data.accessToken);",
+                  "        pm.environment.set('refreshToken', response.data.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/user/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "user", "profile"]
+            },
+            "description": "Get User profile information. Requires User access token."
+          }
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Updated\",\n  \"email\": \"john.updated@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/user/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "user", "profile"]
+            },
+            "description": "Update User profile. Can update name and email."
+          }
+        },
+        {
+          "name": "Update User Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"User123!\",\n  \"newPassword\": \"NewUser123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/user/update-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "user", "update-password"]
+            },
+            "description": "Update User password. Requires current password and User access token."
+          }
+        },
+        {
+          "name": "User Reset Password - Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/user/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "user", "reset-password"]
+            },
+            "description": "Request password reset for User."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.resetToken) {",
+                  "        pm.environment.set('resetToken', response.resetToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "User Reset Password - Confirm",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{resetToken}}\",\n  \"newPassword\": \"ResetUser123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/user/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "user", "reset-password"]
+            },
+            "description": "Confirm password reset using reset token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Common Auth APIs",
+      "item": [
+        {
+          "name": "Refresh Access Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "refresh-token"]
+            },
+            "description": "Generate new access token using refresh token. Works for all roles."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.accessToken) {",
+                  "        pm.environment.set('accessToken', response.data.accessToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\",\n  \"logoutAll\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Logout user. Set logoutAll to true to logout from all devices. Works for all roles."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('accessToken', '');",
+                  "    pm.environment.set('refreshToken', '');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout All Devices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\",\n  \"logoutAll\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Logout from all devices. Clears all refresh tokens."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('accessToken', '');",
+                  "    pm.environment.set('refreshToken', '');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ]
+}
