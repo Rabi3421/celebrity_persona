@@ -807,6 +807,573 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Content Management APIs (SuperAdmin & Admin)",
+      "item": [
+        {
+          "name": "Celebrity Management",
+          "item": [
+            {
+              "name": "Create Celebrity",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Emma Stone\",\n  \"realName\": \"Emily Jean Stone\",\n  \"bio\": \"American actress known for her roles in comedy and drama films\",\n  \"dateOfBirth\": \"1988-11-06\",\n  \"nationality\": \"American\",\n  \"category\": \"ACTOR\",\n  \"profilePicture\": \"https://example.com/emma-stone.jpg\",\n  \"profilePictureAlt\": \"Emma Stone portrait\",\n  \"socialMedia\": {\n    \"instagram\": \"emmastone\",\n    \"twitter\": \"emmastone\"\n  },\n  \"knownFor\": [\"La La Land\", \"Easy A\", \"Cruella\"],\n  \"awards\": [\"Academy Award for Best Actress\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/celebrities",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "celebrities"]
+                }
+              }
+            },
+            {
+              "name": "Get All Celebrities",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/celebrities?page=1&limit=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "celebrities"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "category",
+                      "value": "ACTOR",
+                      "disabled": true
+                    },
+                    {
+                      "key": "search",
+                      "value": "emma",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Celebrity by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/celebrities/CELEBRITY_ID",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "celebrities", "CELEBRITY_ID"]
+                }
+              }
+            },
+            {
+              "name": "Update Celebrity",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"bio\": \"Updated bio for Emma Stone\",\n  \"knownFor\": [\"La La Land\", \"Easy A\", \"Cruella\", \"Poor Things\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/celebrities/CELEBRITY_ID",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "celebrities", "CELEBRITY_ID"]
+                }
+              }
+            },
+            {
+              "name": "Delete Celebrity",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/celebrities/CELEBRITY_ID",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "celebrities", "CELEBRITY_ID"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Celebrity Outfits",
+          "item": [
+            {
+              "name": "Create Celebrity Outfit",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"celebrity\": \"CELEBRITY_ID\",\n  \"title\": \"Emma Stone's Red Carpet Look at Oscars 2024\",\n  \"description\": \"Stunning black gown with elegant accessories\",\n  \"occasion\": \"RED_CARPET\",\n  \"eventName\": \"Academy Awards 2024\",\n  \"date\": \"2024-03-10\",\n  \"mainImage\": \"https://example.com/emma-oscars-2024.jpg\",\n  \"mainImageAlt\": \"Emma Stone at Oscars 2024\",\n  \"outfitItems\": [\n    {\n      \"type\": \"dress\",\n      \"brand\": \"Valentino\",\n      \"description\": \"Black sequined gown\",\n      \"price\": 15000,\n      \"image\": \"https://example.com/valentino-dress.jpg\"\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/outfits",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "outfits"]
+                }
+              }
+            },
+            {
+              "name": "Get All Celebrity Outfits",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/outfits?page=1&limit=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "outfits"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "celebrity",
+                      "value": "CELEBRITY_ID",
+                      "disabled": true
+                    },
+                    {
+                      "key": "occasion",
+                      "value": "RED_CARPET",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Celebrity Outfit",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated outfit title\",\n  \"description\": \"Updated description\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/outfits/OUTFIT_ID",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "outfits", "OUTFIT_ID"]
+                }
+              }
+            },
+            {
+              "name": "Delete Celebrity Outfit",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/outfits/OUTFIT_ID",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "outfits", "OUTFIT_ID"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Celebrity News",
+          "item": [
+            {
+              "name": "Create News Article",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Emma Stone Wins Best Actress at Oscars 2024\",\n  \"excerpt\": \"Emma Stone takes home her second Academy Award for her role in Poor Things\",\n  \"content\": \"Full article content here...\",\n  \"category\": \"AWARDS\",\n  \"tags\": [\"Emma Stone\", \"Oscars\", \"Poor Things\"],\n  \"featuredImage\": \"https://example.com/emma-wins-oscar.jpg\",\n  \"featuredImageAlt\": \"Emma Stone holding Oscar\",\n  \"celebrities\": [\"CELEBRITY_ID\"],\n  \"seo\": {\n    \"metaDescription\": \"Emma Stone wins Oscar for Poor Things performance\",\n    \"keywords\": [\"Emma Stone\", \"Oscar winner\", \"Poor Things\"]\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/news",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "news"]
+                }
+              }
+            },
+            {
+              "name": "Get All News Articles",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/news?page=1&limit=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "news"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "category",
+                      "value": "AWARDS",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "PUBLISHED",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update News Article",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"PUBLISHED\",\n  \"publishedAt\": \"2024-03-11T00:00:00.000Z\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/news/NEWS_ID",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "news", "NEWS_ID"]
+                }
+              }
+            },
+            {
+              "name": "Delete News Article",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/news/NEWS_ID",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "news", "NEWS_ID"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Movie Management",
+          "item": [
+            {
+              "name": "Create Movie",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Poor Things\",\n  \"description\": \"A young woman's incredible journey of self-discovery\",\n  \"synopsis\": \"The incredible tale and fantastical evolution of Bella Baxter...\",\n  \"director\": \"Yorgos Lanthimos\",\n  \"genre\": [\"Comedy\", \"Drama\", \"Romance\"],\n  \"releaseDate\": \"2023-12-08\",\n  \"duration\": 141,\n  \"poster\": \"https://example.com/poor-things-poster.jpg\",\n  \"posterAlt\": \"Poor Things movie poster\",\n  \"backdrop\": \"https://example.com/poor-things-backdrop.jpg\",\n  \"backdropAlt\": \"Poor Things backdrop\",\n  \"trailer\": \"https://youtube.com/watch?v=example\",\n  \"cast\": [\n    {\n      \"actor\": \"CELEBRITY_ID\",\n      \"character\": \"Bella Baxter\",\n      \"role\": \"LEAD\"\n    }\n  ],\n  \"language\": \"English\",\n  \"country\": \"Ireland\",\n  \"productionCompany\": [\"Element Pictures\"],\n  \"status\": \"COMPLETED\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/movies",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "movies"]
+                }
+              }
+            },
+            {
+              "name": "Get All Movies",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/movies?page=1&limit=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "movies"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "genre",
+                      "value": "Drama",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "COMPLETED",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Movie",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ratings\": {\n    \"imdb\": { \"score\": 8.3, \"votes\": \"125,000\" },\n    \"rottenTomatoes\": { \"critics\": 92, \"audience\": 87 },\n    \"aggregated\": 8.5\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/movies/MOVIE_ID",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "movies", "MOVIE_ID"]
+                }
+              }
+            },
+            {
+              "name": "Delete Movie",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/movies/MOVIE_ID",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "movies", "MOVIE_ID"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Movie Reviews",
+          "item": [
+            {
+              "name": "Create Movie Review",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"movie\": \"MOVIE_ID\",\n  \"title\": \"A Masterpiece of Surreal Storytelling\",\n  \"content\": \"Poor Things is a visually stunning and narratively bold film...\",\n  \"rating\": 9.2,\n  \"reviewerType\": \"CRITIC\",\n  \"reviewerName\": \"Roger Ebert Jr.\",\n  \"reviewerAvatar\": \"https://example.com/reviewer-avatar.jpg\",\n  \"pros\": [\"Exceptional cinematography\", \"Outstanding performance by Emma Stone\"],\n  \"cons\": [\"Might be too surreal for some viewers\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/reviews",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "reviews"]
+                }
+              }
+            },
+            {
+              "name": "Get All Movie Reviews",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/reviews?page=1&limit=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "reviews"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "movieId",
+                      "value": "MOVIE_ID",
+                      "disabled": true
+                    },
+                    {
+                      "key": "reviewerType",
+                      "value": "CRITIC",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Movie Review",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rating\": 9.5,\n  \"content\": \"Updated review content...\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/reviews/REVIEW_ID",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "reviews", "REVIEW_ID"]
+                }
+              }
+            },
+            {
+              "name": "Delete Movie Review",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/reviews/REVIEW_ID",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "content", "reviews", "REVIEW_ID"]
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "event": [
