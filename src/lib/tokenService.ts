@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { IUser } from '@/models/User';
 
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET!;
@@ -50,6 +51,14 @@ export class TokenService {
       accessToken: this.generateAccessToken(user),
       refreshToken: this.generateRefreshToken(user),
     };
+  }
+
+  static generateResetToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  static hashResetToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
   }
 }
 

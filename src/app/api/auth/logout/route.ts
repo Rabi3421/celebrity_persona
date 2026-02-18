@@ -1,55 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
+import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
 
-export async function POST(request: NextRequest) {
+async function logoutHandler(request: AuthenticatedRequest) {
   try {
-    // Get refresh token from cookies
-    const refreshToken = request.cookies.get('refreshToken')?.value;
+    const { refreshToken, logoutAll } = await request.json();
 
-    if (refreshToken) {
-      await dbConnect();
-      
-      // Remove refresh token from user's tokens array
-      await User.updateMany(
-        { refreshTokens: refreshToken },
-        { $pull: { refreshTokens: refreshToken } }
+    if (!refreshToken) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Refresh token is required'
+        },
+        { status: 400 }
       );
     }
 
-    // Create response
-    const response = NextResponse.json(
-      { message: 'Logged out successfully' },
+    await dbConnect();
+
+    // Find user
+    const user = await User.findById(request.user?.userId);
+    if (!user) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'User not found'
+        },
+        { status: 404 }
+      );
+    }
+
+    if (logoutAll) {
+      // Logout from all devices - clear all refresh tokens
+      user.refreshTokens = [];
+    } else {
+      // Logout from current device only - remove specific refresh token
+      user.refreshTokens = user.refreshTokens.filter(token => token !== refreshToken);
+    }
+
+    await user.save();
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: logoutAll ? 'Logged out from all devices successfully' : 'Logged out successfully'
+      },
       { status: 200 }
     );
 
-    // Clear refresh token cookie
-    response.cookies.set('refreshToken', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 0,
-      path: '/',
-    });
-
-    return response;
   } catch (error: any) {
     console.error('Logout error:', error);
-    
-    // Still clear the cookie even if database operation fails
-    const response = NextResponse.json(
-      { message: 'Logged out successfully' },
-      { status: 200 }
+    return NextResponse.json(
+      {
+        success: false,
+        message: error.message || 'Failed to logout'
+      },
+      { status: 500 }
     );
-
-    response.cookies.set('refreshToken', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 0,
-      path: '/',
-    });
-
-    return response;
   }
 }
+
+export const POST = withAuth(logoutHandler, ['user', 'admin', 'superadmin']);

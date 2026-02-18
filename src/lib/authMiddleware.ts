@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import TokenService from '@/lib/tokenService';
+import { TokenService } from '@/lib/tokenService';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 
@@ -14,34 +14,45 @@ export interface AuthenticatedRequest extends NextRequest {
 export function authMiddleware(requiredRoles?: string[]) {
   return async (request: AuthenticatedRequest) => {
     try {
-      // Get refresh token from cookies for authentication
-      const refreshToken = request.cookies.get('refreshToken')?.value;
-
-      if (!refreshToken) {
+      // Get access token from Authorization header
+      const authHeader = request.headers.get('Authorization');
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return NextResponse.json(
-          { message: 'Authentication required' },
+          { 
+            success: false,
+            message: 'Access token required. Please provide token in Authorization header.' 
+          },
           { status: 401 }
         );
       }
 
-      // Verify refresh token
+      const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+      // Verify access token
       let decoded;
       try {
-        decoded = TokenService.verifyRefreshToken(refreshToken);
+        decoded = TokenService.verifyAccessToken(accessToken);
       } catch (error) {
         return NextResponse.json(
-          { message: 'Invalid token' },
+          { 
+            success: false,
+            message: 'Invalid or expired access token' 
+          },
           { status: 401 }
         );
       }
 
       await dbConnect();
 
-      // Find user and check if refresh token exists
+      // Find user
       const user = await User.findById(decoded.userId);
-      if (!user || !user.refreshTokens.includes(refreshToken)) {
+      if (!user) {
         return NextResponse.json(
-          { message: 'Invalid token' },
+          { 
+            success: false,
+            message: 'User not found' 
+          },
           { status: 401 }
         );
       }
@@ -49,62 +60,53 @@ export function authMiddleware(requiredRoles?: string[]) {
       // Check if user is active
       if (!user.isActive) {
         return NextResponse.json(
-          { message: 'Account is deactivated' },
-          { status: 403 }
+          { 
+            success: false,
+            message: 'Account is deactivated' 
+          },
+          { status: 401 }
         );
       }
 
-      // Check role permissions
+      // Check role-based access
       if (requiredRoles && !requiredRoles.includes(user.role)) {
         return NextResponse.json(
-          { message: 'Insufficient permissions' },
+          { 
+            success: false,
+            message: `Access denied. Required role: ${requiredRoles.join(' or ')}` 
+          },
           { status: 403 }
         );
       }
 
-      // Add user info to request
+      // Attach user to request
       request.user = {
-        userId: user._id.toString(),
+        userId: user._id,
         email: user.email,
         role: user.role,
       };
 
-      return null; // Continue to the actual handler
+      return null; // Continue to next handler
     } catch (error) {
       console.error('Auth middleware error:', error);
       return NextResponse.json(
-        { message: 'Internal server error' },
+        { 
+          success: false,
+          message: 'Authentication error' 
+        },
         { status: 500 }
       );
     }
   };
 }
 
-// Helper function to create role-based middleware
-export const requireAuth = authMiddleware();
-export const requireAdmin = authMiddleware(['admin', 'superadmin']);
-export const requireSuperAdmin = authMiddleware(['superadmin']);
-
-// Utility function to get current user from request
-export async function getCurrentUser(request: NextRequest) {
-  try {
-    const refreshToken = request.cookies.get('refreshToken')?.value;
-    if (!refreshToken) return null;
-
-    const decoded = TokenService.verifyRefreshToken(refreshToken);
-    await dbConnect();
-    
-    const user = await User.findById(decoded.userId);
-    if (!user || !user.refreshTokens.includes(refreshToken)) return null;
-
-    return {
-      _id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      isActive: user.isActive,
-    };
-  } catch (error) {
-    return null;
-  }
+// Helper to create auth wrapper for API handlers
+export function withAuth(handler: Function, requiredRoles?: string[]) {
+  return async (request: AuthenticatedRequest, context?: any) => {
+    const authResult = await authMiddleware(requiredRoles)(request);
+    if (authResult) {
+      return authResult; // Return error response
+    }
+    return handler(request, context); // Continue to handler
+  };
 }

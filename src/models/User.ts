@@ -9,6 +9,9 @@ export interface IUser extends Document {
   role: 'user' | 'admin' | 'superadmin';
   isActive: boolean;
   refreshTokens: string[];
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
+  lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -54,6 +57,15 @@ const userSchema = new Schema<IUser>(
         type: String,
       },
     ],
+    resetPasswordToken: {
+      type: String,
+    },
+    resetPasswordExpires: {
+      type: Date,
+    },
+    lastLogin: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
