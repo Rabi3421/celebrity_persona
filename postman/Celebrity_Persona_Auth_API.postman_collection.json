@@ -830,7 +830,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Emma Stone\",\n  \"realName\": \"Emily Jean Stone\",\n  \"bio\": \"American actress known for her roles in comedy and drama films\",\n  \"dateOfBirth\": \"1988-11-06\",\n  \"nationality\": \"American\",\n  \"category\": \"ACTOR\",\n  \"profilePicture\": \"https://example.com/emma-stone.jpg\",\n  \"profilePictureAlt\": \"Emma Stone portrait\",\n  \"socialMedia\": {\n    \"instagram\": \"emmastone\",\n    \"twitter\": \"emmastone\"\n  },\n  \"knownFor\": [\"La La Land\", \"Easy A\", \"Cruella\"],\n  \"awards\": [\"Academy Award for Best Actress\"]\n}"
+                  "raw": "{\n  \"name\": \"Ranveer Singh\",\n  \"born\": \"6 July 1985\",\n  \"birthPlace\": \"Bombay, Maharashtra, India\",\n  \"age\": 40,\n  \"nationality\": \"Indian\",\n  \"citizenship\": [\"Indian\"],\n  \"occupation\": [\"Actor\"],\n  \"yearsActive\": \"2010–Present\",\n  \"height\": \"5'10\\\" (178 cm)\",\n  \"weight\": \"75.0 kg (165.35 lbs)\",\n  \"bodyMeasurements\": \"Chest: 42 inches  Waist: 32 inches  Biceps: 16 inches\",\n  \"eyeColor\": \"Dark Brown\",\n  \"hairColor\": \"Black\",\n  \"spouse\": \"Deepika Padukone (married in 2018)\",\n  \"children\": [\"Dua Padukone Singh\"],\n  \"parents\": [\"Father: Jagjit Singh Bhavnani (Businessman)  Mother: Anju Bhavnani\"],\n  \"education\": [\"School: Learners Academy\", \"Mumbai  College: Indiana University\"],\n  \"netWorth\": \"₹300–350 Crore\",\n  \"introduction\": \"Ranveer Singh is one of the most electrifying performers in Indian cinema...\",\n  \"earlyLife\": \"Born on 6 July 1985 in Mumbai, Maharashtra, India...\",\n  \"career\": \"Ranveer Singh officially entered Bollywood in 2010...\",\n  \"personalLife\": \"Ranveer Singh was born into a close-knit Sindhi family...\",\n  \"socialMedia\": {\n    \"instagram\": \"https://www.instagram.com/ranveersingh/\",\n    \"twitter\": \"https://twitter.com/RanveerOfficial\",\n    \"facebook\": \"https://www.facebook.com/RanveerSinghOfficial\"\n  },\n  \"tags\": [\"Ranveer Singh\", \"Bollywood Actor\", \"Indian Actor\"],\n  \"categories\": [\"Indian Actor\", \"Bollywood Actor\", \"Film Actor\"],\n  \"status\": \"published\",\n  \"isActive\": true,\n  \"isFeatured\": true\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api/content/celebrities",
@@ -864,12 +864,32 @@
                     },
                     {
                       "key": "category",
-                      "value": "ACTOR",
+                      "value": "Indian Actor",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "published",
+                      "disabled": true
+                    },
+                    {
+                      "key": "nationality",
+                      "value": "Indian",
                       "disabled": true
                     },
                     {
                       "key": "search",
-                      "value": "emma",
+                      "value": "ranveer",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sortBy",
+                      "value": "popularityScore",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sortOrder",
+                      "value": "desc",
                       "disabled": true
                     }
                   ]
@@ -909,7 +929,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"bio\": \"Updated bio for Emma Stone\",\n  \"knownFor\": [\"La La Land\", \"Easy A\", \"Cruella\", \"Poor Things\"]\n}"
+                  "raw": "{\n  \"introduction\": \"Updated introduction for Ranveer Singh\",\n  \"career\": \"Updated career information...\",\n  \"popularityScore\": 95,\n  \"isFeatured\": true,\n  \"tags\": [\"Ranveer Singh\", \"Bollywood Actor\", \"Gully Boy\", \"83\"]\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api/content/celebrities/CELEBRITY_ID",

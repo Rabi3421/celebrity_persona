@@ -10,6 +10,7 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
@@ -24,6 +25,9 @@ export default function Header() {
       const target = event.target as Element;
       if (!target.closest('.user-menu-container')) {
         setShowUserMenu(false);
+      }
+      if (!target.closest('.more-menu-container')) {
+        setShowMore(false);
       }
     };
 
@@ -45,12 +49,12 @@ export default function Header() {
 
   const getNavLinks = () => {
     const baseLinks = [
-      { id: 'nav_home', label: 'Home', href: '/homepage' },
       { id: 'nav_profiles', label: 'Celebrity Profiles', href: '/celebrity-profiles' },
       { id: 'nav_fashion', label: 'Fashion Gallery', href: '/fashion-gallery' },
       { id: 'nav_movies', label: 'Movie Details', href: '/movie-details' },
+      { id: 'nav_upcoming', label: 'Upcoming Movies', href: '/upcoming-movies' },
       { id: 'nav_news', label: 'Celebrity News', href: '/celebrity-news' },
-      { id: 'nav_reviews', label: 'Reviews', href: '/reviews' },
+      { id: 'nav_reviews', label: 'Movie Reviews', href: '/reviews' },
     ];
 
     if (isAuthenticated && user) {
@@ -67,6 +71,15 @@ export default function Header() {
   };
 
   const navLinks = getNavLinks();
+
+  // Keep these as primary links in the header (logo still links home)
+  const primaryOrder = ['nav_profiles', 'nav_fashion', 'nav_news'];
+  const primaryLinks = primaryOrder
+    .map((id) => navLinks.find((l) => l.id === id))
+    .filter(Boolean);
+
+  // Everything else goes into the More dropdown (including role links)
+  const moreLinks = navLinks.filter((l) => !primaryOrder.includes(l.id));
 
   return (
     <header
@@ -87,10 +100,10 @@ export default function Header() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-8">
-          {navLinks?.map((link) => (
+          {primaryLinks.map((link) => (
             <Link
               key={link?.id}
-              href={link?.href}
+              href={link?.href ?? '/'}
               className={`relative text-sm font-medium transition-colors ${
                 pathname === link?.href
                   ? 'text-primary' :'text-neutral-300 hover:text-white'
@@ -102,13 +115,35 @@ export default function Header() {
               )}
             </Link>
           ))}
-        </nav>
 
-        {/* CTA Button */}
-        <button className="hidden md:flex items-center gap-2 glass-card px-5 py-2.5 rounded-full hover:glow-gold transition-all">
-          <Icon name="ArrowUpTrayIcon" size={18} className="text-primary" />
-          <span className="text-sm font-medium text-white">Upload Outfit</span>
-        </button>
+          {/* More dropdown for remaining links */}
+          {moreLinks.length > 0 && (
+            <div className="relative more-menu-container">
+              <button
+                onClick={() => setShowMore(!showMore)}
+                className="relative text-sm font-medium text-neutral-300 hover:text-white flex items-center gap-2"
+              >
+                More
+                <Icon name="ChevronDownIcon" size={14} className="text-neutral-300" />
+              </button>
+
+              {showMore && (
+                <div className="absolute mt-2 right-0 w-48 glass-card rounded-2xl p-2 space-y-1">
+                  {moreLinks.map((link) => (
+                    <Link
+                      key={link?.id}
+                      href={link?.href ?? '/'}
+                      onClick={() => setShowMore(false)}
+                      className={`block px-3 py-2 text-sm ${pathname === link?.href ? 'text-primary' : 'text-neutral-300 hover:text-white'}`}
+                    >
+                      {link?.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </nav>
 
         {/* Auth Buttons - Desktop */}
         {isAuthenticated && user ? (
@@ -160,10 +195,10 @@ export default function Header() {
               Login
             </Link>
             <Link
-              href="/signup"
+              href="/login"
               className="bg-primary text-black px-5 py-2.5 rounded-full text-sm font-medium hover:glow-gold transition-all"
             >
-              Sign Up
+              Upload Outfit
             </Link>
           </div>
         )}
@@ -186,7 +221,7 @@ export default function Header() {
           {navLinks?.map((link) => (
             <Link
               key={link?.id}
-              href={link?.href}
+              href={link?.href ?? '/'}
               onClick={() => setIsMobileMenuOpen(false)}
               className={`block text-base font-medium transition-colors ${
                 pathname === link?.href
@@ -197,7 +232,7 @@ export default function Header() {
             </Link>
           ))}
           <div className="pt-4 border-t border-white/10 space-y-3">
-            {isAuthenticated && user ? (
+              {isAuthenticated && user ? (
               <>
                 <div className="px-3 py-2 bg-white/5 rounded-lg">
                   <p className="text-sm font-medium text-white">{user.name}</p>
@@ -221,11 +256,11 @@ export default function Header() {
                   Login
                 </Link>
                 <Link
-                  href="/signup"
+                  href="/login"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="block w-full text-center bg-primary text-black px-5 py-3 rounded-full text-sm font-medium hover:glow-gold transition-all"
                 >
-                  Sign Up
+                  Upload Outfit
                 </Link>
               </>
             )}

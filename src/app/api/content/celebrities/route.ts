@@ -3,6 +3,14 @@ import dbConnect from '@/lib/mongodb';
 import Celebrity from '@/models/Celebrity';
 import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
 
+// Helper function to generate slug from name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 // GET all celebrities
 async function getCelebrities(request: AuthenticatedRequest) {
   try {
@@ -10,36 +18,59 @@ async function getCelebrities(request: AuthenticatedRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const category = searchParams.get('category');
-    const search = searchParams.get('search');
+    const status = searchParams.get('status');
+    const nationality = searchParams.get('nationality');
     const isActive = searchParams.get('isActive');
+    const isFeatured = searchParams.get('isFeatured');
+    const search = searchParams.get('search');
+    const sortBy = searchParams.get('sortBy') || 'updatedAt';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
 
     await dbConnect();
 
     // Build query
     const query: any = {};
 
-    if (category && ['movie', 'music', 'sports', 'fashion', 'tv', 'other'].includes(category)) {
-      query.category = category;
+    if (category) {
+      query.categories = { $in: [category] };
+    }
+
+    if (status && ['draft', 'published', 'archived'].includes(status)) {
+      query.status = status;
+    }
+
+    if (nationality) {
+      query.nationality = { $regex: nationality, $options: 'i' };
     }
 
     if (typeof isActive === 'string') {
       query.isActive = isActive === 'true';
     }
 
+    if (typeof isFeatured === 'string') {
+      query.isFeatured = isFeatured === 'true';
+    }
+
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { profession: { $regex: search, $options: 'i' } },
-        { bio: { $regex: search, $options: 'i' } }
+        { introduction: { $regex: search, $options: 'i' } },
+        { tags: { $in: [new RegExp(search, 'i')] } },
+        { categories: { $in: [new RegExp(search, 'i')] } }
       ];
     }
+
+    // Sort object
+    const sort: any = {};
+    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
     // Get celebrities with pagination
     const skip = (page - 1) * limit;
     const celebrities = await Celebrity.find(query)
-      .sort({ createdAt: -1 })
+      .sort(sort)
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .select('-__v');
 
     const total = await Celebrity.countDocuments(query);
 
@@ -75,29 +106,14 @@ async function getCelebrities(request: AuthenticatedRequest) {
 // CREATE new celebrity
 async function createCelebrity(request: AuthenticatedRequest) {
   try {
-    const {
-      name,
-      profession,
-      bio,
-      birthDate,
-      birthPlace,
-      nationality,
-      height,
-      awards,
-      socialMedia,
-      image,
-      imageAlt,
-      latestProject,
-      netWorth,
-      category
-    } = await request.json();
+    const data = await request.json();
 
     // Validate required fields
-    if (!name || !profession || !bio || !image || !imageAlt || !latestProject || !category) {
+    if (!data.name) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Name, profession, bio, image, imageAlt, latestProject, and category are required'
+          message: 'Celebrity name is required'
         },
         { status: 400 }
       );
@@ -105,37 +121,94 @@ async function createCelebrity(request: AuthenticatedRequest) {
 
     await dbConnect();
 
-    // Check if celebrity already exists
-    const existingCelebrity = await Celebrity.findOne({ name: { $regex: `^${name}$`, $options: 'i' } });
-    if (existingCelebrity) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Celebrity with this name already exists'
-        },
-        { status: 409 }
-      );
+    // Generate slug from name if not provided
+    let slug = data.slug || generateSlug(data.name);
+    
+    // Ensure slug is unique
+    let counter = 1;
+    let originalSlug = slug;
+    while (await Celebrity.findOne({ slug })) {
+      slug = `${originalSlug}-${counter}`;
+      counter++;
     }
 
-    // Create celebrity
-    const celebrity = new Celebrity({
-      name,
-      profession,
-      bio,
-      birthDate: birthDate ? new Date(birthDate) : undefined,
-      birthPlace,
-      nationality,
-      height,
-      awards: awards || [],
-      socialMedia: socialMedia || {},
-      image,
-      imageAlt,
-      latestProject,
-      netWorth,
-      category,
-      isActive: true,
-    });
+    // Create celebrity with comprehensive data structure
+    const celebrityData = {
+      name: data.name,
+      slug,
+      born: data.born || '',
+      birthPlace: data.birthPlace || '',
+      died: data.died || '',
+      age: data.age || 0,
+      nationality: data.nationality || '',
+      citizenship: Array.isArray(data.citizenship) ? data.citizenship : [],
+      occupation: Array.isArray(data.occupation) ? data.occupation : [],
+      yearsActive: data.yearsActive || '',
+      height: data.height || '',
+      weight: data.weight || '',
+      bodyMeasurements: data.bodyMeasurements || '',
+      eyeColor: data.eyeColor || '',
+      hairColor: data.hairColor || '',
+      spouse: data.spouse || '',
+      children: Array.isArray(data.children) ? data.children : [],
+      parents: Array.isArray(data.parents) ? data.parents : [],
+      siblings: Array.isArray(data.siblings) ? data.siblings : [],
+      relatives: Array.isArray(data.relatives) ? data.relatives : [],
+      education: Array.isArray(data.education) ? data.education : [],
+      netWorth: data.netWorth || '',
+      introduction: data.introduction || '',
+      earlyLife: data.earlyLife || '',
+      career: data.career || '',
+      personalLife: data.personalLife || '',
+      achievements: Array.isArray(data.achievements) ? data.achievements : [],
+      controversies: Array.isArray(data.controversies) ? data.controversies : [],
+      philanthropy: Array.isArray(data.philanthropy) ? data.philanthropy : [],
+      trivia: Array.isArray(data.trivia) ? data.trivia : [],
+      works: Array.isArray(data.works) ? data.works : [],
+      movies: Array.isArray(data.movies) ? data.movies : [],
+      quotes: Array.isArray(data.quotes) ? data.quotes : [],
+      relatedCelebrities: Array.isArray(data.relatedCelebrities) ? data.relatedCelebrities : [],
+      newsArticles: Array.isArray(data.newsArticles) ? data.newsArticles : [],
+      socialMedia: {
+        instagram: data.socialMedia?.instagram || '',
+        twitter: data.socialMedia?.twitter || '',
+        facebook: data.socialMedia?.facebook || '',
+        youtube: data.socialMedia?.youtube || '',
+        tiktok: data.socialMedia?.tiktok || '',
+        website: data.socialMedia?.website || ''
+      },
+      seo: data.seo || {
+        metaTitle: `${data.name} Biography`,
+        metaDescription: `Learn about ${data.name}'s biography, career, and achievements`,
+        metaKeywords: [data.name, 'biography', 'celebrity'],
+        ogImages: [],
+        tags: [],
+        alternateLangs: [],
+        canonicalAlternates: [],
+        relatedTopics: []
+      },
+      popularity: data.popularity || 0,
+      popularityScore: data.popularityScore || 0,
+      viewCount: data.viewCount || 0,
+      shareCount: data.shareCount || 0,
+      searchRank: data.searchRank || 0,
+      trendingScore: data.trendingScore || 0,
+      isActive: data.isActive !== undefined ? data.isActive : true,
+      isFeatured: data.isFeatured || false,
+      isVerified: data.isVerified || false,
+      contentQuality: data.contentQuality || 'draft',
+      tags: Array.isArray(data.tags) ? data.tags : [],
+      categories: Array.isArray(data.categories) ? data.categories : [],
+      language: data.language || 'en',
+      profileImage: data.profileImage || '',
+      coverImage: data.coverImage || '',
+      galleryImages: Array.isArray(data.galleryImages) ? data.galleryImages : [],
+      status: data.status || 'draft',
+      isScheduled: data.isScheduled || false,
+      publishAt: data.publishAt ? new Date(data.publishAt) : null
+    };
 
+    const celebrity = new Celebrity(celebrityData);
     await celebrity.save();
 
     return NextResponse.json(
