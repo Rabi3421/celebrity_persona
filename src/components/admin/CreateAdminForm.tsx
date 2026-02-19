@@ -9,7 +9,11 @@ interface FormErrors {
   password?: string;
 }
 
-export default function CreateAdminForm() {
+interface CreateAdminFormProps {
+  onAdminCreated?: () => void;
+}
+
+export default function CreateAdminForm({ onAdminCreated }: CreateAdminFormProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,7 +22,7 @@ export default function CreateAdminForm() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const { user } = useAuth();
+  const { user, authHeaders } = useAuth();
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -57,12 +61,12 @@ export default function CreateAdminForm() {
       setIsLoading(true);
       
       try {
-        const response = await fetch('/api/admin/create', {
+        const response = await fetch('/api/superadmin/admins/create', {
           method: 'POST',
           headers: {
+            ...authHeaders(),
             'Content-Type': 'application/json',
           },
-          credentials: 'include',
           body: JSON.stringify({ name, email, password }),
         });
 
@@ -73,6 +77,7 @@ export default function CreateAdminForm() {
           setName('');
           setEmail('');
           setPassword('');
+          onAdminCreated?.();
         } else {
           setErrorMessage(data.message || 'Failed to create admin account');
         }
