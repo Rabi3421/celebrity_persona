@@ -103,7 +103,7 @@ export default function Header() {
           {primaryLinks.map((link) => (
             <Link
               key={link?.id}
-              href={link?.href}
+              href={link?.href ?? '/'}
               className={`relative text-sm font-medium transition-colors ${
                 pathname === link?.href
                   ? 'text-primary' :'text-neutral-300 hover:text-white'
@@ -132,7 +132,7 @@ export default function Header() {
                   {moreLinks.map((link) => (
                     <Link
                       key={link?.id}
-                      href={link?.href}
+                      href={link?.href ?? '/'}
                       onClick={() => setShowMore(false)}
                       className={`block px-3 py-2 text-sm ${pathname === link?.href ? 'text-primary' : 'text-neutral-300 hover:text-white'}`}
                     >
@@ -221,7 +221,7 @@ export default function Header() {
           {navLinks?.map((link) => (
             <Link
               key={link?.id}
-              href={link?.href}
+              href={link?.href ?? '/'}
               onClick={() => setIsMobileMenuOpen(false)}
               className={`block text-base font-medium transition-colors ${
                 pathname === link?.href
