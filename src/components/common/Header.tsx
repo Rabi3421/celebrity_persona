@@ -52,6 +52,7 @@ export default function Header() {
       { id: 'nav_profiles', label: 'Celebrity Profiles', href: '/celebrity-profiles' },
       { id: 'nav_fashion', label: 'Fashion Gallery', href: '/fashion-gallery' },
       { id: 'nav_movies', label: 'Movie Details', href: '/movie-details' },
+      { id: 'nav_upcoming', label: 'Upcoming Movies', href: '/upcoming-movies' },
       { id: 'nav_news', label: 'Celebrity News', href: '/celebrity-news' },
       { id: 'nav_reviews', label: 'Movie Reviews', href: '/reviews' },
     ];

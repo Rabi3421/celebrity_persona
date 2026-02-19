@@ -20,7 +20,7 @@ export default function LoginPage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-background pt-32 pb-20">
+      <main className="min-h-screen bg-background flex flex-col pt-20">
         <LoginForm />
       </main>
       <Footer />
