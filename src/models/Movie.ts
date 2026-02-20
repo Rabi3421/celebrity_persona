@@ -1,49 +1,93 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
 
+// ── Sub-document interfaces ───────────────────────────────────────────────────
+
+export interface ICastMember {
+  name: string;
+  role?: string;
+  character?: string;
+  image?: string;
+}
+
+export interface ITicketLink {
+  platform: string;
+  url: string;
+  available: boolean;
+}
+
+export interface IMovieSEO {
+  metaTitle?: string;
+  metaDescription?: string;
+  keywords?: string[];
+}
+
+// ── Main interface ────────────────────────────────────────────────────────────
 export interface IMovie extends Document {
-  _id: string;
   title: string;
   slug: string;
-  description: string;
-  synopsis: string;
-  director: string;
-  genre: string[];
-  releaseDate: Date;
-  duration: string; // e.g., "2h 49min"
-  poster: string;
-  posterAlt: string;
-  backdrop: string;
-  backdropAlt: string;
+  releaseDate?: Date;
+  poster?: string;
+  backdrop?: string;
+  language?: string;
+  originalLanguage?: string;
+  worldwide?: boolean;
+  genre?: string[];
+  director?: string;
+  writers?: string[];
+  producers?: string[];
+  cast?: ICastMember[];
+  synopsis?: string;
+  plotSummary?: string;
+  productionNotes?: string;
+  status?: string;
+  anticipationScore?: number;
+  duration?: number;
+  mpaaRating?: string;
+  regions?: string[];
+  subtitles?: string[];
+  budget?: number;
+  boxOfficeProjection?: number;
+  featured: boolean;
+  images?: string[];
+  studio?: string;
   trailer?: string;
-  cast: {
-    actorId?: string;
-    name: string;
-    character: string;
-    image: string;
-    imageAlt: string;
-  }[];
-  ratings: {
-    imdb: {
-      score: number;
-      votes: string;
-    };
-    rottenTomatoes: {
-      critics: number;
-      audience: number;
-    };
-    aggregated: number;
-  };
-  budget?: string;
-  boxOffice?: string;
-  language: string;
-  country: string;
-  productionCompany: string[];
-  status: 'UPCOMING' | 'IN_THEATERS' | 'STREAMING' | 'COMPLETED';
-  isActive: boolean;
+  ticketLinks?: ITicketLink[];
+  preOrderAvailable?: boolean;
+  seoData?: IMovieSEO;
   createdAt: Date;
   updatedAt: Date;
 }
 
+// ── Sub-schemas ───────────────────────────────────────────────────────────────
+const castSchema = new Schema<ICastMember>(
+  {
+    name:      { type: String, required: true, trim: true },
+    role:      { type: String, trim: true },
+    character: { type: String, trim: true },
+    image:     { type: String, trim: true },
+  },
+  { _id: true }
+);
+
+const ticketLinkSchema = new Schema<ITicketLink>(
+  {
+    platform:  { type: String, required: true, trim: true },
+    url:       { type: String, required: true, trim: true },
+    available: { type: Boolean, default: true },
+  },
+  { _id: true }
+);
+
+const seoDataSchema = new Schema<IMovieSEO>(
+  {
+    metaTitle:       { type: String },
+    metaDescription: { type: String },
+    keywords:        [{ type: String }],
+  },
+  { _id: false }
+);
+
+// ── Main schema ───────────────────────────────────────────────────────────────
 const movieSchema = new Schema<IMovie>(
   {
     title: {
@@ -54,163 +98,63 @@ const movieSchema = new Schema<IMovie>(
     },
     slug: {
       type: String,
-      required: [true, 'Movie slug is required'],
+      required: [true, 'Slug is required'],
       unique: true,
       trim: true,
       lowercase: true,
     },
-    description: {
-      type: String,
-      required: [true, 'Movie description is required'],
-      maxlength: [1000, 'Description cannot exceed 1000 characters'],
-    },
-    synopsis: {
-      type: String,
-      required: [true, 'Movie synopsis is required'],
-      maxlength: [2000, 'Synopsis cannot exceed 2000 characters'],
-    },
-    director: {
-      type: String,
-      required: [true, 'Director is required'],
-      trim: true,
-    },
-    genre: [
-      {
-        type: String,
-        required: true,
-        trim: true,
-      },
-    ],
-    releaseDate: {
-      type: Date,
-      required: [true, 'Release date is required'],
-    },
-    duration: {
-      type: String,
-      required: [true, 'Duration is required'],
-      trim: true,
-    },
-    poster: {
-      type: String,
-      required: [true, 'Movie poster is required'],
-    },
-    posterAlt: {
-      type: String,
-      required: [true, 'Poster alt text is required'],
-    },
-    backdrop: {
-      type: String,
-      required: [true, 'Backdrop image is required'],
-    },
-    backdropAlt: {
-      type: String,
-      required: [true, 'Backdrop alt text is required'],
-    },
-    trailer: {
-      type: String,
-      trim: true,
-    },
-    cast: [
-      {
-        actorId: {
-          type: String,
-          ref: 'Celebrity',
-        },
-        name: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-        character: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-        image: {
-          type: String,
-          required: true,
-        },
-        imageAlt: {
-          type: String,
-          required: true,
-        },
-      },
-    ],
-    ratings: {
-      imdb: {
-        score: {
-          type: Number,
-          min: 0,
-          max: 10,
-        },
-        votes: {
-          type: String,
-          trim: true,
-        },
-      },
-      rottenTomatoes: {
-        critics: {
-          type: Number,
-          min: 0,
-          max: 100,
-        },
-        audience: {
-          type: Number,
-          min: 0,
-          max: 100,
-        },
-      },
-      aggregated: {
-        type: Number,
-        min: 0,
-        max: 100,
-      },
-    },
-    budget: {
-      type: String,
-      trim: true,
-    },
-    boxOffice: {
-      type: String,
-      trim: true,
-    },
-    language: {
-      type: String,
-      required: [true, 'Language is required'],
-      trim: true,
-    },
-    country: {
-      type: String,
-      required: [true, 'Country is required'],
-      trim: true,
-    },
-    productionCompany: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    status: {
-      type: String,
-      enum: ['UPCOMING', 'IN_THEATERS', 'STREAMING', 'COMPLETED'],
-      required: [true, 'Status is required'],
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
+    releaseDate:        { type: Date },
+    poster:             { type: String, trim: true },
+    backdrop:           { type: String, trim: true },
+    language:           { type: String, trim: true },
+    originalLanguage:   { type: String, trim: true },
+    worldwide:          { type: Boolean, default: false },
+    genre:              { type: [String], default: [] },
+    director:           { type: String, trim: true },
+    writers:            { type: [String], default: [] },
+    producers:          { type: [String], default: [] },
+    cast:               { type: [castSchema], default: [] },
+    synopsis:           { type: String },
+    plotSummary:        { type: String },
+    productionNotes:    { type: String },
+    status:             { type: String, trim: true },
+    anticipationScore:  { type: Number, min: 0, max: 10 },
+    duration:           { type: Number },         // minutes
+    mpaaRating:         { type: String, trim: true },
+    regions:            { type: [String], default: [] },
+    subtitles:          { type: [String], default: [] },
+    budget:             { type: Number },
+    boxOfficeProjection:{ type: Number },
+    featured:           { type: Boolean, default: false },
+    images:             { type: [String], default: [] },
+    studio:             { type: String, trim: true },
+    trailer:            { type: String, trim: true },
+    ticketLinks:        { type: [ticketLinkSchema], default: [] },
+    preOrderAvailable:  { type: Boolean, default: false },
+    seoData:            { type: seoDataSchema },
   },
   {
     timestamps: true,
   }
 );
 
-// Indexes for search and filtering
-movieSchema.index({ slug: 1 });
-movieSchema.index({ genre: 1, status: 1 });
+// ── Indexes ───────────────────────────────────────────────────────────────────
 movieSchema.index({ releaseDate: -1 });
-movieSchema.index({ title: 'text', description: 'text', synopsis: 'text' });
+movieSchema.index({ status: 1 });
+movieSchema.index({ featured: 1 });
+movieSchema.index({ genre: 1 });
+movieSchema.index(
+  { title: 'text', synopsis: 'text', director: 'text' },
+  { name: 'movie_text_search' }
+);
 
-const Movie: Model<IMovie> = mongoose.models.Movie || mongoose.model<IMovie>('Movie', movieSchema);
+// Delete cached model in dev so hot-reload always uses the latest schema
+if (process.env.NODE_ENV !== 'production' && mongoose.models.Movie) {
+  delete (mongoose.models as any).Movie;
+}
+
+const Movie: Model<IMovie> =
+  mongoose.models.Movie ||
+  mongoose.model<IMovie>('Movie', movieSchema);
 
 export default Movie;
