@@ -6,17 +6,19 @@ import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 import AllDataAccessSection from './AllDataAccessSection';
+import CelebrityManagementSection from './CelebrityManagementSection';
 import PlatformAnalyticsSection from './PlatformAnalyticsSection';
 import RoleManagementSection from './RoleManagementSection';
 import SuperAdminSettingsSection from './SuperAdminSettingsSection';
 import SystemControlsSection from './SystemControlsSection';
 
-type SectionType = 'overview' | 'roles' | 'data' | 'platform' | 'system' | 'settings';
+type SectionType = 'overview' | 'roles' | 'celebrities' | 'data' | 'platform' | 'system' | 'settings';
 
 const menuItems: { id: SectionType; label: string; icon: string; desc: string }[] = [
   { id: 'overview',  label: 'Overview',           icon: 'Squares2X2Icon',  desc: 'System at a glance'             },
-  { id: 'roles',     label: 'Role Management',    icon: 'KeyIcon',         desc: 'Manage roles & permissions'     },
-  { id: 'data',      label: 'All Data Access',    icon: 'CircleStackIcon', desc: 'Full database access'           },
+  { id: 'roles',       label: 'Role Management',    icon: 'KeyIcon',         desc: 'Manage roles & permissions'     },
+  { id: 'celebrities', label: 'Celebrity Profiles', icon: 'StarIcon',        desc: 'Manage celebrity profiles'       },
+  { id: 'data',        label: 'All Data Access',    icon: 'CircleStackIcon', desc: 'Full database access'           },
   { id: 'platform',  label: 'Platform Analytics', icon: 'PresentationChartLineIcon', desc: 'Deep platform metrics' },
   { id: 'system',    label: 'System Controls',    icon: 'CpuChipIcon',     desc: 'Server & system management'     },
   { id: 'settings',  label: 'SA Settings',        icon: 'AdjustmentsHorizontalIcon', desc: 'Super admin configuration' },
@@ -51,8 +53,9 @@ export default function SuperAdminDashboardInteractive() {
   const renderContent = () => {
     switch (activeSection) {
       case 'overview':  return <OverviewSection />;
-      case 'roles':     return <RoleManagementSection />;
-      case 'data':      return <AllDataAccessSection />;
+      case 'roles':       return <RoleManagementSection />;
+      case 'celebrities': return <CelebrityManagementSection />;
+      case 'data':        return <AllDataAccessSection />;
       case 'platform':  return <PlatformAnalyticsSection />;
       case 'system':    return <SystemControlsSection />;
       case 'settings':  return <SuperAdminSettingsSection />;
