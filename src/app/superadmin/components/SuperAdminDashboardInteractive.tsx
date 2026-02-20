@@ -6,17 +6,27 @@ import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 import AllDataAccessSection from './AllDataAccessSection';
+import CelebrityManagementSection from './CelebrityManagementSection';
+import MovieManagementSection from './MovieManagementSection';
+import NewsManagementSection from './NewsManagementSection';
+import OutfitManagementSection from './OutfitManagementSection';
 import PlatformAnalyticsSection from './PlatformAnalyticsSection';
+import ReviewManagementSection from './ReviewManagementSection';
 import RoleManagementSection from './RoleManagementSection';
 import SuperAdminSettingsSection from './SuperAdminSettingsSection';
 import SystemControlsSection from './SystemControlsSection';
 
-type SectionType = 'overview' | 'roles' | 'data' | 'platform' | 'system' | 'settings';
+type SectionType = 'overview' | 'roles' | 'celebrities' | 'outfits' | 'news' | 'movies' | 'reviews' | 'data' | 'platform' | 'system' | 'settings';
 
 const menuItems: { id: SectionType; label: string; icon: string; desc: string }[] = [
   { id: 'overview',  label: 'Overview',           icon: 'Squares2X2Icon',  desc: 'System at a glance'             },
-  { id: 'roles',     label: 'Role Management',    icon: 'KeyIcon',         desc: 'Manage roles & permissions'     },
-  { id: 'data',      label: 'All Data Access',    icon: 'CircleStackIcon', desc: 'Full database access'           },
+  { id: 'roles',       label: 'Role Management',    icon: 'KeyIcon',         desc: 'Manage roles & permissions'     },
+  { id: 'celebrities', label: 'Celebrity Profiles', icon: 'StarIcon',        desc: 'Manage celebrity profiles'       },
+  { id: 'outfits',     label: 'Celebrity Outfits', icon: 'SparklesIcon',    desc: 'Manage celebrity outfits'        },
+  { id: 'news',        label: 'Celebrity News',    icon: 'NewspaperIcon',   desc: 'Manage news articles'            },
+  { id: 'movies',      label: 'Upcoming Movies',   icon: 'FilmIcon',        desc: 'Manage movies & releases'        },
+  { id: 'reviews',     label: 'Movie Reviews',     icon: 'DocumentTextIcon', desc: 'Manage movie reviews'           },
+  { id: 'data',        label: 'All Data Access',    icon: 'CircleStackIcon', desc: 'Full database access'           },
   { id: 'platform',  label: 'Platform Analytics', icon: 'PresentationChartLineIcon', desc: 'Deep platform metrics' },
   { id: 'system',    label: 'System Controls',    icon: 'CpuChipIcon',     desc: 'Server & system management'     },
   { id: 'settings',  label: 'SA Settings',        icon: 'AdjustmentsHorizontalIcon', desc: 'Super admin configuration' },
@@ -51,8 +61,13 @@ export default function SuperAdminDashboardInteractive() {
   const renderContent = () => {
     switch (activeSection) {
       case 'overview':  return <OverviewSection />;
-      case 'roles':     return <RoleManagementSection />;
-      case 'data':      return <AllDataAccessSection />;
+      case 'roles':       return <RoleManagementSection />;
+      case 'celebrities': return <CelebrityManagementSection />;
+      case 'outfits':     return <OutfitManagementSection />;
+      case 'news':        return <NewsManagementSection />;
+      case 'movies':      return <MovieManagementSection />;
+      case 'reviews':     return <ReviewManagementSection />;
+      case 'data':        return <AllDataAccessSection />;
       case 'platform':  return <PlatformAnalyticsSection />;
       case 'system':    return <SystemControlsSection />;
       case 'settings':  return <SuperAdminSettingsSection />;
@@ -75,21 +90,7 @@ export default function SuperAdminDashboardInteractive() {
           </Link>
         </div>
 
-        {/* Super Admin user card */}
-        {!collapsed && (
-          <div className="mx-4 mt-5 p-4 rounded-2xl bg-white/5 border border-yellow-500/20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center shrink-0">
-                <Icon name="StarIcon" size={18} className="text-black" />
-              </div>
-              <div className="overflow-hidden">
-                <p className="text-white text-sm font-semibold truncate">{user?.name}</p>
-                <p className="text-neutral-400 text-xs truncate">{user?.email}</p>
-                <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">Super Admin</span>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Super Admin user card removed from sidebar; name/email displayed in header */}
         {collapsed && (
           <div className="flex justify-center mt-4">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center">
@@ -157,12 +158,17 @@ export default function SuperAdminDashboardInteractive() {
             <h1 className="font-playfair text-2xl font-bold text-white">{active.label}</h1>
             <p className="text-neutral-400 text-sm">{active.desc}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-neutral-500 hidden md:block">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </span>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center">
-              <Icon name="StarIcon" size={16} className="text-black" />
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex flex-col text-left max-w-[220px]">
+                <span className="text-sm text-white font-semibold truncate">{user?.name}</span>
+                <span className="text-xs text-neutral-400 truncate hidden md:block">{user?.email}</span>
+                <span className="text-xs text-neutral-500 truncate hidden md:block">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              </div>
+
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center">
+                <Icon name="StarIcon" size={16} className="text-black" />
+              </div>
             </div>
           </div>
         </div>

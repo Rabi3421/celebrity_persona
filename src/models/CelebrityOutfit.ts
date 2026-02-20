@@ -1,135 +1,221 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
 
+// ── SEO sub-document ──────────────────────────────────────────────────────────
+export interface IOutfitSEO {
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string[];
+  canonicalUrl?: string;
+  noindex?: boolean;
+  nofollow?: boolean;
+  robots?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogType?: string;
+  ogSiteName?: string;
+  ogUrl?: string;
+  ogImages?: string[];
+  ogLocale?: string;
+  twitterCard?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  twitterSite?: string;
+  twitterCreator?: string;
+  schemaType?: string;
+  publishedTime?: string;
+  modifiedTime?: string;
+  authorName?: string;
+  authorUrl?: string;
+  tags?: string[];
+  section?: string;
+  alternateLangs?: string[];
+  prevUrl?: string;
+  nextUrl?: string;
+  canonicalAlternates?: string[];
+  focusKeyword?: string;
+  structuredDataDepth?: string;
+  contentScore?: number;
+  readabilityScore?: number;
+  relatedTopics?: string[];
+  searchVolume?: number;
+}
+
+// ── Main interface ────────────────────────────────────────────────────────────
 export interface ICelebrityOutfit extends Document {
   _id: string;
-  celebrityId: string;
-  celebrityName: string;
   title: string;
-  description: string;
-  occasion: 'RED CARPET' | 'AIRPORT' | 'CASUAL' | 'PARTY' | 'FORMAL' | 'STREET STYLE' | 'OTHER';
-  priceRange: '$' | '$$' | '$$$' | '$$$$';
-  image: string;
-  imageAlt: string;
-  outfitItems: {
-    type: string; // e.g., "Jacket", "Dress", "Shoes"
-    brand?: string;
-    price?: string;
-    buyingUrl?: string;
-    description?: string;
-  }[];
-  tags: string[];
-  eventDate?: Date;
-  eventLocation?: string;
-  views: number;
-  likes: number;
+  slug: string;
+  celebrity: mongoose.Types.ObjectId;
+  images: string[];
+  event?: string;
+  designer?: string;
+  description?: string;
+  tags?: string[];
+  purchaseLink?: string;
+  price?: string;
+  brand?: string;
+  category?: string;
+  color?: string;
+  size?: string;
   isActive: boolean;
+  isFeatured: boolean;
+  likesCount: number;
+  commentsCount: number;
+  seo?: IOutfitSEO;
   createdAt: Date;
   updatedAt: Date;
 }
 
+// ── SEO sub-schema ────────────────────────────────────────────────────────────
+const seoSchema = new Schema<IOutfitSEO>(
+  {
+    metaTitle:             { type: String },
+    metaDescription:       { type: String },
+    metaKeywords:          [{ type: String }],
+    canonicalUrl:          { type: String },
+    noindex:               { type: Boolean, default: false },
+    nofollow:              { type: Boolean, default: false },
+    robots:                { type: String, default: 'index,follow' },
+    ogTitle:               { type: String },
+    ogDescription:         { type: String },
+    ogType:                { type: String },
+    ogSiteName:            { type: String },
+    ogUrl:                 { type: String },
+    ogImages:              [{ type: String }],
+    ogLocale:              { type: String },
+    twitterCard:           { type: String },
+    twitterTitle:          { type: String },
+    twitterDescription:    { type: String },
+    twitterImage:          { type: String },
+    twitterSite:           { type: String },
+    twitterCreator:        { type: String },
+    schemaType:            { type: String },
+    publishedTime:         { type: String },
+    modifiedTime:          { type: String },
+    authorName:            { type: String },
+    authorUrl:             { type: String },
+    tags:                  [{ type: String }],
+    section:               { type: String },
+    alternateLangs:        [{ type: String }],
+    prevUrl:               { type: String },
+    nextUrl:               { type: String },
+    canonicalAlternates:   [{ type: String }],
+    focusKeyword:          { type: String },
+    structuredDataDepth:   { type: String },
+    contentScore:          { type: Number },
+    readabilityScore:      { type: Number },
+    relatedTopics:         [{ type: String }],
+    searchVolume:          { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+// ── Main schema ───────────────────────────────────────────────────────────────
 const celebrityOutfitSchema = new Schema<ICelebrityOutfit>(
   {
-    celebrityId: {
-      type: String,
-      required: [true, 'Celebrity ID is required'],
-      ref: 'Celebrity',
-    },
-    celebrityName: {
-      type: String,
-      required: [true, 'Celebrity name is required'],
-      trim: true,
-    },
     title: {
       type: String,
       required: [true, 'Outfit title is required'],
       trim: true,
-      maxlength: [150, 'Title cannot exceed 150 characters'],
+      maxlength: [200, 'Title cannot exceed 200 characters'],
     },
-    description: {
+    slug: {
       type: String,
-      required: [true, 'Outfit description is required'],
-      maxlength: [1000, 'Description cannot exceed 1000 characters'],
+      required: [true, 'Slug is required'],
+      unique: true,
+      trim: true,
+      lowercase: true,
     },
-    occasion: {
-      type: String,
-      enum: ['RED CARPET', 'AIRPORT', 'CASUAL', 'PARTY', 'FORMAL', 'STREET STYLE', 'OTHER'],
-      required: [true, 'Occasion is required'],
+    celebrity: {
+      type: Schema.Types.ObjectId,
+      ref: 'Celebrity',
+      required: [true, 'Celebrity reference is required'],
     },
-    priceRange: {
-      type: String,
-      enum: ['$', '$$', '$$$', '$$$$'],
-      required: [true, 'Price range is required'],
+    images: {
+      type: [String],
+      default: [],
     },
-    image: {
-      type: String,
-      required: [true, 'Outfit image is required'],
-    },
-    imageAlt: {
-      type: String,
-      required: [true, 'Image alt text is required'],
-      maxlength: [200, 'Image alt text cannot exceed 200 characters'],
-    },
-    outfitItems: [
-      {
-        type: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-        brand: {
-          type: String,
-          trim: true,
-        },
-        price: {
-          type: String,
-          trim: true,
-        },
-        buyingUrl: {
-          type: String,
-          trim: true,
-        },
-        description: {
-          type: String,
-          trim: true,
-        },
-      },
-    ],
-    tags: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    eventDate: {
-      type: Date,
-    },
-    eventLocation: {
+    event: {
       type: String,
       trim: true,
     },
-    views: {
-      type: Number,
-      default: 0,
+    designer: {
+      type: String,
+      trim: true,
     },
-    likes: {
-      type: Number,
-      default: 0,
+    description: {
+      type: String,
+    },
+    tags: {
+      type: [String],
+      default: [],
+    },
+    purchaseLink: {
+      type: String,
+      trim: true,
+    },
+    price: {
+      type: String,
+      trim: true,
+    },
+    brand: {
+      type: String,
+      trim: true,
+    },
+    category: {
+      type: String,
+      trim: true,
+    },
+    color: {
+      type: String,
+      trim: true,
+    },
+    size: {
+      type: String,
+      trim: true,
     },
     isActive: {
       type: Boolean,
       default: true,
     },
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+    likesCount: {
+      type: Number,
+      default: 0,
+    },
+    commentsCount: {
+      type: Number,
+      default: 0,
+    },
+    seo: {
+      type: seoSchema,
+    },
   },
   {
     timestamps: true,
+    strictPopulate: false,
   }
 );
 
-// Indexes for search and filtering
-celebrityOutfitSchema.index({ celebrityName: 1, occasion: 1 });
-celebrityOutfitSchema.index({ tags: 1 });
-celebrityOutfitSchema.index({ title: 'text', description: 'text' });
+// ── Indexes ───────────────────────────────────────────────────────────────────
+celebrityOutfitSchema.index({ slug: 1 });
+celebrityOutfitSchema.index({ celebrity: 1 });
+celebrityOutfitSchema.index({ brand: 1 });
+celebrityOutfitSchema.index({ category: 1 });
+celebrityOutfitSchema.index({ isActive: 1, isFeatured: 1 });
+celebrityOutfitSchema.index({ title: 'text', description: 'text', brand: 'text', designer: 'text' });
 
-const CelebrityOutfit: Model<ICelebrityOutfit> = mongoose.models.CelebrityOutfit || mongoose.model<ICelebrityOutfit>('CelebrityOutfit', celebrityOutfitSchema);
+// Delete cached model in dev so hot-reload always uses the latest schema
+if (process.env.NODE_ENV !== 'production' && mongoose.models.CelebrityOutfit) {
+  delete (mongoose.models as any).CelebrityOutfit;
+}
+
+const CelebrityOutfit: Model<ICelebrityOutfit> =
+  mongoose.models.CelebrityOutfit ||
+  mongoose.model<ICelebrityOutfit>('CelebrityOutfit', celebrityOutfitSchema);
 
 export default CelebrityOutfit;

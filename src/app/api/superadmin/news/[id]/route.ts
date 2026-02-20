@@ -1,9 +1,9 @@
-// /api/content/news/[id] — GET / PUT / DELETE (superadmin + admin)
+// /api/superadmin/news/[id] — GET / PUT / DELETE (superadmin only)
 import { NextResponse } from 'next/server';
+import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
 import dbConnect from '@/lib/mongodb';
 import CelebrityNews from '@/models/CelebrityNews';
 import '@/models/Celebrity';
-import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
 
 const ALLOWED_FIELDS = new Set([
   'title', 'slug', 'content', 'excerpt', 'thumbnail', 'author',
@@ -58,13 +58,13 @@ async function handler(request: AuthenticatedRequest, { params }: any) {
 
     return NextResponse.json({ success: false, message: 'Method not allowed' }, { status: 405 });
   } catch (error: any) {
-    console.error('Content news [id] error:', error);
+    console.error('Superadmin news [id] error:', error);
     if (error.code === 11000)
       return NextResponse.json({ success: false, message: 'A news article with this slug already exists' }, { status: 409 });
     return NextResponse.json({ success: false, message: error?.message || 'Server error' }, { status: 500 });
   }
 }
 
-export const GET    = withAuth(handler, ['superadmin', 'admin']);
-export const PUT    = withAuth(handler, ['superadmin', 'admin']);
-export const DELETE = withAuth(handler, ['superadmin', 'admin']);
+export const GET    = withAuth(handler, ['superadmin']);
+export const PUT    = withAuth(handler, ['superadmin']);
+export const DELETE = withAuth(handler, ['superadmin']);

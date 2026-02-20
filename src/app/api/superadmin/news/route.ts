@@ -1,9 +1,9 @@
-// /api/content/news — GET paginated list + POST create (superadmin + admin)
+// /api/superadmin/news — GET paginated list + POST create (superadmin only)
 import { NextResponse } from 'next/server';
+import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
 import dbConnect from '@/lib/mongodb';
 import CelebrityNews from '@/models/CelebrityNews';
-import '@/models/Celebrity'; // ensure Celebrity schema registered for populate
-import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
+import '@/models/Celebrity';
 
 function generateSlug(title: string): string {
   return title
@@ -23,10 +23,10 @@ async function handler(request: AuthenticatedRequest) {
       const { searchParams } = new URL(request.url);
       const page     = Math.max(1, parseInt(searchParams.get('page')  || '1',  10));
       const limit    = Math.min(50, parseInt(searchParams.get('limit') || '20', 10));
-      const q        = (searchParams.get('q') || searchParams.get('search') || '').trim();
+      const q        = (searchParams.get('q') || '').trim();
       const category = searchParams.get('category') || '';
+      const author   = searchParams.get('author')   || '';
       const featured = searchParams.get('featured');
-      const author   = searchParams.get('author') || '';
 
       const filter: Record<string, any> = {};
       if (q) filter.$or = [
@@ -50,20 +50,15 @@ async function handler(request: AuthenticatedRequest) {
           .lean(),
       ]);
 
-      const data = docs.map((d: any) => ({ ...d, id: String(d._id), _id: undefined, __v: undefined }));
+      const data = docs.map((d: any) => {
+        const obj = { ...d, id: String(d._id) };
+        delete obj._id; delete obj.__v;
+        return obj;
+      });
 
       return NextResponse.json({
-        success: true,
-        data: {
-          news: data,
-          pagination: {
-            current: page,
-            pages: Math.ceil(total / limit),
-            total,
-            hasNext: page < Math.ceil(total / limit),
-            hasPrev: page > 1,
-          },
-        },
+        success: true, data, total, page, limit,
+        pages: Math.ceil(total / limit),
       });
     }
 
@@ -75,7 +70,7 @@ async function handler(request: AuthenticatedRequest) {
       }
 
       const { title, content } = body;
-      if (!title?.trim()) return NextResponse.json({ success: false, message: 'title is required' }, { status: 400 });
+      if (!title?.trim())   return NextResponse.json({ success: false, message: 'title is required'   }, { status: 400 });
       if (!content?.trim()) return NextResponse.json({ success: false, message: 'content is required' }, { status: 400 });
 
       let slug = body.slug ? String(body.slug).trim().toLowerCase() : generateSlug(title);
@@ -103,12 +98,12 @@ async function handler(request: AuthenticatedRequest) {
 
     return NextResponse.json({ success: false, message: 'Method not allowed' }, { status: 405 });
   } catch (error: any) {
-    console.error('Content news error:', error);
+    console.error('Superadmin news error:', error);
     if (error.code === 11000)
       return NextResponse.json({ success: false, message: 'A news article with this slug already exists' }, { status: 409 });
     return NextResponse.json({ success: false, message: error?.message || 'Server error' }, { status: 500 });
   }
 }
 
-export const GET  = withAuth(handler, ['superadmin', 'admin']);
-export const POST = withAuth(handler, ['superadmin', 'admin']);
+export const GET  = withAuth(handler, ['superadmin']);
+export const POST = withAuth(handler, ['superadmin']);

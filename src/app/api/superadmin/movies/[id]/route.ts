@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
+import { withAuth } from '@/lib/authMiddleware';
 
 const ALLOWED_FIELDS = [
   'title', 'slug', 'releaseDate', 'poster', 'backdrop',
@@ -12,33 +13,25 @@ const ALLOWED_FIELDS = [
   'trailer', 'ticketLinks', 'preOrderAvailable', 'seoData',
 ];
 
-export async function GET(
-  _request: NextRequest,
+async function getHandler(
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     const { id } = await params;
-
     const movie = await Movie.findById(id).lean();
     if (!movie) {
-      return NextResponse.json(
-        { success: false, error: 'Movie not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Movie not found' }, { status: 404 });
     }
-
     return NextResponse.json({ success: true, data: movie });
   } catch (error) {
-    console.error('[GET /api/content/movies/[id]]', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch movie' },
-      { status: 500 }
-    );
+    console.error('[GET /api/superadmin/movies/[id]]', error);
+    return NextResponse.json({ success: false, error: 'Failed to fetch movie' }, { status: 500 });
   }
 }
 
-export async function PUT(
+async function putHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -54,17 +47,12 @@ export async function PUT(
     }
 
     if (Object.keys(update).length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'No valid fields to update' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'No valid fields to update' }, { status: 400 });
     }
 
     if (update.slug) {
       const clash = await Movie.findOne({ slug: update.slug, _id: { $ne: id } }).lean();
-      if (clash) {
-        update.slug = `${update.slug}-${Date.now()}`;
-      }
+      if (clash) update.slug = `${update.slug}-${Date.now()}`;
     }
 
     const movie = await Movie.findByIdAndUpdate(
@@ -74,44 +62,33 @@ export async function PUT(
     ).lean();
 
     if (!movie) {
-      return NextResponse.json(
-        { success: false, error: 'Movie not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Movie not found' }, { status: 404 });
     }
-
     return NextResponse.json({ success: true, data: movie });
   } catch (error) {
-    console.error('[PUT /api/content/movies/[id]]', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to update movie' },
-      { status: 500 }
-    );
+    console.error('[PUT /api/superadmin/movies/[id]]', error);
+    return NextResponse.json({ success: false, error: 'Failed to update movie' }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  _request: NextRequest,
+async function deleteHandler(
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     const { id } = await params;
-
     const movie = await Movie.findByIdAndDelete(id).lean();
     if (!movie) {
-      return NextResponse.json(
-        { success: false, error: 'Movie not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Movie not found' }, { status: 404 });
     }
-
     return NextResponse.json({ success: true, message: 'Movie deleted successfully' });
   } catch (error) {
-    console.error('[DELETE /api/content/movies/[id]]', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to delete movie' },
-      { status: 500 }
-    );
+    console.error('[DELETE /api/superadmin/movies/[id]]', error);
+    return NextResponse.json({ success: false, error: 'Failed to delete movie' }, { status: 500 });
   }
 }
+
+export const GET    = withAuth(getHandler,    ['superadmin', 'admin']);
+export const PUT    = withAuth(putHandler,    ['superadmin']);
+export const DELETE = withAuth(deleteHandler, ['superadmin']);

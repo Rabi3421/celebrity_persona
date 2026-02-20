@@ -1,111 +1,162 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
 
+// ── SEO sub-document ──────────────────────────────────────────────────────────
+export interface INewsSEO {
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string[];
+  canonicalUrl?: string;
+  noindex?: boolean;
+  nofollow?: boolean;
+  robots?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogType?: string;
+  ogSiteName?: string;
+  ogUrl?: string;
+  ogImages?: string[];
+  ogLocale?: string;
+  twitterCard?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  twitterSite?: string;
+  twitterCreator?: string;
+  schemaType?: string;
+  publishedTime?: string;
+  modifiedTime?: string;
+  authorName?: string;
+  authorUrl?: string;
+  tags?: string[];
+  section?: string;
+  alternateLangs?: string[];
+  prevUrl?: string;
+  nextUrl?: string;
+  canonicalAlternates?: string[];
+  focusKeyword?: string;
+  structuredDataDepth?: string;
+  contentScore?: number;
+  readabilityScore?: number;
+  relatedTopics?: string[];
+  searchVolume?: number;
+}
+
+// ── Main interface ────────────────────────────────────────────────────────────
 export interface ICelebrityNews extends Document {
-  _id: string;
-  headline: string;
+  title: string;
   slug: string;
-  excerpt: string;
   content: string;
-  celebrity: string;
-  celebrityId?: string;
-  author: string;
-  publishDate: Date;
-  category: 'MOVIES' | 'MUSIC' | 'FASHION' | 'LIFESTYLE' | 'AWARDS' | 'RELATIONSHIPS' | 'CAREER' | 'OTHER';
-  thumbnail: string;
-  thumbnailAlt: string;
-  readTime: string;
-  tags: string[];
-  views: number;
-  likes: number;
-  isPublished: boolean;
-  isFeatured: boolean;
+  excerpt?: string;
+  thumbnail?: string;
+  author?: string;
+  category?: string;
+  celebrity?: mongoose.Types.ObjectId | null;
+  tags?: string[];
+  publishDate?: Date;
+  featured: boolean;
+  seo?: INewsSEO;
   createdAt: Date;
   updatedAt: Date;
 }
 
+// ── SEO sub-schema ────────────────────────────────────────────────────────────
+const seoSchema = new Schema<INewsSEO>(
+  {
+    metaTitle:           { type: String },
+    metaDescription:     { type: String },
+    metaKeywords:        [{ type: String }],
+    canonicalUrl:        { type: String },
+    noindex:             { type: Boolean, default: false },
+    nofollow:            { type: Boolean, default: false },
+    robots:              { type: String, default: 'index,follow' },
+    ogTitle:             { type: String },
+    ogDescription:       { type: String },
+    ogType:              { type: String },
+    ogSiteName:          { type: String },
+    ogUrl:               { type: String },
+    ogImages:            [{ type: String }],
+    ogLocale:            { type: String },
+    twitterCard:         { type: String },
+    twitterTitle:        { type: String },
+    twitterDescription:  { type: String },
+    twitterImage:        { type: String },
+    twitterSite:         { type: String },
+    twitterCreator:      { type: String },
+    schemaType:          { type: String },
+    publishedTime:       { type: String },
+    modifiedTime:        { type: String },
+    authorName:          { type: String },
+    authorUrl:           { type: String },
+    tags:                [{ type: String }],
+    section:             { type: String },
+    alternateLangs:      [{ type: String }],
+    prevUrl:             { type: String },
+    nextUrl:             { type: String },
+    canonicalAlternates: [{ type: String }],
+    focusKeyword:        { type: String },
+    structuredDataDepth: { type: String },
+    contentScore:        { type: Number },
+    readabilityScore:    { type: Number },
+    relatedTopics:       [{ type: String }],
+    searchVolume:        { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+// ── Main schema ───────────────────────────────────────────────────────────────
 const celebrityNewsSchema = new Schema<ICelebrityNews>(
   {
-    headline: {
+    title: {
       type: String,
-      required: [true, 'News headline is required'],
+      required: [true, 'News title is required'],
       trim: true,
-      maxlength: [200, 'Headline cannot exceed 200 characters'],
+      maxlength: [300, 'Title cannot exceed 300 characters'],
     },
     slug: {
       type: String,
-      required: [true, 'News slug is required'],
+      required: [true, 'Slug is required'],
       unique: true,
       trim: true,
       lowercase: true,
     },
-    excerpt: {
-      type: String,
-      required: [true, 'News excerpt is required'],
-      maxlength: [500, 'Excerpt cannot exceed 500 characters'],
-    },
     content: {
       type: String,
-      required: [true, 'News content is required'],
-      minlength: [100, 'Content must be at least 100 characters'],
+      required: [true, 'Content is required'],
     },
-    celebrity: {
+    excerpt: {
       type: String,
-      required: [true, 'Celebrity name is required'],
       trim: true,
-    },
-    celebrityId: {
-      type: String,
-      ref: 'Celebrity',
-    },
-    author: {
-      type: String,
-      required: [true, 'Author name is required'],
-      trim: true,
-    },
-    publishDate: {
-      type: Date,
-      required: [true, 'Publish date is required'],
-    },
-    category: {
-      type: String,
-      enum: ['MOVIES', 'MUSIC', 'FASHION', 'LIFESTYLE', 'AWARDS', 'RELATIONSHIPS', 'CAREER', 'OTHER'],
-      required: [true, 'Category is required'],
     },
     thumbnail: {
       type: String,
-      required: [true, 'Thumbnail image is required'],
-    },
-    thumbnailAlt: {
-      type: String,
-      required: [true, 'Thumbnail alt text is required'],
-      maxlength: [200, 'Thumbnail alt text cannot exceed 200 characters'],
-    },
-    readTime: {
-      type: String,
-      required: [true, 'Read time is required'],
       trim: true,
     },
-    tags: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    views: {
-      type: Number,
-      default: 0,
+    author: {
+      type: String,
+      trim: true,
     },
-    likes: {
-      type: Number,
-      default: 0,
+    category: {
+      type: String,
+      trim: true,
     },
-    isPublished: {
-      type: Boolean,
-      default: true,
+    celebrity: {
+      type: Schema.Types.ObjectId,
+      ref: 'Celebrity',
+      default: null,
     },
-    isFeatured: {
+    tags: {
+      type: [String],
+      default: [],
+    },
+    publishDate: {
+      type: Date,
+    },
+    featured: {
       type: Boolean,
       default: false,
+    },
+    seo: {
+      type: seoSchema,
     },
   },
   {
@@ -113,12 +164,23 @@ const celebrityNewsSchema = new Schema<ICelebrityNews>(
   }
 );
 
-// Indexes for search and filtering
-celebrityNewsSchema.index({ slug: 1 });
-celebrityNewsSchema.index({ celebrity: 1, category: 1 });
+// ── Indexes ───────────────────────────────────────────────────────────────────
+celebrityNewsSchema.index({ celebrity: 1 });
+celebrityNewsSchema.index({ category: 1 });
 celebrityNewsSchema.index({ publishDate: -1 });
-celebrityNewsSchema.index({ headline: 'text', excerpt: 'text', content: 'text' });
+celebrityNewsSchema.index({ featured: 1 });
+celebrityNewsSchema.index(
+  { title: 'text', excerpt: 'text', author: 'text' },
+  { name: 'news_text_search' }
+);
 
-const CelebrityNews: Model<ICelebrityNews> = mongoose.models.CelebrityNews || mongoose.model<ICelebrityNews>('CelebrityNews', celebrityNewsSchema);
+// Delete cached model in dev so hot-reload always uses the latest schema
+if (process.env.NODE_ENV !== 'production' && mongoose.models.CelebrityNews) {
+  delete (mongoose.models as any).CelebrityNews;
+}
+
+const CelebrityNews: Model<ICelebrityNews> =
+  mongoose.models.CelebrityNews ||
+  mongoose.model<ICelebrityNews>('CelebrityNews', celebrityNewsSchema);
 
 export default CelebrityNews;

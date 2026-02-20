@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
+import { withAuth } from '@/lib/authMiddleware';
 
-export async function GET(request: NextRequest) {
+const ALLOWED_FIELDS = [
+  'title', 'slug', 'releaseDate', 'poster', 'backdrop',
+  'language', 'originalLanguage', 'worldwide', 'genre',
+  'director', 'writers', 'producers', 'cast', 'synopsis',
+  'plotSummary', 'productionNotes', 'status', 'anticipationScore',
+  'duration', 'mpaaRating', 'regions', 'subtitles', 'budget',
+  'boxOfficeProjection', 'featured', 'images', 'studio',
+  'trailer', 'ticketLinks', 'preOrderAvailable', 'seoData',
+];
+
+async function getHandler(request: NextRequest) {
   try {
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
     const page     = Math.max(1, parseInt(searchParams.get('page')  || '1',  10));
-    const limit    = Math.min(50, parseInt(searchParams.get('limit') || '10', 10));
+    const limit    = Math.min(100, parseInt(searchParams.get('limit') || '20', 10));
     const q        = searchParams.get('q')?.trim();
     const status   = searchParams.get('status');
     const genre    = searchParams.get('genre');
@@ -25,9 +36,9 @@ export async function GET(request: NextRequest) {
         { synopsis: { $regex: q, $options: 'i' } },
       ];
     }
-    if (status)                  filter.status   = { $regex: status,   $options: 'i' };
-    if (genre)                   filter.genre    = { $regex: genre,    $options: 'i' };
-    if (director)                filter.director = { $regex: director, $options: 'i' };
+    if (status)  filter.status   = { $regex: status,   $options: 'i' };
+    if (genre)   filter.genre    = { $regex: genre,    $options: 'i' };
+    if (director) filter.director = { $regex: director, $options: 'i' };
     if (featured !== null && featured !== undefined) {
       filter.featured = featured === 'true';
     }
@@ -36,7 +47,7 @@ export async function GET(request: NextRequest) {
     const total = await Movie.countDocuments(filter);
     const pages = Math.ceil(total / limit);
 
-    const movies = await Movie.find(filter)
+    const data = await Movie.find(filter)
       .sort({ releaseDate: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -44,19 +55,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: {
-        movies,
-        pagination: {
-          current: page,
-          pages,
-          total,
-          hasNext: page < pages,
-          hasPrev: page > 1,
-        },
-      },
+      data,
+      total,
+      page,
+      limit,
+      pages,
     });
   } catch (error) {
-    console.error('[GET /api/content/movies]', error);
+    console.error('[GET /api/superadmin/movies]', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch movies' },
       { status: 500 }
@@ -64,56 +70,22 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     await dbConnect();
 
     const body = await request.json();
-    const {
-      title,
-      slug,
-      releaseDate,
-      poster,
-      backdrop,
-      language,
-      originalLanguage,
-      worldwide,
-      genre,
-      director,
-      writers,
-      producers,
-      cast,
-      synopsis,
-      plotSummary,
-      productionNotes,
-      status,
-      anticipationScore,
-      duration,
-      mpaaRating,
-      regions,
-      subtitles,
-      budget,
-      boxOfficeProjection,
-      featured,
-      images,
-      studio,
-      trailer,
-      ticketLinks,
-      preOrderAvailable,
-      seoData,
-    } = body;
 
-    if (!title?.trim()) {
+    if (!body.title?.trim()) {
       return NextResponse.json(
         { success: false, error: 'Title is required' },
         { status: 400 }
       );
     }
 
-    // Generate slug from title if not provided
-    let finalSlug = slug?.trim();
+    let finalSlug = body.slug?.trim();
     if (!finalSlug) {
-      finalSlug = title
+      finalSlug = body.title
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, '')
         .replace(/\s+/g, '-')
@@ -121,52 +93,29 @@ export async function POST(request: NextRequest) {
         .trim();
     }
 
-    // Handle slug collisions
     const existing = await Movie.findOne({ slug: finalSlug }).lean();
     if (existing) {
       finalSlug = `${finalSlug}-${Date.now()}`;
     }
 
-    const movie = await Movie.create({
-      title: title.trim(),
-      slug:  finalSlug,
-      releaseDate,
-      poster,
-      backdrop,
-      language,
-      originalLanguage,
-      worldwide,
-      genre,
-      director,
-      writers,
-      producers,
-      cast,
-      synopsis,
-      plotSummary,
-      productionNotes,
-      status,
-      anticipationScore,
-      duration,
-      mpaaRating,
-      regions,
-      subtitles,
-      budget,
-      boxOfficeProjection,
-      featured:           featured ?? false,
-      images,
-      studio,
-      trailer,
-      ticketLinks,
-      preOrderAvailable,
-      seoData,
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const doc: Record<string, any> = { slug: finalSlug };
+    for (const field of ALLOWED_FIELDS) {
+      if (field !== 'slug' && field in body) doc[field] = body[field];
+    }
+    doc.title = body.title.trim();
+    if (!('featured' in doc)) doc.featured = false;
 
+    const movie = await Movie.create(doc);
     return NextResponse.json({ success: true, data: movie }, { status: 201 });
   } catch (error) {
-    console.error('[POST /api/content/movies]', error);
+    console.error('[POST /api/superadmin/movies]', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create movie' },
       { status: 500 }
     );
   }
 }
+
+export const GET    = withAuth(getHandler,  ['superadmin', 'admin']);
+export const POST   = withAuth(postHandler, ['superadmin']);
