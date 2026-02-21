@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
+import { uploadImage, deleteImage, validateImageFile } from '@/lib/imageUpload';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -11,6 +12,7 @@ interface ICastMember {
   role?: string;
   character?: string;
   image?: string;
+  celebrityId?: string;
 }
 
 interface ITicketLink {
@@ -23,6 +25,22 @@ interface IMovieSEO {
   metaTitle?: string;
   metaDescription?: string;
   keywords?: string[];
+  canonicalUrl?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  ogType?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  twitterCard?: string;
+  structuredData?: string;
+  focusKeyword?: string;
+  altText?: string;
+  imageDescription?: string;
+  robots?: string;
+  priority?: number;
+  changeFreq?: string;
 }
 
 interface MovieRow {
@@ -31,7 +49,7 @@ interface MovieRow {
   slug: string;
   director?: string;
   status?: string;
-  language?: string;
+  language?: string[];
   releaseDate?: string;
   poster?: string;
   featured: boolean;
@@ -64,7 +82,7 @@ interface MovieFull extends MovieRow {
   seoData?: IMovieSEO;
 }
 
-type FormTab = 'basic' | 'cast' | 'details';
+type FormTab = 'basic' | 'cast' | 'details' | 'images' | 'seo';
 type PanelMode = 'add' | 'edit' | null;
 type Toast = { type: 'success' | 'error'; message: string } | null;
 
@@ -76,6 +94,8 @@ const TABS: { key: FormTab; label: string; icon: string }[] = [
   { key: 'basic',   label: 'Basic Info', icon: 'FilmIcon'   },
   { key: 'cast',    label: 'Cast',       icon: 'UsersIcon'  },
   { key: 'details', label: 'Details',    icon: 'TagIcon'    },
+  { key: 'images',  label: 'Images',     icon: 'PhotoIcon'  },
+  { key: 'seo',     label: 'SEO',        icon: 'MagnifyingGlassIcon' },
 ];
 
 const EMPTY_FORM: MovieFull = {
@@ -84,7 +104,7 @@ const EMPTY_FORM: MovieFull = {
   slug: '',
   director: '',
   status: '',
-  language: '',
+  language: [],
   originalLanguage: '',
   synopsis: '',
   plotSummary: '',
@@ -110,7 +130,27 @@ const EMPTY_FORM: MovieFull = {
   writers: [],
   producers: [],
   ticketLinks: [],
-  seoData: { metaTitle: '', metaDescription: '', keywords: [] },
+  seoData: { 
+    metaTitle: '', 
+    metaDescription: '', 
+    keywords: [], 
+    canonicalUrl: '',
+    ogTitle: '',
+    ogDescription: '',
+    ogImage: '',
+    ogType: 'movie',
+    twitterTitle: '',
+    twitterDescription: '',
+    twitterImage: '',
+    twitterCard: 'summary_large_image',
+    structuredData: '',
+    focusKeyword: '',
+    altText: '',
+    imageDescription: '',
+    robots: 'index,follow',
+    priority: 0.8,
+    changeFreq: 'weekly'
+  },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -122,6 +162,38 @@ function joinLines(arr?: string[]): string {
 function splitLines(s: string): string[] {
   return s.split('\n').map((l) => l.trim()).filter(Boolean);
 }
+
+// Comma-separated helpers (useful where inputs should be comma-separated)
+function joinComma(arr?: string[]): string {
+  return (arr || []).join(', ');
+}
+
+function splitComma(s: string): string[] {
+  if (!s) return [];
+  // split on comma and also allow semicolon for flexibility
+  return s
+    .split(/[,;]+/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
+function slugify(s: string) {
+  return s
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+const LANGUAGES = [
+  // Indian languages
+  'Hindi','English','Telugu','Tamil','Kannada','Malayalam','Bengali','Marathi','Gujarati','Punjabi','Odia','Assamese','Sindhi','Urdu','Bhojpuri','Konkani','Maithili','Manipuri','Kashmiri','Nepali','Sanskrit',
+  // Global languages
+  'Spanish','French','German','Chinese (Simplified)','Chinese (Traditional)','Japanese','Korean','Portuguese','Russian','Arabic','Italian','Dutch','Turkish','Vietnamese','Indonesian','Thai','Swedish','Polish','Hebrew'
+];
 
 function formatDate(d?: string) {
   if (!d) return '—';
@@ -167,6 +239,7 @@ export default function MovieManagementSection() {
   const [formApiError, setFormApiError] = useState('');
   const [loadingDetail, setLoadingDetail] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const isSlugEditedRef = useRef(false);
 
   // ── helpers ────────────────────────────────────────────────────────────
   const showToast = (type: 'success' | 'error', message: string) => {
@@ -223,6 +296,8 @@ export default function MovieManagementSection() {
   const openAdd = () => {
     setForm(EMPTY_FORM); setFormErrors({}); setFormApiError('');
     setFormTab('basic'); setPanelMode('add');
+    isSlugEditedRef.current = false;
+    setDurationMode('minutes'); setDurationHours(undefined); setDurationMinutes(undefined);
     setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
@@ -238,13 +313,16 @@ export default function MovieManagementSection() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed to load');
       const d: any = data.data;
+      const generatedSlug = slugify(d.title || '');
+      isSlugEditedRef.current = (d.slug || '') !== generatedSlug;
+
       setForm({
         id:                  d._id || d.id,
         title:               d.title               || '',
         slug:                d.slug                || '',
         director:            d.director            || '',
         status:              d.status              || '',
-        language:            d.language            || '',
+        language:            d.language            || [],
         originalLanguage:    d.originalLanguage    || '',
         synopsis:            d.synopsis            || '',
         plotSummary:         d.plotSummary         || '',
@@ -270,8 +348,38 @@ export default function MovieManagementSection() {
         writers:             d.writers             || [],
         producers:           d.producers           || [],
         ticketLinks:         d.ticketLinks         || [],
-        seoData:             d.seoData             || { metaTitle: '', metaDescription: '', keywords: [] },
+        seoData:             d.seoData             || { 
+          metaTitle: '', 
+          metaDescription: '', 
+          keywords: [], 
+          canonicalUrl: '',
+          ogTitle: '',
+          ogDescription: '',
+          ogImage: '',
+          ogType: 'movie',
+          twitterTitle: '',
+          twitterDescription: '',
+          twitterImage: '',
+          twitterCard: 'summary_large_image',
+          structuredData: '',
+          focusKeyword: '',
+          altText: '',
+          imageDescription: '',
+          robots: 'index,follow',
+          priority: 0.8,
+          changeFreq: 'weekly'
+        },
       });
+      // set duration mode based on loaded value
+      if (d.duration && typeof d.duration === 'number' && d.duration >= 60) {
+        setDurationMode('hours');
+        setDurationHours(Math.floor(d.duration / 60));
+        setDurationMinutes(d.duration % 60);
+      } else {
+        setDurationMode('minutes');
+        setDurationHours(undefined);
+        setDurationMinutes(d.duration ?? undefined);
+      }
     } catch (err: any) {
       showToast('error', err.message || 'Failed to load movie');
       setPanelMode(null);
@@ -296,7 +404,7 @@ export default function MovieManagementSection() {
     slug:                form.slug?.trim()               || undefined,
     director:            form.director?.trim()           || undefined,
     status:              form.status?.trim()             || undefined,
-    language:            form.language?.trim()           || undefined,
+    language:            form.language && form.language.length ? form.language : undefined,
     originalLanguage:    form.originalLanguage?.trim()   || undefined,
     synopsis:            form.synopsis?.trim()           || undefined,
     plotSummary:         form.plotSummary?.trim()        || undefined,
@@ -412,7 +520,7 @@ export default function MovieManagementSection() {
 
   // ── cast helpers ──────────────────────────────────────────────────────────
   const addCastMember = () =>
-    setField('cast', [...(form.cast || []), { name: '', role: '', character: '', image: '' }]);
+    setField('cast', [...(form.cast || []), { name: '', role: '', character: '', image: '', celebrityId: '' }]);
 
   const updateCast = (i: number, key: keyof ICastMember, val: string) =>
     setField('cast', (form.cast || []).map((c, idx) => idx === i ? { ...c, [key]: val } : c));
@@ -446,6 +554,299 @@ export default function MovieManagementSection() {
   const errBorder = (field: keyof MovieFull) =>
     formErrors[field] ? 'border-red-500/60' : 'border-white/10 focus:border-yellow-500/60';
 
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    const newSlug = slugify(v || '');
+    setField('title', v);
+    if (!isSlugEditedRef.current) setField('slug', newSlug);
+  };
+
+  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    isSlugEditedRef.current = true;
+    setField('slug', e.target.value);
+  };
+
+  // language dropdown state and ref
+  const [langOpen, setLangOpen] = useState(false);
+  const langDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // rating info modal
+  const [showRatingInfo, setShowRatingInfo] = useState(false);
+
+  // image upload state
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // celebrity selection state
+  const [celebrities, setCelebrities] = useState<any[]>([]);
+  const [celebritySearch, setCelebritySearch] = useState('');
+  const [loadingCelebrities, setLoadingCelebrities] = useState(false);
+  const [celebritySearchError, setCelebritySearchError] = useState('');
+  const [activeCastDropdown, setActiveCastDropdown] = useState<number | null>(null);
+  const castDropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (!langOpen) return;
+      if (!langDropdownRef.current) return;
+      if (!(e.target instanceof Node)) return;
+      if (!langDropdownRef.current.contains(e.target)) {
+        setLangOpen(false);
+      }
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') setLangOpen(false);
+    }
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onEsc);
+    };
+  }, [langOpen]);
+
+  // Close cast dropdowns when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (activeCastDropdown === null) return;
+      if (!(e.target instanceof Node)) return;
+      
+      const activeDropdownRef = castDropdownRefs.current[activeCastDropdown];
+      if (activeDropdownRef && !activeDropdownRef.contains(e.target)) {
+        setActiveCastDropdown(null);
+      }
+    }
+    
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setActiveCastDropdown(null);
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [activeCastDropdown]);
+
+  // Duration input mode: 'minutes' or 'hours'
+  const [durationMode, setDurationMode] = useState<'minutes' | 'hours'>('minutes');
+  const [durationHours, setDurationHours] = useState<number | undefined>(undefined);
+  const [durationMinutes, setDurationMinutes] = useState<number | undefined>(undefined);
+
+  // keep form.duration in sync when hours/minutes change
+  useEffect(() => {
+    if (durationMode === 'hours') {
+      const h = durationHours || 0;
+      const m = durationMinutes || 0;
+      setField('duration', h * 60 + m);
+    }
+  }, [durationMode, durationHours, durationMinutes]);
+
+  // ── Image Upload Handlers ──────────────────────────────────────────────────
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+    if (files.length > 0) {
+      handleFileUpload(files, 'additional');
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      handleFileUpload(files, 'additional');
+    }
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handleSelectImageType = (type: 'poster' | 'backdrop' | 'additional') => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = type === 'additional';
+    input.onchange = (e) => {
+      const files = Array.from((e.target as HTMLInputElement).files || []);
+      if (files.length > 0) {
+        handleFileUpload(files, type);
+      }
+    };
+    input.click();
+  };
+
+  const handleFileUpload = async (files: File[], type: 'poster' | 'backdrop' | 'additional') => {
+    for (const file of files) {
+      const validation = validateImageFile(file);
+      if (validation) {
+        showToast('error', validation);
+        continue;
+      }
+
+      const uploadKey = type === 'additional' ? `additional-${Date.now()}` : type;
+      setUploading(prev => ({ ...prev, [uploadKey]: true }));
+
+      try {
+        const url = await uploadImage(file, 'movies');
+        
+        if (type === 'poster') {
+          if (form.poster) {
+            await deleteImage(form.poster); // Delete old poster
+          }
+          setField('poster', url);
+        } else if (type === 'backdrop') {
+          if (form.backdrop) {
+            await deleteImage(form.backdrop); // Delete old backdrop
+          }
+          setField('backdrop', url);
+        } else {
+          // Additional images
+          const currentImages = form.images || [];
+          setField('images', [...currentImages, url]);
+        }
+
+        showToast('success', `${type} uploaded successfully`);
+      } catch (error) {
+        showToast('error', `Failed to upload ${type}`);
+        console.error('Upload error:', error);
+      } finally {
+        setUploading(prev => ({ ...prev, [uploadKey]: false }));
+      }
+    }
+  };
+
+  const handleDeleteImage = async (type: 'poster' | 'backdrop') => {
+    const imageUrl = type === 'poster' ? form.poster : form.backdrop;
+    if (!imageUrl) return;
+
+    try {
+      await deleteImage(imageUrl);
+      setField(type, '');
+      showToast('success', `${type} deleted`);
+    } catch (error) {
+      showToast('error', `Failed to delete ${type}`);
+    }
+  };
+
+  const handleReplaceImage = (type: 'poster' | 'backdrop') => {
+    handleSelectImageType(type);
+  };
+
+  const handleDeleteAdditionalImage = async (index: number) => {
+    const images = form.images || [];
+    const imageUrl = images[index];
+    
+    if (imageUrl) {
+      try {
+        await deleteImage(imageUrl);
+        const newImages = images.filter((_, i) => i !== index);
+        setField('images', newImages);
+        showToast('success', 'Image deleted');
+      } catch (error) {
+        showToast('error', 'Failed to delete image');
+      }
+    }
+  };
+
+  // ── Celebrity Management ──────────────────────────────────────────────────
+
+  const fetchCelebrities = useCallback(async (search: string = '') => {
+    setLoadingCelebrities(true);
+    setCelebritySearchError('');
+    try {
+      const params = new URLSearchParams({ 
+        limit: '20'
+      });
+      if (search.trim()) {
+        params.set('query', search.trim());
+      }
+      
+      const res = await fetch(`/api/content/celebrities/search?${params}`, {
+        headers: authHeaders()
+      });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      
+      const data = await res.json();
+      
+      if (data.success && data.data) {
+        setCelebrities(data.data);
+        setCelebritySearchError('');
+      } else {
+        setCelebrities([]);
+        setCelebritySearchError(data.message || 'No celebrities found');
+      }
+    } catch (error) {
+      console.error('Failed to fetch celebrities:', error);
+      setCelebrities([]);
+      setCelebritySearchError(error instanceof Error ? error.message : 'Failed to search celebrities');
+    } finally {
+      setLoadingCelebrities(false);
+    }
+  }, [authHeaders]);
+
+  // Load celebrities on component mount
+  useEffect(() => {
+    fetchCelebrities();
+  }, [fetchCelebrities]);
+
+  // Handle celebrity search with debouncing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (celebritySearch !== '') {
+        fetchCelebrities(celebritySearch);
+      }
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [celebritySearch, fetchCelebrities]);
+
+  // Handle outside click for cast dropdowns
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (activeCastDropdown !== null) {
+        const ref = castDropdownRefs.current[activeCastDropdown];
+        if (ref && !ref.contains(event.target as Node)) {
+          setActiveCastDropdown(null);
+        }
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeCastDropdown]);
+
+  const handleSelectCelebrity = (index: number, celebrity: any) => {
+    const updatedCast = [...(form.cast || [])];
+    updatedCast[index] = {
+      ...updatedCast[index],
+      name: celebrity.name,
+      image: celebrity.profileImage || '',
+      celebrityId: celebrity.id
+    };
+    setField('cast', updatedCast);
+    setActiveCastDropdown(null);
+    setCelebritySearch(''); // Clear search after selection
+    setCelebrities([]); // Clear search results
+  };
+
   // ─────────────────────────────────────────────────────────────────────────
   // Form Tab Content
   // ─────────────────────────────────────────────────────────────────────────
@@ -463,7 +864,7 @@ export default function MovieManagementSection() {
               Title <span className="text-yellow-400">*</span>
             </label>
             <input type="text" value={form.title}
-              onChange={(e) => setField('title', e.target.value)}
+              onChange={handleTitleChange}
               placeholder="e.g. Kalki 2898 AD"
               className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${errBorder('title')}`}
             />
@@ -474,7 +875,7 @@ export default function MovieManagementSection() {
           <div>
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Slug</label>
             <input type="text" value={form.slug || ''}
-              onChange={(e) => setField('slug', e.target.value)}
+              onChange={handleSlugChange}
               placeholder="kalki-2898-ad"
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
             />
@@ -493,21 +894,52 @@ export default function MovieManagementSection() {
           {/* Status */}
           <div>
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Status</label>
-            <input type="text" value={form.status || ''}
+            <select value={form.status || ''}
               onChange={(e) => setField('status', e.target.value)}
-              placeholder="e.g. upcoming, released, filming"
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
+            >
+              <option value="">— Select status —</option>
+              <option value="announced">Announced</option>
+              <option value="filming">Filming</option>
+              <option value="post-production">Post-production</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="released">Released</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
           </div>
 
-          {/* Language */}
-          <div>
+          {/* Language (multi-select dropdown) */}
+          <div className="relative">
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Language</label>
-            <input type="text" value={form.language || ''}
-              onChange={(e) => setField('language', e.target.value)}
-              placeholder="e.g. Telugu, Hindi"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
+            <div className="relative">
+              <button type="button" onClick={() => setLangOpen((s) => !s)}
+                className="w-full text-left px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm flex items-center justify-between"
+              >
+                <span className="truncate">
+                  {form.language && form.language.length > 0 ? form.language.join(', ') : 'Select languages'}
+                </span>
+                <Icon name={langOpen ? 'ChevronUpIcon' : 'ChevronDownIcon'} size={16} />
+              </button>
+
+              {langOpen && (
+                <div ref={langDropdownRef} className="absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-lg bg-[#060316]/95 border border-white/8 p-2 backdrop-blur-sm">
+                  {LANGUAGES.map((lang) => (
+                    <label key={lang} className="flex items-center gap-3 px-3 py-2 hover:bg-white/4/10 rounded">
+                      <input type="checkbox" checked={!!(form.language || []).includes(lang)}
+                        onChange={() => {
+                          const cur = form.language || [];
+                          if (cur.includes(lang)) setField('language', cur.filter((l) => l !== lang));
+                          else setField('language', [...cur, lang]);
+                        }}
+                        className="w-4 h-4 rounded bg-white/10 border border-white/10 text-yellow-400 focus:ring-0"
+                      />
+                      <span className="text-sm font-montserrat text-white">{lang}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <p className="text-neutral-500 text-xs mt-1 font-montserrat">Select one or more languages (Indian + global)</p>
           </div>
 
           {/* Release Date */}
@@ -521,54 +953,109 @@ export default function MovieManagementSection() {
 
           {/* Duration */}
           <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Duration (mins)</label>
-            <input type="number" value={form.duration ?? ''}
-              onChange={(e) => setField('duration', e.target.value ? Number(e.target.value) : undefined)}
-              placeholder="e.g. 165"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Duration</label>
+            <div className="flex items-center gap-3">
+              <select value={durationMode} onChange={(e) => setDurationMode(e.target.value as any)}
+                className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm"
+              >
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours & Minutes</option>
+              </select>
+
+              {durationMode === 'minutes' ? (
+                <input type="number" value={form.duration ?? ''}
+                  onChange={(e) => setField('duration', e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="e.g. 165"
+                  className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+              ) : (
+                <div className="flex gap-2 w-full">
+                  <input type="number" min={0} value={durationHours ?? ''}
+                    onChange={(e) => setDurationHours(e.target.value ? Number(e.target.value) : 0)}
+                    placeholder="Hours"
+                    className="w-24 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                  />
+                  <input type="number" min={0} max={59} value={durationMinutes ?? ''}
+                    onChange={(e) => setDurationMinutes(e.target.value ? Number(e.target.value) : 0)}
+                    placeholder="Minutes"
+                    className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* MPAA Rating */}
+          {/* MPAA / Certification Rating */}
           <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">MPAA Rating</label>
-            <input type="text" value={form.mpaaRating || ''}
-              onChange={(e) => setField('mpaaRating', e.target.value)}
-              placeholder="e.g. PG-13, R, U/A"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
-          </div>
-
-          {/* Poster */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Poster URL</label>
-            <div className="flex gap-3 items-start">
-              <input type="url" value={form.poster || ''}
-                onChange={(e) => setField('poster', e.target.value)}
-                placeholder="https://firebasestorage.googleapis.com/..."
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Certification / Rating</label>
+            <div className="flex items-center gap-2">
+              <select value={form.mpaaRating || ''}
+                onChange={(e) => setField('mpaaRating', e.target.value)}
                 className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-              />
-              {form.poster && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={form.poster} alt="" className="w-12 h-16 rounded-xl object-cover border border-white/10 shrink-0" />
-              )}
-            </div>
-          </div>
+              >
+                <option value="">— Select rating —</option>
+                <optgroup label="Indian (CBFC)">
+                  <option value="U">U</option>
+                  <option value="U/A">U/A</option>
+                  <option value="A">A</option>
+                  <option value="S">S</option>
+                </optgroup>
+                <optgroup label="MPAA (US)">
+                  <option value="G">G</option>
+                  <option value="PG">PG</option>
+                  <option value="PG-13">PG-13</option>
+                  <option value="R">R</option>
+                  <option value="NC-17">NC-17</option>
+                </optgroup>
+                <optgroup label="Other">
+                  <option value="Not Rated">Not Rated</option>
+                </optgroup>
+              </select>
 
-          {/* Backdrop */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Backdrop URL</label>
-            <div className="flex gap-3 items-start">
-              <input type="url" value={form.backdrop || ''}
-                onChange={(e) => setField('backdrop', e.target.value)}
-                placeholder="https://firebasestorage.googleapis.com/..."
-                className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-              />
-              {form.backdrop && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={form.backdrop} alt="" className="w-24 h-14 rounded-xl object-cover border border-white/10 shrink-0" />
-              )}
+              <button type="button" onClick={() => setShowRatingInfo(true)}
+                className="w-9 h-9 rounded-full flex items-center justify-center bg-white/5 border border-white/8 text-white hover:bg-white/6 transition-all"
+                aria-label="Rating info"
+              >
+                <Icon name="InformationCircleIcon" size={16} />
+              </button>
             </div>
+            <p className="text-neutral-500 text-xs mt-1 font-montserrat">Choose a certification — click the info icon to learn meanings.</p>
+
+            {showRatingInfo && (
+              <div className="fixed inset-0 z-60 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/60" onClick={() => setShowRatingInfo(false)} />
+                <div className="relative z-70 w-full max-w-2xl mx-4 bg-background/95 border border-white/8 rounded-xl p-6">
+                  <div className="flex items-start justify-between">
+                    <h3 className="text-sm font-semibold text-white font-montserrat">Rating guide</h3>
+                    <button type="button" onClick={() => setShowRatingInfo(false)} className="text-neutral-400 hover:text-white">
+                      <Icon name="XMarkIcon" size={18} />
+                    </button>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-neutral-300 font-montserrat">
+                    <div>
+                      <p className="font-semibold text-white">Indian (CBFC)</p>
+                      <ul className="mt-2 space-y-2">
+                        <li><span className="font-medium">U:</span> Suitable for all ages.</li>
+                        <li><span className="font-medium">U/A:</span> Parental guidance for children below 12; may contain mild violence or adult themes.</li>
+                        <li><span className="font-medium">A:</span> Restricted to adult audiences (18+); may contain strong language, violence, or sexual content.</li>
+                        <li><span className="font-medium">S:</span> Restricted to specialized audiences such as doctors or scientists.</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-white">MPAA (US)</p>
+                      <ul className="mt-2 space-y-2">
+                        <li><span className="font-medium">G:</span> General audiences — all ages admitted; minimal or no content.</li>
+                        <li><span className="font-medium">PG:</span> Parental guidance suggested; some material may be inappropriate for children.</li>
+                        <li><span className="font-medium">PG-13:</span> Parents strongly cautioned — some material may be inappropriate for children under 13.</li>
+                        <li><span className="font-medium">R:</span> Restricted — under 17 requires accompanying parent or adult guardian.</li>
+                        <li><span className="font-medium">NC-17:</span> No one 17 and under admitted; clearly adult content.</li>
+                        <li><span className="font-medium">Not Rated:</span> Not submitted for rating or not rated by the board.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Synopsis */}
@@ -606,27 +1093,6 @@ export default function MovieManagementSection() {
               </label>
             ))}
           </div>
-
-          {/* SEO */}
-          <div className="md:col-span-2 space-y-3 pt-2 border-t border-white/10">
-            <p className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider">SEO Data</p>
-            <input type="text" value={form.seoData?.metaTitle || ''}
-              onChange={(e) => setField('seoData', { ...form.seoData, metaTitle: e.target.value })}
-              placeholder="SEO Meta Title"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
-            <textarea value={form.seoData?.metaDescription || ''} rows={2}
-              onChange={(e) => setField('seoData', { ...form.seoData, metaDescription: e.target.value })}
-              placeholder="SEO Meta Description"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-            <textarea
-              value={joinLines(form.seoData?.keywords)} rows={2}
-              onChange={(e) => setField('seoData', { ...form.seoData, keywords: splitLines(e.target.value) })}
-              placeholder={"kalki 2898\nprabhas movie\nbollywood sci-fi"}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-          </div>
         </div>
       );
 
@@ -644,6 +1110,8 @@ export default function MovieManagementSection() {
             </button>
           </div>
 
+
+
           {(form.cast || []).length === 0 ? (
             <div className="py-12 flex flex-col items-center gap-3 text-center">
               <Icon name="UsersIcon" size={36} className="text-neutral-700" />
@@ -654,47 +1122,162 @@ export default function MovieManagementSection() {
             </div>
           ) : (
             <div className="space-y-3">
-              {(form.cast || []).map((member, i) => (
-                <div key={i} className="grid grid-cols-2 md:grid-cols-4 gap-2 p-3 rounded-xl bg-white/5 border border-white/10 relative">
-                  <button type="button" onClick={() => removeCast(i)}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
-                  >
-                    <Icon name="XMarkIcon" size={12} />
-                  </button>
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Name *</label>
-                    <input type="text" value={member.name}
-                      onChange={(e) => updateCast(i, 'name', e.target.value)}
-                      placeholder="Actor name"
-                      className="w-full px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
-                    />
+              {(form.cast || []).map((member, i) => {
+                const isDropdownOpen = activeCastDropdown === i;
+                return (
+                  <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10 relative">
+                    <button type="button" onClick={() => removeCast(i)}
+                      className="absolute top-3 right-3 p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all z-10"
+                    >
+                      <Icon name="XMarkIcon" size={12} />
+                    </button>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Celebrity Selection */}
+                      <div className="relative" ref={el => { castDropdownRefs.current[i] = el; }}>
+                        <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
+                          Celebrity <span className="text-yellow-400">*</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setActiveCastDropdown(isDropdownOpen ? null : i)}
+                          className="w-full text-left px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3">
+                            {member.image && (
+                              <img src={member.image} alt="" className="w-8 h-8 rounded-full object-cover" />
+                            )}
+                            <span className={member.name ? 'text-white' : 'text-neutral-500'}>
+                              {member.name || 'Select celebrity...'}
+                            </span>
+                          </div>
+                          <Icon name={isDropdownOpen ? 'ChevronUpIcon' : 'ChevronDownIcon'} size={16} />
+                        </button>
+
+                        {isDropdownOpen && (
+                          <div className="absolute z-50 left-0 right-0 mt-2 max-h-64 overflow-y-auto rounded-lg bg-[#060316]/95 border border-white/8 backdrop-blur-sm">
+                            {/* Search input inside dropdown */}
+                            <div className="p-3 border-b border-white/10">
+                              <div className="relative">
+                                <Icon name="MagnifyingGlassIcon" size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-neutral-500" />
+                                <input
+                                  type="text"
+                                  value={celebritySearch}
+                                  onChange={(e) => setCelebritySearch(e.target.value)}
+                                  placeholder="Search celebrities..."
+                                  className="w-full pl-7 pr-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
+                                  autoFocus
+                                />
+                                {loadingCelebrities && (
+                                  <Icon name="ArrowPathIcon" size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 animate-spin" />
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Results */}
+                            <div className="max-h-48 overflow-y-auto">
+                              {celebrities.length > 0 ? (
+                                celebrities.map((celebrity) => (
+                                  <button
+                                    key={celebrity.id}
+                                    type="button"
+                                    onClick={() => handleSelectCelebrity(i, celebrity)}
+                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-all text-left"
+                                  >
+                                    {celebrity.profileImage ? (
+                                      <img 
+                                        src={celebrity.profileImage} 
+                                        alt="" 
+                                        className="w-10 h-10 rounded-full object-cover flex-shrink-0" 
+                                      />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-full bg-neutral-700 flex-shrink-0 flex items-center justify-center">
+                                        <Icon name="UserIcon" size={16} className="text-neutral-400" />
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-white text-sm font-montserrat truncate">
+                                        {celebrity.name}
+                                      </p>
+                                    </div>
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="px-4 py-3 text-neutral-500 text-sm font-montserrat text-center">
+                                  {loadingCelebrities ? (
+                                    <div className="flex items-center justify-center gap-2">
+                                      <Icon name="ArrowPathIcon" size={14} className="animate-spin" />
+                                      Loading celebrities...
+                                    </div>
+                                  ) : celebritySearchError ? (
+                                    <div className="text-red-400">
+                                      {celebritySearchError}
+                                    </div>
+                                  ) : celebritySearch.trim() ? (
+                                    'No celebrities found'
+                                  ) : (
+                                    'Start typing to search celebrities'
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Role */}
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
+                          Role
+                        </label>
+                        <select
+                          value={member.role || ''}
+                          onChange={(e) => updateCast(i, 'role', e.target.value)}
+                          className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                        >
+                          <option value="">Select role...</option>
+                          <option value="Lead">Lead</option>
+                          <option value="Supporting">Supporting</option>
+                          <option value="Cameo">Cameo</option>
+                          <option value="Guest">Guest Appearance</option>
+                          <option value="Voice">Voice Actor</option>
+                        </select>
+                      </div>
+
+                      {/* Character Name */}
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
+                          Character Name
+                        </label>
+                        <input
+                          type="text"
+                          value={member.character || ''}
+                          onChange={(e) => updateCast(i, 'character', e.target.value)}
+                          placeholder="e.g. Bhairava, Karna"
+                          className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                        />
+                      </div>
+
+                      {/* Manual Image URL Override */}
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
+                          Custom Image (Optional)
+                        </label>
+                        <input
+                          type="url"
+                          value={member.image || ''}
+                          onChange={(e) => updateCast(i, 'image', e.target.value)}
+                          placeholder="Override celebrity image..."
+                          className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                        />
+                        <p className="text-neutral-500 text-xs mt-1 font-montserrat">
+                          Leave empty to use celebrity's profile image
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Role</label>
-                    <input type="text" value={member.role || ''}
-                      onChange={(e) => updateCast(i, 'role', e.target.value)}
-                      placeholder="Lead / Supporting"
-                      className="w-full px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Character</label>
-                    <input type="text" value={member.character || ''}
-                      onChange={(e) => updateCast(i, 'character', e.target.value)}
-                      placeholder="Character name"
-                      className="w-full px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Image URL</label>
-                    <input type="url" value={member.image || ''}
-                      onChange={(e) => updateCast(i, 'image', e.target.value)}
-                      placeholder="https://..."
-                      className="w-full px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -747,11 +1330,48 @@ export default function MovieManagementSection() {
           {/* Anticipation Score */}
           <div>
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Anticipation Score (0–10)</label>
-            <input type="number" min="0" max="10" step="0.1" value={form.anticipationScore ?? ''}
-              onChange={(e) => setField('anticipationScore', e.target.value ? Number(e.target.value) : undefined)}
+            <input
+              type="number"
+              min={0}
+              max={10}
+              step={0.1}
+              value={form.anticipationScore ?? ''}
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === '') {
+                  setField('anticipationScore', undefined);
+                  setFormErrors((p) => { const copy = { ...p }; delete copy.anticipationScore; return copy; });
+                  return;
+                }
+                const n = Number(raw);
+                if (Number.isNaN(n)) return;
+                // If out of range, clamp and set an error message
+                if (n < 0 || n > 10) {
+                  const clamped = Math.min(10, Math.max(0, n));
+                  setField('anticipationScore', clamped);
+                  setFormErrors((p) => ({ ...p, anticipationScore: 'Score must be between 0 and 10' }));
+                } else {
+                  setField('anticipationScore', n);
+                  setFormErrors((p) => { const copy = { ...p }; delete copy.anticipationScore; return copy; });
+                }
+              }}
+              onBlur={() => {
+                // Ensure final value is within bounds
+                const val = form.anticipationScore;
+                if (typeof val === 'number') {
+                  const clamped = Math.min(10, Math.max(0, val));
+                  if (clamped !== val) {
+                    setField('anticipationScore', clamped);
+                    setFormErrors((p) => ({ ...p, anticipationScore: 'Score must be between 0 and 10' }));
+                  }
+                }
+              }}
               placeholder="e.g. 9.2"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+              className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border ${formErrors.anticipationScore ? 'border-red-500/60' : 'border-white/10'} text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm`}
             />
+            {formErrors.anticipationScore && (
+              <p className="text-red-400 text-xs mt-1 font-montserrat">{formErrors.anticipationScore}</p>
+            )}
           </div>
 
           {/* Original Language */}
@@ -764,52 +1384,52 @@ export default function MovieManagementSection() {
             />
           </div>
 
-          {/* Genre */}
+          {/* Genre (comma-separated) */}
           <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Genre (one per line)</label>
-            <textarea value={joinLines(form.genre)} rows={4}
-              onChange={(e) => setField('genre', splitLines(e.target.value))}
-              placeholder={"Action\nSci-Fi\nAdventure"}
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Genre (comma-separated)</label>
+            <textarea value={joinComma(form.genre)} rows={2}
+              onChange={(e) => setField('genre', splitComma(e.target.value))}
+              placeholder={"Action, Sci-Fi, Adventure"}
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
             />
           </div>
 
-          {/* Regions */}
+          {/* Regions (comma-separated) */}
           <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Regions (one per line)</label>
-            <textarea value={joinLines(form.regions)} rows={4}
-              onChange={(e) => setField('regions', splitLines(e.target.value))}
-              placeholder={"India\nUS\nUK"}
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Regions (comma-separated)</label>
+            <textarea value={joinComma(form.regions)} rows={2}
+              onChange={(e) => setField('regions', splitComma(e.target.value))}
+              placeholder={"India, US, UK"}
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
             />
           </div>
 
-          {/* Writers */}
+          {/* Writers (comma-separated) */}
           <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Writers (one per line)</label>
-            <textarea value={joinLines(form.writers)} rows={3}
-              onChange={(e) => setField('writers', splitLines(e.target.value))}
-              placeholder={"Nag Ashwin\nAbhijeet Kumar"}
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Writers (comma-separated)</label>
+            <textarea value={joinComma(form.writers)} rows={2}
+              onChange={(e) => setField('writers', splitComma(e.target.value))}
+              placeholder={"Nag Ashwin, Abhijeet Kumar"}
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
             />
           </div>
 
-          {/* Producers */}
+          {/* Producers (comma-separated) */}
           <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Producers (one per line)</label>
-            <textarea value={joinLines(form.producers)} rows={3}
-              onChange={(e) => setField('producers', splitLines(e.target.value))}
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Producers (comma-separated)</label>
+            <textarea value={joinComma(form.producers)} rows={2}
+              onChange={(e) => setField('producers', splitComma(e.target.value))}
               placeholder={"Vijay Kiragandur"}
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
             />
           </div>
 
-          {/* Subtitles */}
+          {/* Subtitles (comma-separated) */}
           <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Subtitles (one per line)</label>
-            <textarea value={joinLines(form.subtitles)} rows={3}
-              onChange={(e) => setField('subtitles', splitLines(e.target.value))}
-              placeholder={"English\nHindi\nTamil"}
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Subtitles (comma-separated)</label>
+            <textarea value={joinComma(form.subtitles)} rows={2}
+              onChange={(e) => setField('subtitles', splitComma(e.target.value))}
+              placeholder={"English, Hindi, Tamil"}
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
             />
           </div>
@@ -860,6 +1480,531 @@ export default function MovieManagementSection() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      );
+
+      // ── IMAGES ─────────────────────────────────────────────────────────
+      case 'images': return (
+        <div className="space-y-6">
+          {/* Image Upload Area */}
+          <div className="space-y-4">
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
+              Movie Images
+            </label>
+            
+            {/* Drag and Drop Zone */}
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={() => fileInputRef.current?.click()}
+              className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+                dragOver 
+                  ? 'border-yellow-400 bg-yellow-500/10' 
+                  : 'border-white/20 hover:border-white/40 bg-white/5'
+              }`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-4 rounded-full bg-white/10">
+                  <Icon name="ArrowUpTrayIcon" size={32} className="text-neutral-400" />
+                </div>
+                <div>
+                  <p className="text-white font-montserrat font-medium">Drop images here or click to select</p>
+                  <p className="text-neutral-500 text-sm font-montserrat mt-1">
+                    Support: JPG, PNG, WebP (max 5MB each)
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Current Images Grid */}
+          <div className="space-y-4">
+            {/* Poster */}
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">
+                Poster Image
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {form.poster ? (
+                  <div className="relative group">
+                    <img 
+                      src={form.poster} 
+                      alt="Poster" 
+                      className="w-full h-48 object-cover rounded-xl border border-white/10" 
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all rounded-xl flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteImage('poster')}
+                        className="p-2 bg-red-500/20 rounded-lg text-red-400 hover:bg-red-500/30"
+                        title="Delete"
+                      >
+                        <Icon name="TrashIcon" size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleReplaceImage('poster')}
+                        className="p-2 bg-blue-500/20 rounded-lg text-blue-400 hover:bg-blue-500/30"
+                        title="Replace"
+                      >
+                        <Icon name="ArrowPathIcon" size={16} />
+                      </button>
+                    </div>
+                    {uploading.poster && (
+                      <div className="absolute inset-0 bg-black/70 rounded-xl flex items-center justify-center">
+                        <Icon name="ArrowPathIcon" size={24} className="text-yellow-400 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div 
+                    onClick={() => handleSelectImageType('poster')}
+                    className="h-48 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-white/40 transition-all"
+                  >
+                    <Icon name="PhotoIcon" size={32} className="text-neutral-500 mb-2" />
+                    <p className="text-neutral-500 text-sm font-montserrat">Add Poster</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Backdrop */}
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">
+                Backdrop Image
+              </label>
+              <div className="grid grid-cols-1 gap-4">
+                {form.backdrop ? (
+                  <div className="relative group">
+                    <img 
+                      src={form.backdrop} 
+                      alt="Backdrop" 
+                      className="w-full h-40 object-cover rounded-xl border border-white/10" 
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all rounded-xl flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteImage('backdrop')}
+                        className="p-2 bg-red-500/20 rounded-lg text-red-400 hover:bg-red-500/30"
+                        title="Delete"
+                      >
+                        <Icon name="TrashIcon" size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleReplaceImage('backdrop')}
+                        className="p-2 bg-blue-500/20 rounded-lg text-blue-400 hover:bg-blue-500/30"
+                        title="Replace"
+                      >
+                        <Icon name="ArrowPathIcon" size={16} />
+                      </button>
+                    </div>
+                    {uploading.backdrop && (
+                      <div className="absolute inset-0 bg-black/70 rounded-xl flex items-center justify-center">
+                        <Icon name="ArrowPathIcon" size={24} className="text-yellow-400 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div 
+                    onClick={() => handleSelectImageType('backdrop')}
+                    className="h-40 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-white/40 transition-all"
+                  >
+                    <Icon name="PhotoIcon" size={32} className="text-neutral-500 mb-2" />
+                    <p className="text-neutral-500 text-sm font-montserrat">Add Backdrop</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Additional Images Gallery */}
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">
+                Additional Images ({(form.images || []).length})
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {(form.images || []).map((img, index) => (
+                  <div key={index} className="relative group">
+                    <img 
+                      src={img} 
+                      alt={`Gallery ${index + 1}`} 
+                      className="w-full h-32 object-cover rounded-xl border border-white/10" 
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all rounded-xl flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAdditionalImage(index)}
+                        className="p-2 bg-red-500/20 rounded-lg text-red-400 hover:bg-red-500/30"
+                        title="Delete"
+                      >
+                        <Icon name="TrashIcon" size={16} />
+                      </button>
+                    </div>
+                    {uploading[`additional-${index}`] && (
+                      <div className="absolute inset-0 bg-black/70 rounded-xl flex items-center justify-center">
+                        <Icon name="ArrowPathIcon" size={20} className="text-yellow-400 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                
+                {/* Add more images button */}
+                <div 
+                  onClick={() => handleSelectImageType('additional')}
+                  className="h-32 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-white/40 transition-all"
+                >
+                  <Icon name="PlusIcon" size={24} className="text-neutral-500 mb-1" />
+                  <p className="text-neutral-500 text-xs font-montserrat">Add Image</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Upload Progress Info */}
+            {Object.values(uploading).some(Boolean) && (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                <Icon name="ArrowUpTrayIcon" size={16} className="text-yellow-400 animate-pulse" />
+                <p className="text-yellow-400 text-sm font-montserrat">
+                  Uploading images to Firebase Storage...
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+
+      // ── SEO ────────────────────────────────────────────────────────────
+      case 'seo': return (
+        <div className="space-y-6">
+          {/* Basic Meta Tags */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2">Basic Meta Tags</h4>
+            
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
+                  Meta Title <span className="text-yellow-400">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={form.seoData?.metaTitle || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, metaTitle: e.target.value })}
+                  placeholder="Amazing Movie Title | Best Movies 2024"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                  maxLength={60}
+                />
+                <p className="text-neutral-500 text-xs mt-1 font-montserrat">
+                  {60 - (form.seoData?.metaTitle?.length || 0)} characters remaining (60 max recommended)
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
+                  Meta Description <span className="text-yellow-400">*</span>
+                </label>
+                <textarea 
+                  value={form.seoData?.metaDescription || ''} 
+                  rows={3}
+                  onChange={(e) => setField('seoData', { ...form.seoData, metaDescription: e.target.value })}
+                  placeholder="Compelling description of the movie that encourages users to click. Include main keywords naturally."
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                  maxLength={160}
+                />
+                <p className="text-neutral-500 text-xs mt-1 font-montserrat">
+                  {160 - (form.seoData?.metaDescription?.length || 0)} characters remaining (160 max recommended)
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
+                  Focus Keyword <span className="text-yellow-400">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={form.seoData?.focusKeyword || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, focusKeyword: e.target.value })}
+                  placeholder="main target keyword"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Primary keyword to rank for</p>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Keywords</label>
+                <textarea
+                  value={joinLines(form.seoData?.keywords)} 
+                  rows={3}
+                  onChange={(e) => setField('seoData', { ...form.seoData, keywords: splitLines(e.target.value) })}
+                  placeholder={"movie name 2024\nactor name movies\nbollywood action movie\nlatest hindi films"}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                />
+                <p className="text-neutral-500 text-xs mt-1 font-montserrat">One keyword per line. Focus on long-tail keywords</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Open Graph Tags */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2">Open Graph (Facebook/LinkedIn)</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Title</label>
+                <input 
+                  type="text" 
+                  value={form.seoData?.ogTitle || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, ogTitle: e.target.value })}
+                  placeholder="Title for social media sharing"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Type</label>
+                <select 
+                  value={form.seoData?.ogType || 'movie'}
+                  onChange={(e) => setField('seoData', { ...form.seoData, ogType: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                >
+                  <option value="movie">Movie</option>
+                  <option value="video.movie">Video Movie</option>
+                  <option value="article">Article</option>
+                  <option value="website">Website</option>
+                </select>
+              </div>
+              
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Description</label>
+                <textarea 
+                  value={form.seoData?.ogDescription || ''} 
+                  rows={2}
+                  onChange={(e) => setField('seoData', { ...form.seoData, ogDescription: e.target.value })}
+                  placeholder="Description for social media sharing"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                />
+              </div>
+              
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Image URL</label>
+                <input 
+                  type="url" 
+                  value={form.seoData?.ogImage || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, ogImage: e.target.value })}
+                  placeholder="https://example.com/movie-poster.jpg"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Recommended: 1200x630px, less than 1MB</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Twitter Cards */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2">Twitter Cards</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Card Type</label>
+                <select 
+                  value={form.seoData?.twitterCard || 'summary_large_image'}
+                  onChange={(e) => setField('seoData', { ...form.seoData, twitterCard: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                >
+                  <option value="summary">Summary</option>
+                  <option value="summary_large_image">Summary Large Image</option>
+                  <option value="app">App</option>
+                  <option value="player">Player</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Title</label>
+                <input 
+                  type="text" 
+                  value={form.seoData?.twitterTitle || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, twitterTitle: e.target.value })}
+                  placeholder="Title for Twitter sharing"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+              </div>
+              
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Description</label>
+                <textarea 
+                  value={form.seoData?.twitterDescription || ''} 
+                  rows={2}
+                  onChange={(e) => setField('seoData', { ...form.seoData, twitterDescription: e.target.value })}
+                  placeholder="Description for Twitter sharing"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                />
+              </div>
+              
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Image URL</label>
+                <input 
+                  type="url" 
+                  value={form.seoData?.twitterImage || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, twitterImage: e.target.value })}
+                  placeholder="https://example.com/twitter-image.jpg"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Recommended: 1200x675px for large image card</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Technical SEO */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2">Technical SEO</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Canonical URL</label>
+                <input 
+                  type="url" 
+                  value={form.seoData?.canonicalUrl || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, canonicalUrl: e.target.value })}
+                  placeholder="https://example.com/movie-slug"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Preferred URL for this page</p>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Robots Meta</label>
+                <select 
+                  value={form.seoData?.robots || 'index,follow'}
+                  onChange={(e) => setField('seoData', { ...form.seoData, robots: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                >
+                  <option value="index,follow">Index, Follow</option>
+                  <option value="index,nofollow">Index, No Follow</option>
+                  <option value="noindex,follow">No Index, Follow</option>
+                  <option value="noindex,nofollow">No Index, No Follow</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Priority</label>
+                <select 
+                  value={form.seoData?.priority || 0.8}
+                  onChange={(e) => setField('seoData', { ...form.seoData, priority: parseFloat(e.target.value) })}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                >
+                  <option value={1.0}>1.0 (Highest)</option>
+                  <option value={0.9}>0.9</option>
+                  <option value={0.8}>0.8 (High)</option>
+                  <option value={0.7}>0.7</option>
+                  <option value={0.6}>0.6 (Medium)</option>
+                  <option value={0.5}>0.5</option>
+                  <option value={0.4}>0.4 (Low)</option>
+                  <option value={0.3}>0.3</option>
+                  <option value={0.2}>0.2</option>
+                  <option value={0.1}>0.1 (Lowest)</option>
+                </select>
+                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Sitemap priority (0.1 - 1.0)</p>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Change Frequency</label>
+                <select 
+                  value={form.seoData?.changeFreq || 'weekly'}
+                  onChange={(e) => setField('seoData', { ...form.seoData, changeFreq: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                >
+                  <option value="always">Always</option>
+                  <option value="hourly">Hourly</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                  <option value="never">Never</option>
+                </select>
+                <p className="text-neutral-500 text-xs mt-1 font-montserrat">How often content changes</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Image SEO */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2">Image SEO</h4>
+            
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Alt Text</label>
+                <input 
+                  type="text" 
+                  value={form.seoData?.altText || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, altText: e.target.value })}
+                  placeholder="Descriptive alt text for poster image"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Alt text for main poster image</p>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Image Description</label>
+                <textarea 
+                  value={form.seoData?.imageDescription || ''} 
+                  rows={2}
+                  onChange={(e) => setField('seoData', { ...form.seoData, imageDescription: e.target.value })}
+                  placeholder="Detailed description of the movie poster for accessibility"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                />
+                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Detailed image description for screen readers</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Structured Data */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2">Structured Data (JSON-LD)</h4>
+            
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Custom Structured Data</label>
+              <textarea 
+                value={form.seoData?.structuredData || ''} 
+                rows={6}
+                onChange={(e) => setField('seoData', { ...form.seoData, structuredData: e.target.value })}
+                placeholder={`{\n  "@context": "https://schema.org",\n  "@type": "Movie",\n  "name": "Movie Title",\n  "director": "Director Name",\n  "actor": ["Actor 1", "Actor 2"]\n}`}
+                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none font-mono"
+              />
+              <div className="flex items-start gap-2 mt-2">
+                <Icon name="InformationCircleIcon" size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="text-neutral-500 text-xs font-montserrat">
+                  <p>Add custom JSON-LD structured data for rich snippets.</p>
+                  <p className="mt-1">Leave empty to auto-generate from movie data.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SEO Tips */}
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <Icon name="LightBulbIcon" size={16} className="text-yellow-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <h5 className="text-yellow-400 font-semibold font-montserrat text-sm mb-2">SEO Best Practices</h5>
+                <ul className="text-neutral-300 text-xs font-montserrat space-y-1">
+                  <li>• Use your focus keyword in title, description, and H1</li>
+                  <li>• Keep titles under 60 characters, descriptions under 160</li>
+                  <li>• Use unique titles and descriptions for each page</li>
+                  <li>• Include emotional triggers and call-to-actions</li>
+                  <li>• Optimize images with descriptive file names and alt text</li>
+                  <li>• Add structured data for rich snippets in search results</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       );

@@ -26,10 +26,10 @@ const menuItems: { id: SectionType; label: string; icon: string; desc: string }[
   { id: 'news',        label: 'Celebrity News',    icon: 'NewspaperIcon',   desc: 'Manage news articles'            },
   { id: 'movies',      label: 'Upcoming Movies',   icon: 'FilmIcon',        desc: 'Manage movies & releases'        },
   { id: 'reviews',     label: 'Movie Reviews',     icon: 'DocumentTextIcon', desc: 'Manage movie reviews'           },
-  { id: 'data',        label: 'All Data Access',    icon: 'CircleStackIcon', desc: 'Full database access'           },
-  { id: 'platform',  label: 'Platform Analytics', icon: 'PresentationChartLineIcon', desc: 'Deep platform metrics' },
-  { id: 'system',    label: 'System Controls',    icon: 'CpuChipIcon',     desc: 'Server & system management'     },
-  { id: 'settings',  label: 'SA Settings',        icon: 'AdjustmentsHorizontalIcon', desc: 'Super admin configuration' },
+  // { id: 'data',        label: 'All Data Access',    icon: 'CircleStackIcon', desc: 'Full database access'           },
+  // { id: 'platform',  label: 'Platform Analytics', icon: 'PresentationChartLineIcon', desc: 'Deep platform metrics' },
+  // { id: 'system',    label: 'System Controls',    icon: 'CpuChipIcon',     desc: 'Server & system management'     },
+  // { id: 'settings',  label: 'SA Settings',        icon: 'AdjustmentsHorizontalIcon', desc: 'Super admin configuration' },
 ];
 
 const stats = [
@@ -81,7 +81,7 @@ export default function SuperAdminDashboardInteractive() {
       <aside className={`fixed top-0 left-0 bottom-0 z-40 flex flex-col glass-card border-r border-white/10 transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-64'}`}>
 
         {/* Brand */}
-        <div className={`flex items-center gap-3 px-5 py-5 border-b border-white/10 ${collapsed ? 'justify-center px-0' : ''}`}>
+        <div className={`flex items-center gap-3 px-5 py-9 border-b border-white/10 ${collapsed ? 'justify-center px-0' : ''}`}>
           <Link href="/homepage" className="flex items-center gap-2 shrink-0">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center shrink-0">
               <Icon name="StarIcon" size={18} className="text-black" />
@@ -89,15 +89,6 @@ export default function SuperAdminDashboardInteractive() {
             {!collapsed && <span className="font-playfair text-lg font-bold text-white">CelebrityPersona</span>}
           </Link>
         </div>
-
-        {/* Super Admin user card removed from sidebar; name/email displayed in header */}
-        {collapsed && (
-          <div className="flex justify-center mt-4">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center">
-              <Icon name="StarIcon" size={16} className="text-black" />
-            </div>
-          </div>
-        )}
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
