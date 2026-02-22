@@ -7,6 +7,7 @@ export interface ICastMember {
   role?: string;
   character?: string;
   image?: string;
+  celebrityId?: string;
 }
 
 export interface ITicketLink {
@@ -19,6 +20,22 @@ export interface IMovieSEO {
   metaTitle?: string;
   metaDescription?: string;
   keywords?: string[];
+  canonicalUrl?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  ogType?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  twitterCard?: string;
+  structuredData?: string;
+  focusKeyword?: string;
+  altText?: string;
+  imageDescription?: string;
+  robots?: string;
+  priority?: number;
+  changeFreq?: string;
 }
 
 // ── Main interface ────────────────────────────────────────────────────────────
@@ -28,7 +45,7 @@ export interface IMovie extends Document {
   releaseDate?: Date;
   poster?: string;
   backdrop?: string;
-  language?: string;
+  language?: string[];
   originalLanguage?: string;
   worldwide?: boolean;
   genre?: string[];
@@ -61,10 +78,11 @@ export interface IMovie extends Document {
 // ── Sub-schemas ───────────────────────────────────────────────────────────────
 const castSchema = new Schema<ICastMember>(
   {
-    name:      { type: String, required: true, trim: true },
-    role:      { type: String, trim: true },
-    character: { type: String, trim: true },
-    image:     { type: String, trim: true },
+    name:        { type: String, required: true, trim: true },
+    role:        { type: String, trim: true },
+    character:   { type: String, trim: true },
+    image:       { type: String, trim: true },
+    celebrityId: { type: String, trim: true },
   },
   { _id: true }
 );
@@ -80,9 +98,25 @@ const ticketLinkSchema = new Schema<ITicketLink>(
 
 const seoDataSchema = new Schema<IMovieSEO>(
   {
-    metaTitle:       { type: String },
-    metaDescription: { type: String },
-    keywords:        [{ type: String }],
+    metaTitle:        { type: String },
+    metaDescription:  { type: String },
+    keywords:         [{ type: String }],
+    canonicalUrl:     { type: String, trim: true },
+    ogTitle:          { type: String },
+    ogDescription:    { type: String },
+    ogImage:          { type: String, trim: true },
+    ogType:           { type: String, trim: true, default: 'movie' },
+    twitterTitle:     { type: String },
+    twitterDescription: { type: String },
+    twitterImage:     { type: String, trim: true },
+    twitterCard:      { type: String, trim: true, default: 'summary_large_image' },
+    structuredData:   { type: String },
+    focusKeyword:     { type: String, trim: true },
+    altText:          { type: String },
+    imageDescription: { type: String },
+    robots:           { type: String, trim: true, default: 'index,follow' },
+    priority:         { type: Number, min: 0, max: 1, default: 0.8 },
+    changeFreq:       { type: String, trim: true, default: 'weekly' },
   },
   { _id: false }
 );
@@ -106,7 +140,7 @@ const movieSchema = new Schema<IMovie>(
     releaseDate:        { type: Date },
     poster:             { type: String, trim: true },
     backdrop:           { type: String, trim: true },
-    language:           { type: String, trim: true },
+    language:           { type: [String], default: [] },
     originalLanguage:   { type: String, trim: true },
     worldwide:          { type: Boolean, default: false },
     genre:              { type: [String], default: [] },
@@ -145,7 +179,9 @@ movieSchema.index({ featured: 1 });
 movieSchema.index({ genre: 1 });
 movieSchema.index(
   { title: 'text', synopsis: 'text', director: 'text' },
-  { name: 'movie_text_search' }
+  // language_override prevents MongoDB from treating the 'language' array
+  // field as a text-search language selector (error code 17261).
+  { name: 'movie_text_search', language_override: 'search_language' }
 );
 
 // Delete cached model in dev so hot-reload always uses the latest schema
