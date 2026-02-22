@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
-import FeaturedOutfit from './components/FeaturedOutfit';
 import FashionGalleryInteractive from './components/FashionGalleryInteractive';
 
 export const metadata: Metadata = {
@@ -15,7 +14,6 @@ export default function FashionGalleryPage() {
     <>
       <Header />
       <main className="min-h-screen bg-background pt-32">
-        <FeaturedOutfit />
         <FashionGalleryInteractive />
       </main>
       <Footer />

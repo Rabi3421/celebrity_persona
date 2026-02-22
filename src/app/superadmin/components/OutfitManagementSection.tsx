@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { uploadImage, deleteImage, validateImageFile } from '@/lib/imageUpload';
 import { useAuth } from '@/context/AuthContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,17 +37,61 @@ interface OutfitRow {
   createdAt?: string;
 }
 
+interface IOutfitSEO {
+  metaTitle?: string;
+  metaDescription?: string;
+  focusKeyword?: string;
+  metaKeywords?: string[];
+  canonicalUrl?: string;
+  robots?: string;
+  noindex?: boolean;
+  nofollow?: boolean;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogType?: string;
+  ogSiteName?: string;
+  ogUrl?: string;
+  ogImages?: string[];
+  twitterCard?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  twitterSite?: string;
+  twitterCreator?: string;
+  authorName?: string;
+  authorUrl?: string;
+  section?: string;
+  relatedTopics?: string[];
+  schemaType?: string;
+  structuredDataDepth?: string;
+  alternateLangs?: string[];
+  prevUrl?: string;
+  nextUrl?: string;
+}
+
 interface OutfitFull extends OutfitRow {
   description?: string;
   size?: string;
-  seo?: any;
+  seo?: IOutfitSEO;
 }
 
-type FormTab   = 'basic' | 'gallery' | 'meta';
+type FormTab   = 'basic' | 'gallery' | 'meta' | 'seo';
 type PanelMode = 'add' | 'edit' | null;
 type Toast     = { type: 'success' | 'error'; message: string } | null;
 
 const PAGE_SIZES = [10, 20, 50];
+
+const EMPTY_SEO: IOutfitSEO = {
+  metaTitle: '', metaDescription: '', focusKeyword: '',
+  metaKeywords: [], canonicalUrl: '', robots: 'index,follow',
+  noindex: false, nofollow: false,
+  ogTitle: '', ogDescription: '', ogType: 'article', ogSiteName: '', ogUrl: '', ogImages: [],
+  twitterCard: 'summary_large_image', twitterTitle: '', twitterDescription: '',
+  twitterImage: '', twitterSite: '', twitterCreator: '',
+  authorName: '', authorUrl: '', section: '', relatedTopics: [],
+  schemaType: 'Product', structuredDataDepth: 'basic',
+  alternateLangs: [], prevUrl: '', nextUrl: '',
+};
 
 const EMPTY_FORM: OutfitFull = {
   id: '', title: '', slug: '', celebrity: '',
@@ -54,12 +99,14 @@ const EMPTY_FORM: OutfitFull = {
   color: '', price: '', purchaseLink: '', size: '',
   description: '', tags: [], isActive: true, isFeatured: false,
   likesCount: 0, commentsCount: 0,
+  seo: { ...EMPTY_SEO },
 };
 
 const TABS: { key: FormTab; label: string; icon: string }[] = [
-  { key: 'basic',   label: 'Basic Info', icon: 'InformationCircleIcon' },
-  { key: 'gallery', label: 'Images',     icon: 'PhotoIcon'             },
-  { key: 'meta',    label: 'Details',    icon: 'TagIcon'               },
+  { key: 'basic',   label: 'Basic Info',        icon: 'InformationCircleIcon' },
+  { key: 'gallery', label: 'Images',            icon: 'PhotoIcon'             },
+  { key: 'meta',    label: 'Details',           icon: 'TagIcon'               },
+  { key: 'seo',     label: 'SEO',               icon: 'MagnifyingGlassIcon'   },
 ];
 
 const splitLines = (v: string) => v.split('\n').map((s) => s.trim()).filter(Boolean);
@@ -69,6 +116,13 @@ function getCelebrityName(c: CelebrityRef | string | undefined): string {
   if (!c) return '—';
   if (typeof c === 'string') return c;
   return c.name || '—';
+}
+
+function slugify(s: string) {
+  return s.toLowerCase().trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -125,6 +179,8 @@ export default function OutfitManagementSection() {
   const [formLoading, setFormLoading]   = useState(false);
   const [formApiError, setFormApiError] = useState('');
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const isSlugEditedRef = useRef(false);
+  const [celebrities, setCelebrities] = useState<Array<{ id: string; name: string; slug?: string; profileImage?: string }>>([]);
 
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -164,10 +220,37 @@ export default function OutfitManagementSection() {
 
   useEffect(() => { fetchList(1); }, [fetchList]);
 
+  // fetch celebrities for dropdown
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/superadmin/celebrities?limit=500`, {
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) return;
+        if (!mounted) return;
+        const list = (data.data || []).map((c: any) => ({
+          id: String(c.id ?? c._id ?? ''),
+          name: c.name || c.fullName || c.title || String(c._id ?? c.id ?? ''),
+          slug: c.slug,
+          profileImage: c.profileImage || c.avatar || undefined,
+        })).filter((x: any) => x.id);
+        setCelebrities(list);
+      } catch (err) {
+        // ignore optional dropdown errors
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [authHeaders]);
+
   // ─── open add ────────────────────────────────────────────────────────────
   const openAdd = () => {
     setForm(EMPTY_FORM); setFormErrors({}); setFormApiError('');
     setFormTab('basic'); setPanelMode('add');
+    isSlugEditedRef.current = false;
     setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
@@ -207,8 +290,9 @@ export default function OutfitManagementSection() {
         isFeatured:   d.isFeatured    ?? false,
         likesCount:   d.likesCount    ?? 0,
         commentsCount: d.commentsCount ?? 0,
-        seo:          d.seo           || undefined,
+        seo:          d.seo ? { ...EMPTY_SEO, ...d.seo } : { ...EMPTY_SEO },
       });
+      isSlugEditedRef.current = true;
     } catch (err: any) {
       showToast('error', err.message || 'Failed to load outfit details');
       setPanelMode(null);
@@ -233,6 +317,7 @@ export default function OutfitManagementSection() {
   // ─── payload ─────────────────────────────────────────────────────────────
   const buildPayload = () => ({
     title:        form.title.trim(),
+    slug:         form.slug?.trim() || undefined,
     celebrity:    String(form.celebrity).trim(),
     images:       (form.images || []).filter(Boolean),
     event:        form.event?.trim()        || undefined,
@@ -247,6 +332,7 @@ export default function OutfitManagementSection() {
     tags:         form.tags || [],
     isActive:     form.isActive,
     isFeatured:   form.isFeatured,
+    seo:          form.seo || undefined,
   });
 
   // ─── create ──────────────────────────────────────────────────────────────
@@ -341,6 +427,45 @@ export default function OutfitManagementSection() {
   const updateImage      = (i: number, val: string) =>
     setField('images', (form.images || []).map((img, idx) => idx === i ? val : img));
 
+  const [uploadingMap, setUploadingMap] = useState<Record<number, boolean>>({});
+  const setUploading = (i: number, v: boolean) => setUploadingMap((p) => ({ ...p, [i]: v }));
+
+  const handleSelectImage = (i: number) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e: any) => {
+      const f = e.target.files ? e.target.files[0] : null;
+      if (f) handleUploadImage(f, i);
+    };
+    input.click();
+  };
+
+  const handleDropImage = (e: React.DragEvent, i: number) => {
+    e.preventDefault();
+    const f = e.dataTransfer.files?.[0];
+    if (f) handleUploadImage(f, i);
+  };
+
+  const handleUploadImage = async (file: File, i: number) => {
+    const validation = validateImageFile(file);
+    if (validation) { showToast('error', validation); return; }
+    setUploading(i, true);
+    try {
+      const old = (form.images || [])[i];
+      const url = await uploadImage(file, 'outfits');
+      if (old) {
+        try { await deleteImage(old); } catch (err) { /* ignore delete errors */ }
+      }
+      updateImage(i, url);
+      showToast('success', 'Image uploaded');
+    } catch (err) {
+      showToast('error', 'Failed to upload image');
+    } finally {
+      setUploading(i, false);
+    }
+  };
+
   // ─── pagination ───────────────────────────────────────────────────────────
   const pageNumbers = (): (number | '...')[] => {
     if (pages <= 7) return Array.from({ length: pages }, (_, i) => i + 1);
@@ -358,6 +483,9 @@ export default function OutfitManagementSection() {
   // Form Tab Content
   // ─────────────────────────────────────────────────────────────────────────
 
+  const setSeoField = <K extends keyof IOutfitSEO>(k: K, v: IOutfitSEO[K]) =>
+    setForm((f) => ({ ...f, seo: { ...(f.seo || EMPTY_SEO), [k]: v } }));
+
   const errBorder = (field: keyof OutfitFull) =>
     formErrors[field] ? 'border-red-500/60' : 'border-white/10 focus:border-yellow-500/60';
 
@@ -373,23 +501,37 @@ export default function OutfitManagementSection() {
               Title <span className="text-yellow-400">*</span>
             </label>
             <input type="text" value={form.title}
-              onChange={(e) => setField('title', e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setField('title', v);
+                if (!isSlugEditedRef.current) setField('slug', slugify(v));
+              }}
               placeholder="e.g. Ayushmann Khurrana's Karwa Chauth Kurta Look"
               className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${errBorder('title')}`}
             />
             {formErrors.title && <p className="text-red-400 text-xs mt-1 font-montserrat">{formErrors.title}</p>}
+
+            <label className="block text-xs font-medium text-neutral-400 mt-4 mb-1.5 font-montserrat uppercase tracking-wider">Slug (auto-generated)</label>
+            <input type="text" value={form.slug || ''}
+              onChange={(e) => { setField('slug', e.target.value); isSlugEditedRef.current = true; }}
+              placeholder="auto-generated-from-title"
+              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+            />
+            <p className="text-xs text-neutral-500 mt-1">URL path segment — lowercase letters, numbers and hyphens.</p>
           </div>
 
-          {/* Celebrity ID */}
+          {/* Celebrity (select from existing profiles) */}
           <div>
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-              Celebrity ID (ObjectId) <span className="text-yellow-400">*</span>
+              Celebrity <span className="text-yellow-400">*</span>
             </label>
-            <input type="text" value={String(form.celebrity)}
-              onChange={(e) => setField('celebrity', e.target.value)}
-              placeholder="MongoDB ObjectId of the celebrity"
-              className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${errBorder('celebrity')}`}
-            />
+            <select value={String(form.celebrity)} onChange={(e) => setField('celebrity', e.target.value)}
+              className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${errBorder('celebrity')}`}>
+              <option value="">Select a celebrity...</option>
+              {celebrities.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}{c.slug ? ` — ${c.slug}` : ''}</option>
+              ))}
+            </select>
             {formErrors.celebrity && <p className="text-red-400 text-xs mt-1 font-montserrat">{formErrors.celebrity}</p>}
           </div>
 
@@ -455,59 +597,134 @@ export default function OutfitManagementSection() {
 
       // ── IMAGES (Gallery) ───────────────────────────────────────────────
       case 'gallery': return (
-        <div className="space-y-4">
+        <div className="space-y-5">
+          {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white text-sm font-montserrat font-medium">Image Gallery</p>
-              <p className="text-neutral-500 text-xs font-montserrat mt-0.5">First image is used as the primary thumbnail</p>
+              <p className="text-white text-sm font-montserrat font-semibold">Image Gallery</p>
+              <p className="text-neutral-500 text-xs font-montserrat mt-0.5">
+                First image is the primary thumbnail · Upload from device or paste a URL
+              </p>
             </div>
             <button type="button" onClick={addImageField}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 font-montserrat text-sm font-medium transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/20 font-montserrat text-sm font-medium transition-all"
             >
-              <Icon name="PlusIcon" size={14} /> Add Image
+              <Icon name="PlusIcon" size={14} /> Add Slot
             </button>
           </div>
 
           {formErrors.images && (
-            <p className="text-red-400 text-xs font-montserrat">{formErrors.images}</p>
+            <p className="text-red-400 text-xs font-montserrat bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-xl">{formErrors.images}</p>
           )}
 
-          {(form.images || []).length === 0 ? (
-            <div className="text-center py-10 rounded-xl border border-dashed border-white/10">
-              <Icon name="PhotoIcon" size={32} className="mx-auto mb-2 text-neutral-700" />
-              <p className="text-neutral-500 text-sm font-montserrat">No images yet</p>
-              <button type="button" onClick={addImageField}
-                className="mt-2 text-yellow-400 text-sm font-montserrat hover:underline">
-                + Add first image
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {(form.images || []).map((img, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <label className="block text-xs text-neutral-500 mb-1 font-montserrat">
-                      {i === 0 ? 'Primary Image (thumbnail)' : `Image ${i + 1}`}
-                    </label>
-                    <input type="url" value={img}
-                      onChange={(e) => updateImage(i, e.target.value)}
-                      placeholder="https://firebasestorage.googleapis.com/..."
-                      className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                    />
+          {/* Empty state — first visit */}
+          {(form.images || []).length === 0 && (
+            <button type="button" onClick={addImageField}
+              className="w-full py-14 rounded-2xl border-2 border-dashed border-white/10 hover:border-yellow-500/40 hover:bg-yellow-500/5 transition-all flex flex-col items-center gap-3 group"
+            >
+              <div className="p-4 rounded-full bg-white/5 group-hover:bg-yellow-500/10 transition-all">
+                <Icon name="PhotoIcon" size={28} className="text-neutral-600 group-hover:text-yellow-400 transition-colors" />
+              </div>
+              <div className="text-center">
+                <p className="text-neutral-400 text-sm font-montserrat font-medium group-hover:text-white transition-colors">Click to add first image</p>
+                <p className="text-neutral-600 text-xs font-montserrat mt-0.5">or drag & drop files anywhere on this panel</p>
+              </div>
+            </button>
+          )}
+
+          {/* Image cards grid */}
+          {(form.images || []).length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {(form.images || []).map((img, i) => {
+                const isUploading = !!uploadingMap[i];
+                return (
+                  <div key={i}
+                    onDrop={(e) => handleDropImage(e, i)}
+                    onDragOver={(e) => e.preventDefault()}
+                    className={`relative rounded-2xl border transition-all overflow-hidden group ${
+                      isUploading
+                        ? 'border-yellow-500/50 bg-yellow-500/5'
+                        : img
+                          ? 'border-white/10 bg-white/3 hover:border-yellow-500/30'
+                          : 'border-dashed border-white/15 bg-white/3 hover:border-yellow-500/40 hover:bg-yellow-500/5'
+                    }`}
+                  >
+                    {/* Badge */}
+                    {i === 0 && (
+                      <span className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full bg-yellow-500 text-black text-xs font-bold font-montserrat tracking-wide shadow-lg">
+                        Primary
+                      </span>
+                    )}
+
+                    {/* Remove */}
+                    {(form.images || []).length > 1 && (
+                      <button type="button" onClick={() => removeImageField(i)}
+                        className="absolute top-3 right-3 z-10 p-1.5 rounded-lg bg-black/60 text-red-400 hover:bg-red-500/20 transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        <Icon name="TrashIcon" size={13} />
+                      </button>
+                    )}
+
+                    {/* Preview area */}
+                    <div className="relative w-full h-44">
+                      {isUploading ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+                          <Icon name="ArrowPathIcon" size={28} className="text-yellow-400 animate-spin" />
+                          <p className="text-yellow-400 text-xs font-montserrat font-medium">Uploading…</p>
+                        </div>
+                      ) : img ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={img} alt={`outfit-${i}`} className="w-full h-full object-cover" />
+                      ) : (
+                        <button type="button" onClick={() => handleSelectImage(i)}
+                          className="w-full h-full flex flex-col items-center justify-center gap-2 text-neutral-600 hover:text-yellow-400 transition-colors"
+                        >
+                          <Icon name="ArrowUpTrayIcon" size={28} />
+                          <p className="text-xs font-montserrat">Click or drop to upload</p>
+                        </button>
+                      )}
+
+                      {/* Overlay actions when image exists */}
+                      {img && !isUploading && (
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                          <button type="button" onClick={() => handleSelectImage(i)}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500 text-black text-xs font-bold font-montserrat hover:bg-yellow-400 transition-all"
+                          >
+                            <Icon name="ArrowUpTrayIcon" size={13} /> Replace
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* URL input */}
+                    <div className="px-3 py-3 border-t border-white/10 bg-black/20 flex items-center gap-2">
+                      <input
+                        type="url"
+                        value={img}
+                        onChange={(e) => updateImage(i, e.target.value)}
+                        placeholder="Paste URL or upload above…"
+                        className="flex-1 min-w-0 bg-transparent text-white text-xs font-montserrat placeholder-neutral-600 focus:outline-none truncate"
+                      />
+                      <button type="button" onClick={() => handleSelectImage(i)} disabled={isUploading}
+                        title="Upload image"
+                        className="shrink-0 p-1.5 rounded-lg bg-yellow-500/15 text-yellow-400 hover:bg-yellow-500/30 transition-all disabled:opacity-40"
+                      >
+                        <Icon name="ArrowUpTrayIcon" size={14} />
+                      </button>
+                    </div>
                   </div>
-                  {/* Preview */}
-                  {img && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={img} alt="" className="w-14 h-14 rounded-xl object-cover border border-white/10 shrink-0 mt-5" />
-                  )}
-                  {(form.images || []).length > 1 && (
-                    <button type="button" onClick={() => removeImageField(i)}
-                      className="mt-6 p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all shrink-0">
-                      <Icon name="TrashIcon" size={14} />
-                    </button>
-                  )}
+                );
+              })}
+
+              {/* "Add another" ghost card */}
+              <button type="button" onClick={addImageField}
+                className="rounded-2xl border-2 border-dashed border-white/10 hover:border-yellow-500/40 hover:bg-yellow-500/5 transition-all flex flex-col items-center justify-center gap-2 h-full min-h-[220px] text-neutral-600 hover:text-yellow-400 group"
+              >
+                <div className="p-3 rounded-full bg-white/5 group-hover:bg-yellow-500/10 transition-all">
+                  <Icon name="PlusIcon" size={20} />
                 </div>
-              ))}
+                <p className="text-xs font-montserrat">Add image</p>
+              </button>
             </div>
           )}
         </div>
@@ -541,6 +758,192 @@ export default function OutfitManagementSection() {
           </div>
         </div>
       );
+
+      // ── SEO ───────────────────────────────────────────────────────────────
+      case 'seo': {
+        const seo = form.seo || EMPTY_SEO;
+        const seoSection = (title: string, icon: string, children: React.ReactNode) => (
+          <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-white/5">
+              <Icon name={icon as any} size={15} className="text-yellow-400" />
+              <p className="text-white text-xs font-semibold font-montserrat uppercase tracking-wider">{title}</p>
+            </div>
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+          </div>
+        );
+        const seoInput = (label: string, k: keyof IOutfitSEO, placeholder?: string, span2?: boolean) => (
+          <div className={span2 ? 'md:col-span-2' : ''}>
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
+            <input type="text" value={String(seo[k] ?? '')} placeholder={placeholder}
+              onChange={(e) => setSeoField(k, e.target.value as any)}
+              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+            />
+          </div>
+        );
+        const seoTextarea = (label: string, k: keyof IOutfitSEO, placeholder?: string, rows = 3) => (
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
+            <textarea rows={rows} value={String(seo[k] ?? '')} placeholder={placeholder}
+              onChange={(e) => setSeoField(k, e.target.value as any)}
+              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+            />
+          </div>
+        );
+        const seoToggle = (label: string, k: 'noindex' | 'nofollow') => (
+          <div className="flex items-center justify-between py-1">
+            <span className="text-sm font-montserrat text-neutral-300">{label}</span>
+            <button type="button" onClick={() => setSeoField(k, !seo[k])}
+              className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${seo[k] ? 'bg-yellow-500' : 'bg-white/10'}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${seo[k] ? 'left-5' : 'left-0.5'}`} />
+            </button>
+          </div>
+        );
+
+        return (
+          <div className="space-y-4">
+            {/* Score bar */}
+            <div className="flex items-center gap-4 px-4 py-3 rounded-2xl bg-yellow-500/5 border border-yellow-500/20">
+              <Icon name="MagnifyingGlassIcon" size={18} className="text-yellow-400 shrink-0" />
+              <div className="flex-1">
+                <p className="text-white text-sm font-montserrat font-semibold">SEO Configuration</p>
+                <p className="text-neutral-500 text-xs font-montserrat mt-0.5">Fill all fields for maximum Google discoverability</p>
+              </div>
+              <div className="text-right">
+                <p className="text-yellow-400 text-xs font-montserrat font-bold">
+                  {[seo.metaTitle, seo.metaDescription, seo.focusKeyword, seo.ogTitle, seo.twitterTitle].filter(Boolean).length * 20}%
+                </p>
+                <p className="text-neutral-600 text-xs font-montserrat">filled</p>
+              </div>
+            </div>
+
+            {/* Core */}
+            {seoSection('Core Meta Tags', 'DocumentTextIcon', (
+              <>
+                {seoInput('Focus Keyword', 'focusKeyword', 'e.g. Bollywood celebrity outfit', true)}
+                {seoInput('Meta Title', 'metaTitle', 'e.g. Ayushmann Khurrana Kurta Set — Celebrity Persona', true)}
+                {seoTextarea('Meta Description (140–160 chars)', 'metaDescription', 'Short compelling description for search results…')}
+                {seoInput('Canonical URL', 'canonicalUrl', 'https://yoursite.com/fashion-gallery/slug', true)}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Keywords (one per line)</label>
+                  <textarea rows={3} value={joinLines(seo.metaKeywords)}
+                    onChange={(e) => setSeoField('metaKeywords', splitLines(e.target.value))}
+                    placeholder={"beige kurta set\ncelebrity outfit\nGopi Vaid designer"}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">{(seo.metaKeywords || []).length} keywords</p>
+                </div>
+              </>
+            ))}
+
+            {/* Robots */}
+            {seoSection('Crawling & Indexing', 'ShieldCheckIcon', (
+              <>
+                {seoInput('Robots Meta', 'robots', 'index,follow', true)}
+                <div className="md:col-span-2 space-y-3">
+                  {seoToggle('noindex (exclude from search index)', 'noindex')}
+                  {seoToggle('nofollow (do not follow links)', 'nofollow')}
+                </div>
+              </>
+            ))}
+
+            {/* Open Graph */}
+            {seoSection('Open Graph (Facebook / WhatsApp)', 'PhotoIcon', (
+              <>
+                {seoInput('OG Title', 'ogTitle', 'Same as Meta Title or custom', true)}
+                {seoTextarea('OG Description', 'ogDescription', 'Social share description…', 2)}
+                {seoInput('OG Type', 'ogType', 'product')}
+                {seoInput('OG Site Name', 'ogSiteName', 'Celebrity Persona')}
+                {seoInput('OG URL', 'ogUrl', 'https://yoursite.com/fashion-gallery/slug', true)}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Images (one URL per line)</label>
+                  <textarea rows={2} value={joinLines(seo.ogImages)}
+                    onChange={(e) => setSeoField('ogImages', splitLines(e.target.value))}
+                    placeholder="https://firebasestorage.googleapis.com/..."
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                  />
+                </div>
+              </>
+            ))}
+
+            {/* Twitter */}
+            {seoSection('Twitter / X Card', 'ChatBubbleLeftRightIcon', (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Card Type</label>
+                  <select value={seo.twitterCard || 'summary_large_image'}
+                    onChange={(e) => setSeoField('twitterCard', e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm">
+                    <option value="summary_large_image">summary_large_image</option>
+                    <option value="summary">summary</option>
+                    <option value="app">app</option>
+                    <option value="player">player</option>
+                  </select>
+                </div>
+                {seoInput('Twitter Title', 'twitterTitle', 'Card headline')}
+                {seoInput('Twitter Image URL', 'twitterImage', 'https://…')}
+                {seoInput('Twitter Site (@handle)', 'twitterSite', '@CelebrityPersona')}
+                {seoInput('Twitter Creator (@handle)', 'twitterCreator', '@author')}
+                {seoTextarea('Twitter Description', 'twitterDescription', 'Short description for the card…', 2)}
+              </>
+            ))}
+
+            {/* Author / Structured Data */}
+            {seoSection('Author & Structured Data', 'CodeBracketIcon', (
+              <>
+                {seoInput('Author Name', 'authorName', 'Editorial Team')}
+                {seoInput('Author URL', 'authorUrl', 'https://yoursite.com/team')}
+                {seoInput('Section / Category', 'section', 'Fashion')}
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Schema Type</label>
+                  <select value={seo.schemaType || 'Product'}
+                    onChange={(e) => setSeoField('schemaType', e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm">
+                    <option value="Product">Product</option>
+                    <option value="Article">Article</option>
+                    <option value="BlogPosting">BlogPosting</option>
+                    <option value="CreativeWork">CreativeWork</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Structured Data Depth</label>
+                  <select value={seo.structuredDataDepth || 'basic'}
+                    onChange={(e) => setSeoField('structuredDataDepth', e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm">
+                    <option value="basic">Basic</option>
+                    <option value="standard">Standard</option>
+                    <option value="rich">Rich</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Related Topics (one per line)</label>
+                  <textarea rows={3} value={joinLines(seo.relatedTopics)}
+                    onChange={(e) => setSeoField('relatedTopics', splitLines(e.target.value))}
+                    placeholder={"celebrity fashion\nBollywood style\ndesigner outfits"}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                  />
+                </div>
+              </>
+            ))}
+
+            {/* Alternate / Pagination */}
+            {seoSection('Alternate Languages & Pagination', 'GlobeAltIcon', (
+              <>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Alternate Language URLs (one per line)</label>
+                  <textarea rows={2} value={joinLines(seo.alternateLangs)}
+                    onChange={(e) => setSeoField('alternateLangs', splitLines(e.target.value))}
+                    placeholder="https://yoursite.com/hi/fashion-gallery/slug"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                  />
+                </div>
+                {seoInput('Prev URL (pagination)', 'prevUrl', 'https://yoursite.com/fashion-gallery?page=1')}
+                {seoInput('Next URL (pagination)', 'nextUrl', 'https://yoursite.com/fashion-gallery?page=3')}
+              </>
+            ))}
+          </div>
+        );
+      }
 
       default: return null;
     }
