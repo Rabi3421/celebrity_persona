@@ -12,6 +12,10 @@ export interface IUser extends Document {
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
   lastLogin?: Date;
+  // Profile fields
+  bio?: string;
+  location?: string;
+  avatar?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -66,6 +70,20 @@ const userSchema = new Schema<IUser>(
     lastLogin: {
       type: Date,
     },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: [300, 'Bio cannot exceed 300 characters'],
+    },
+    location: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Location cannot exceed 100 characters'],
+    },
+    avatar: {
+      type: String,
+      default: '',
+    },
   },
   {
     timestamps: true,
@@ -94,6 +112,11 @@ userSchema.pre('save', function () {
   }
 });
 
-const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', userSchema);
+// Clear cached model so schema changes (bio, location, avatar) are always applied
+if (mongoose.models.User) {
+  delete (mongoose.models as Record<string, unknown>).User;
+}
+
+const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);
 
 export default User;
