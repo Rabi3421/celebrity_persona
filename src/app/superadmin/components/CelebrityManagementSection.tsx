@@ -152,6 +152,8 @@ const toSlug = (v: string) =>
 
 const splitLines = (v: string) => v.split('\n').map((s) => s.trim()).filter(Boolean);
 const joinLines  = (arr?: string[]) => (arr || []).join('\n');
+const splitComma = (v: string) => String(v || '').split(',').map((s) => s.trim()).filter(Boolean);
+const joinComma  = (arr?: string[]) => (arr || []).join(', ');
 
 const formatForDisplay = (d?: string) => {
   if (!d) return '';
@@ -610,14 +612,9 @@ export default function CelebrityManagementSection() {
         personalLife:     d.personalLife     || '',
         achievements:     d.achievements     || [],
         controversies:    d.controversies    || [],
-        achievementsHtml: d.achievementsHtml ||
-          ((d.achievements || []).length
-            ? `<ul>${(d.achievements || []).map((a: string) => `<li>${a}</li>`).join('')}</ul>`
-            : ''),
-        controversiesHtml: d.controversiesHtml ||
-          ((d.controversies || []).length
-            ? `<ul>${(d.controversies || []).map((c: string) => `<li>${c}</li>`).join('')}</ul>`
-            : ''),
+        // Stored as HTML in achievements[0] / controversies[0]
+        achievementsHtml:  (d.achievements  || [])[0] || '',
+        controversiesHtml: (d.controversies || [])[0] || '',
         philanthropy:     d.philanthropy     || [],
         trivia:           d.trivia           || [],
         works:            d.works            || [],
@@ -645,19 +642,19 @@ export default function CelebrityManagementSection() {
           metaTitle:       d.seo?.metaTitle       || '',
           metaDescription: d.seo?.metaDescription || '',
           focusKeyword:    d.seo?.focusKeyword    || '',
-          keywords:        d.seo?.keywords        || [],
+          keywords:        d.seo?.metaKeywords    || [],          // DB: metaKeywords
           canonicalUrl:    d.seo?.canonicalUrl    || '',
           ogTitle:         d.seo?.ogTitle         || '',
           ogDescription:   d.seo?.ogDescription   || '',
-          ogImage:         d.seo?.ogImage         || '',
+          ogImage:         (d.seo?.ogImages || [])[0] || '',      // DB: ogImages[]
           twitterCard:     d.seo?.twitterCard     || 'summary_large_image',
           twitterCreator:  d.seo?.twitterCreator  || '',
           schemaType:      d.seo?.schemaType      || 'Person',
-          breadcrumbTitle: d.seo?.breadcrumbTitle || '',
-          robotsIndex:     d.seo?.robotsIndex     ?? true,
-          robotsFollow:    d.seo?.robotsFollow    ?? true,
-          articleSection:  d.seo?.articleSection  || '',
-          readingTime:     d.seo?.readingTime     || '',
+          breadcrumbTitle: '',
+          robotsIndex:     !(d.seo?.noindex  ?? false),          // DB: noindex (inverted)
+          robotsFollow:    !(d.seo?.nofollow ?? false),          // DB: nofollow (inverted)
+          articleSection:  d.seo?.section         || '',          // DB: section
+          readingTime:     '',
         },
       });
     } catch (err: any) {
@@ -707,10 +704,9 @@ export default function CelebrityManagementSection() {
     earlyLife:        form.earlyLife?.trim()        || '',
     career:           form.career?.trim()           || '',
     personalLife:     form.personalLife?.trim()     || '',
-    achievements:     form.achievements             || [],
-    controversies:    form.controversies            || [],
-    achievementsHtml: form.achievementsHtml         || '',
-    controversiesHtml: form.controversiesHtml       || '',
+    // Store the rich-text HTML as the first (and only) element of the array
+    achievements:     form.achievementsHtml  ? [form.achievementsHtml]  : (form.achievements  || []),
+    controversies:    form.controversiesHtml ? [form.controversiesHtml] : (form.controversies || []),
     philanthropy:     form.philanthropy             || [],
     trivia:           form.trivia                   || [],
     works:            form.works                    || [],
@@ -727,7 +723,23 @@ export default function CelebrityManagementSection() {
     isFeatured:       form.isFeatured,
     isVerified:       form.isVerified,
     socialMedia:      form.socialMedia,
-    seo:              form.seo,
+    // Map form-friendly SEO keys → DB schema keys
+    seo: {
+      metaTitle:       form.seo?.metaTitle       || '',
+      metaDescription: form.seo?.metaDescription || '',
+      focusKeyword:    form.seo?.focusKeyword    || '',
+      metaKeywords:    form.seo?.keywords        || [],          // form: keywords → DB: metaKeywords
+      canonicalUrl:    form.seo?.canonicalUrl    || '',
+      ogTitle:         form.seo?.ogTitle         || '',
+      ogDescription:   form.seo?.ogDescription   || '',
+      ogImages:        form.seo?.ogImage ? [form.seo.ogImage] : [],  // form: ogImage → DB: ogImages[]
+      twitterCard:     form.seo?.twitterCard     || 'summary_large_image',
+      twitterCreator:  form.seo?.twitterCreator  || '',
+      schemaType:      form.seo?.schemaType      || 'Person',
+      noindex:         !(form.seo?.robotsIndex  ?? true),        // form: robotsIndex → DB: noindex (inverted)
+      nofollow:        !(form.seo?.robotsFollow ?? true),        // form: robotsFollow → DB: nofollow (inverted)
+      section:         form.seo?.articleSection  || '',          // form: articleSection → DB: section
+    },
   });
 
   // ─── create ──────────────────────────────────────────────────────────────
@@ -917,27 +929,33 @@ export default function CelebrityManagementSection() {
               <div>
                 <label className="block text-[10px] text-neutral-500 mb-1">From</label>
                 <input
-                  type="date"
+                  type="number"
+                  min={1900}
+                  max={new Date().getFullYear()}
                   value={form.yearsActiveFrom || ''}
                   onChange={(e) => {
-                    const v = e.target.value;
+                    const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
                     setField('yearsActiveFrom', v);
                     setField('yearsActive', computeYearsActive(v, form.yearsActiveTo, form.yearsActivePresent));
                   }}
+                  placeholder="e.g. 2016"
                   className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
                 />
               </div>
               <div>
                 <label className="block text-[10px] text-neutral-500 mb-1">To</label>
                 <input
-                  type="date"
+                  type="number"
+                  min={1900}
+                  max={new Date().getFullYear()}
                   value={form.yearsActiveTo || ''}
                   onChange={(e) => {
-                    const v = e.target.value;
+                    const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
                     setField('yearsActiveTo', v);
                     setField('yearsActive', computeYearsActive(form.yearsActiveFrom, v, form.yearsActivePresent));
                   }}
                   disabled={form.yearsActivePresent}
+                  placeholder="e.g. 2024"
                   className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all disabled:opacity-50"
                 />
               </div>
@@ -1056,12 +1074,12 @@ export default function CelebrityManagementSection() {
           <div className="md:col-span-2">
             <LabeledInput label="Spouse" value={form.spouse || ''} onChange={(v) => setField('spouse', v)} placeholder="e.g. Lauren Hashian" />
           </div>
-          <LabeledMultiline label="Children (one per line)"  value={joinLines(form.children)}  onChange={(v) => setField('children',  splitLines(v))} placeholder="Simone Alexandra Johnson" />
-          <LabeledMultiline label="Parents (one per line)"   value={joinLines(form.parents)}   onChange={(v) => setField('parents',   splitLines(v))} placeholder="Rocky Johnson" />
-          <LabeledMultiline label="Siblings (one per line)"  value={joinLines(form.siblings)}  onChange={(v) => setField('siblings',  splitLines(v))} placeholder="Curtis Bowles" />
-          <LabeledMultiline label="Relatives (one per line)" value={joinLines(form.relatives)} onChange={(v) => setField('relatives', splitLines(v))} placeholder="" />
+          <LabeledMultiline label="Children (comma separated)"  value={joinComma(form.children)}  onChange={(v) => setField('children',  splitComma(v))} placeholder="Simone Alexandra Johnson, Ava Johnson" />
+          <LabeledMultiline label="Parents (comma separated)"   value={joinComma(form.parents)}   onChange={(v) => setField('parents',   splitComma(v))} placeholder="Rocky Johnson, Ata Johnson" />
+          <LabeledMultiline label="Siblings (comma separated)"  value={joinComma(form.siblings)}  onChange={(v) => setField('siblings',  splitComma(v))} placeholder="Curtis Bowles, John Doe" />
+          <LabeledMultiline label="Relatives (comma separated)" value={joinComma(form.relatives)} onChange={(v) => setField('relatives', splitComma(v))} placeholder="Uncle Bob, Cousin Jane" />
           <div className="md:col-span-2">
-            <LabeledMultiline label="Education (one per line)" value={joinLines(form.education)} onChange={(v) => setField('education', splitLines(v))} placeholder="University of Miami" />
+            <LabeledMultiline label="Education (comma separated)" value={joinComma(form.education)} onChange={(v) => setField('education', splitComma(v))} placeholder="University of Miami, Harvard University" />
           </div>
 
           <div className="md:col-span-2 space-y-3">
