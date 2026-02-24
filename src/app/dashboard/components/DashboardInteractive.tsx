@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 import ProfileSection from './ProfileSection';
 import WishlistSection from './WishlistSection';
-import UploadedItemsSection from './UploadedItemsSection';
+import MyUploadsSection from './MyUploadsSection';
 import ActivityHistorySection from './ActivityHistorySection';
 import AccountSettingsSection from './AccountSettingsSection';
 
@@ -27,6 +27,15 @@ export default function DashboardInteractive() {
   const [logoutLoading, setLogoutLoading] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Handle ?section=uploads from navbar redirect
+  useEffect(() => {
+    const section = searchParams.get('section') as SectionType | null;
+    if (section && menuItems.find((m) => m.id === section)) {
+      setActiveSection(section);
+    }
+  }, [searchParams]);
 
   const handleLogout = async () => {
     setLogoutLoading(true);
@@ -40,7 +49,7 @@ export default function DashboardInteractive() {
     switch (activeSection) {
       case 'profile':   return <ProfileSection />;
       case 'wishlist':  return <WishlistSection />;
-      case 'uploads':   return <UploadedItemsSection />;
+      case 'uploads':   return <MyUploadsSection />;
       case 'activity':  return <ActivityHistorySection />;
       case 'settings':  return <AccountSettingsSection />;
     }

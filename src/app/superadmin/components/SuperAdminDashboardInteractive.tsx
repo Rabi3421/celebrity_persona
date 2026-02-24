@@ -15,14 +15,16 @@ import ReviewManagementSection from './ReviewManagementSection';
 import RoleManagementSection from './RoleManagementSection';
 import SuperAdminSettingsSection from './SuperAdminSettingsSection';
 import SystemControlsSection from './SystemControlsSection';
+import UserOutfitApprovalsSection from './UserOutfitApprovalsSection';
 
-type SectionType = 'overview' | 'roles' | 'celebrities' | 'outfits' | 'news' | 'movies' | 'reviews' | 'data' | 'platform' | 'system' | 'settings';
+type SectionType = 'overview' | 'roles' | 'celebrities' | 'outfits' | 'user-outfit-approvals' | 'news' | 'movies' | 'reviews' | 'data' | 'platform' | 'system' | 'settings';
 
 const menuItems: { id: SectionType; label: string; icon: string; desc: string }[] = [
   { id: 'overview',  label: 'Overview',           icon: 'Squares2X2Icon',  desc: 'System at a glance'             },
   { id: 'roles',       label: 'Role Management',    icon: 'KeyIcon',         desc: 'Manage roles & permissions'     },
   { id: 'celebrities', label: 'Celebrity Profiles', icon: 'StarIcon',        desc: 'Manage celebrity profiles'       },
-  { id: 'outfits',     label: 'Celebrity Outfits', icon: 'SparklesIcon',    desc: 'Manage celebrity outfits'        },
+  { id: 'outfits',             label: 'Celebrity Outfits',  icon: 'SparklesIcon',      desc: 'Manage celebrity outfits'                  },
+  { id: 'user-outfit-approvals', label: 'Outfit Approvals',   icon: 'CheckBadgeIcon',    desc: 'Review & approve user-submitted outfits'   },
   { id: 'news',        label: 'Celebrity News',    icon: 'NewspaperIcon',   desc: 'Manage news articles'            },
   { id: 'movies',      label: 'Upcoming Movies',   icon: 'FilmIcon',        desc: 'Manage movies & releases'        },
   { id: 'reviews',     label: 'Movie Reviews',     icon: 'DocumentTextIcon', desc: 'Manage movie reviews'           },
@@ -63,7 +65,8 @@ export default function SuperAdminDashboardInteractive() {
       case 'overview':  return <OverviewSection />;
       case 'roles':       return <RoleManagementSection />;
       case 'celebrities': return <CelebrityManagementSection />;
-      case 'outfits':     return <OutfitManagementSection />;
+      case 'outfits':               return <OutfitManagementSection />;
+      case 'user-outfit-approvals':   return <UserOutfitApprovalsSection />;
       case 'news':        return <NewsManagementSection />;
       case 'movies':      return <MovieManagementSection />;
       case 'reviews':     return <ReviewManagementSection />;

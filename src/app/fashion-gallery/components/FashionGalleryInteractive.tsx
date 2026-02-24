@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import FilterBar from './FilterBar';
 import OutfitGallery from './OutfitGallery';
 import FeaturedOutfit from './FeaturedOutfit';
+import AppImage from '@/components/ui/AppImage';
+import Icon from '@/components/ui/AppIcon';
 
 export interface OutfitDoc {
   id: string;
@@ -27,6 +30,22 @@ export interface OutfitDoc {
   createdAt?: string;
 }
 
+interface UserOutfitDoc {
+  _id: string;
+  title: string;
+  slug: string;
+  images: string[];
+  category: string;
+  brand?: string;
+  color?: string;
+  purchasePrice?: number;
+  store?: string;
+  views: number;
+  likes: string[];
+  createdAt: string;
+  userId?: { name: string; avatar?: string };
+}
+
 const API_KEY = process.env.NEXT_PUBLIC_X_API_KEY || '';
 
 export default function FashionGalleryInteractive() {
@@ -44,6 +63,10 @@ export default function FashionGalleryInteractive() {
     event: 'all',
     brand: 'all',
   });
+
+  // Community outfits
+  const [communityOutfits, setCommunityOutfits]   = useState<UserOutfitDoc[]>([]);
+  const [communityLoading, setCommunityLoading]   = useState(true);
 
   const fetchOutfits = useCallback(async (p = 1, q = search, f = filters) => {
     setLoading(true); setError(null);
@@ -79,6 +102,20 @@ export default function FashionGalleryInteractive() {
   }, [search, filters]);
 
   useEffect(() => { fetchOutfits(1); }, [fetchOutfits]);
+
+  // ── Fetch community (user) outfits ─────────────────────────────────────────
+  useEffect(() => {
+    setCommunityLoading(true);
+    fetch('/api/user-outfits?limit=8&sort=latest', {
+      headers: { 'x-api-key': API_KEY },
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success) setCommunityOutfits(json.data || []);
+      })
+      .catch(() => {/* silent */})
+      .finally(() => setCommunityLoading(false));
+  }, []);
 
   const handleFilterChange = (f: typeof filters) => {
     setFilters(f); fetchOutfits(1, search, f);
@@ -171,6 +208,114 @@ export default function FashionGalleryInteractive() {
           </div>
         </div>
       </div>
+
+      {/* ── Community Outfits Section ──────────────────────────────────────── */}
+      {(communityLoading || communityOutfits.length > 0) && (
+        <div className="px-6 pb-24">
+          <div className="max-w-7xl mx-auto">
+            {/* Section header */}
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="font-playfair text-3xl md:text-4xl font-bold text-white mb-2">
+                  Community Outfits
+                </h2>
+                <p className="text-neutral-400">Real styles shared by our fashion community</p>
+              </div>
+              <Link
+                href="/dashboard?section=uploads"
+                className="hidden md:flex items-center gap-2 bg-primary text-black px-5 py-2.5 rounded-full text-sm font-semibold hover:glow-gold transition-all"
+              >
+                <Icon name="ArrowUpTrayIcon" size={16} />
+                Share Your Style
+              </Link>
+            </div>
+
+            {/* Grid */}
+            {communityLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-pulse">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="h-64 bg-white/5 rounded-2xl" />
+                ))}
+              </div>
+            ) : communityOutfits.length === 0 ? (
+              <div className="glass-card rounded-3xl p-12 text-center">
+                <Icon name="PhotoIcon" size={48} className="text-neutral-600 mx-auto mb-3" />
+                <p className="text-neutral-400">No community outfits yet. Be the first to share!</p>
+                <Link href="/dashboard?section=uploads" className="mt-4 inline-flex items-center gap-2 bg-primary text-black px-6 py-2.5 rounded-full text-sm font-semibold hover:glow-gold transition-all">
+                  <Icon name="ArrowUpTrayIcon" size={16} />
+                  Upload Outfit
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {communityOutfits.map((outfit) => (
+                    <Link
+                      key={outfit._id}
+                      href={`/user-outfits/${outfit.slug}`}
+                      className="glass-card rounded-2xl overflow-hidden hover:scale-[1.02] hover:glow-gold transition-all group block"
+                    >
+                      <div className="relative h-56">
+                        <AppImage
+                          src={outfit.images[0] || ''}
+                          alt={outfit.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+                        {/* Category pill */}
+                        <span className="absolute top-3 left-3 text-xs px-2.5 py-1 rounded-full bg-primary/20 text-primary border border-primary/30 capitalize">
+                          {outfit.category}
+                        </span>
+
+                        {/* Hover overlay */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="text-white text-sm font-medium">View Details →</span>
+                        </div>
+                      </div>
+
+                      <div className="p-3">
+                        <h3 className="text-white text-sm font-semibold truncate mb-1">{outfit.title}</h3>
+                        <div className="flex items-center justify-between text-xs text-neutral-500">
+                          <div className="flex items-center gap-2">
+                            {outfit.userId && (
+                              <span className="text-neutral-400 truncate max-w-[80px]">{outfit.userId.name}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="flex items-center gap-0.5">
+                              <Icon name="EyeIcon" size={12} />
+                              {outfit.views}
+                            </span>
+                            <span className="flex items-center gap-0.5">
+                              <Icon name="HeartIcon" size={12} />
+                              {outfit.likes.length}
+                            </span>
+                          </div>
+                        </div>
+                        {outfit.purchasePrice && (
+                          <p className="text-primary text-sm font-bold mt-1">₹{outfit.purchasePrice.toLocaleString()}</p>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+
+                {/* View all */}
+                <div className="text-center mt-8">
+                  <Link
+                    href="/fashion-gallery/community"
+                    className="inline-flex items-center gap-2 glass-card px-8 py-3 rounded-full text-white hover:text-primary transition-colors text-sm font-medium"
+                  >
+                    View All Community Outfits
+                    <Icon name="ArrowRightIcon" size={16} />
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
