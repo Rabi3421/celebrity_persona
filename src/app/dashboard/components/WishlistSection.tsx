@@ -6,7 +6,8 @@ import Icon from '@/components/ui/AppIcon';
 import AppImage from '@/components/ui/AppImage';
 import { useAuth } from '@/context/AuthContext';
 
-type WishlistTab = 'celebrities' | 'outfits';
+type WishlistTab = 'celebrities' | 'outfits' | 'news';
+type NewsSubTab  = 'liked' | 'saved';
 
 interface FollowedCelebrity {
   id: string;
@@ -40,6 +41,33 @@ interface SavedOutfit {
   _source: 'user' | 'celebrity';
 }
 
+interface NewsArticle {
+  id: string;
+  title: string;
+  slug: string;
+  thumbnail: string;
+  category: string;
+  excerpt: string;
+  publishDate: string;
+  tags: string[];
+  celebrity: { name: string; slug: string } | null;
+  likeCount: number;
+  saveCount: number;
+  liked: boolean;
+  saved: boolean;
+}
+
+function timeAgo(raw: string) {
+  const diff = Date.now() - new Date(raw).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 60)  return `${Math.max(1, m)}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)  return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30)  return `${d}d ago`;
+  return new Date(raw).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export default function WishlistSection() {
   const { authHeaders } = useAuth();
 
@@ -54,6 +82,13 @@ export default function WishlistSection() {
   const [outfits, setOutfits]       = useState<SavedOutfit[]>([]);
   const [outfitLoading, setOutfitLoading] = useState(true);
   const [removing, setRemoving]     = useState<string | null>(null);
+
+  // News state
+  const [newsSubTab,    setNewsSubTab]    = useState<NewsSubTab>('liked');
+  const [likedNews,     setLikedNews]     = useState<NewsArticle[]>([]);
+  const [savedNews,     setSavedNews]     = useState<NewsArticle[]>([]);
+  const [newsLoading,   setNewsLoading]   = useState(true);
+  const [newsActing,    setNewsActing]    = useState<string | null>(null);
 
   const fetchCelebrities = useCallback(async () => {
     setCelebLoading(true);
@@ -87,9 +122,23 @@ export default function WishlistSection() {
     finally { setOutfitLoading(false); }
   }, [authHeaders]);
 
+  const fetchNews = useCallback(async () => {
+    setNewsLoading(true);
+    try {
+      const res  = await fetch('/api/user/news/liked-saved?type=all&limit=50', { headers: authHeaders() });
+      const json = await res.json();
+      if (json.success) {
+        setLikedNews(json.items.filter((a: NewsArticle) => a.liked));
+        setSavedNews(json.items.filter((a: NewsArticle) => a.saved));
+      }
+    } catch { /* ignore */ }
+    finally { setNewsLoading(false); }
+  }, [authHeaders]);
+
   useEffect(() => {
     fetchCelebrities();
     fetchOutfits();
+    fetchNews();
   }, []); // eslint-disable-line
 
   const handleUnfollow = async (celeb: FollowedCelebrity) => {
@@ -121,6 +170,22 @@ export default function WishlistSection() {
     } finally { setRemoving(null); }
   };
 
+  const handleNewsInteract = async (article: NewsArticle, action: 'unlike' | 'unsave') => {
+    setNewsActing(article.id);
+    try {
+      const res  = await fetch(`/api/user/news/${encodeURIComponent(article.slug)}/interact`, {
+        method:  'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ action }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        if (action === 'unlike') setLikedNews((prev) => prev.filter((a) => a.id !== article.id));
+        if (action === 'unsave') setSavedNews((prev) => prev.filter((a) => a.id !== article.id));
+      }
+    } finally { setNewsActing(null); }
+  };
+
   return (
     <div className="space-y-8">
 
@@ -145,6 +210,16 @@ export default function WishlistSection() {
           <Icon name="SparklesIcon" size={18} />
           Saved Outfits
           {!outfitLoading && <span className="ml-1 opacity-70">({outfits.length})</span>}
+        </button>
+        <button
+          onClick={() => setActiveTab('news')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all ${
+            activeTab === 'news' ? 'bg-primary text-black' : 'glass-card text-neutral-400 hover:text-white'
+          }`}
+        >
+          <Icon name="NewspaperIcon" size={18} />
+          News
+          {!newsLoading && <span className="ml-1 opacity-70">({likedNews.length + savedNews.length})</span>}
         </button>
       </div>
 
@@ -331,6 +406,167 @@ export default function WishlistSection() {
             })}
           </div>
         )
+      )}
+
+      {/* ── News ────────────────────────────────────────────────────────── */}
+      {activeTab === 'news' && (
+        <div className="space-y-6">
+          {/* Sub-tabs: Liked / Saved */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setNewsSubTab('liked')}
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all ${
+                newsSubTab === 'liked'
+                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                  : 'glass-card text-neutral-400 hover:text-white border border-white/10'
+              }`}
+            >
+              <Icon name="HeartIcon" size={15} className={newsSubTab === 'liked' ? 'fill-rose-400' : ''} />
+              Liked
+              {!newsLoading && <span className="opacity-70">({likedNews.length})</span>}
+            </button>
+            <button
+              onClick={() => setNewsSubTab('saved')}
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all ${
+                newsSubTab === 'saved'
+                  ? 'bg-primary/20 text-primary border border-primary/40'
+                  : 'glass-card text-neutral-400 hover:text-white border border-white/10'
+              }`}
+            >
+              <Icon name="BookmarkIcon" size={15} className={newsSubTab === 'saved' ? 'fill-primary' : ''} />
+              Saved
+              {!newsLoading && <span className="opacity-70">({savedNews.length})</span>}
+            </button>
+          </div>
+
+          {newsLoading ? (
+            <div className="space-y-4 animate-pulse">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex gap-4 glass-card rounded-2xl p-4">
+                  <div className="w-24 h-20 bg-white/5 rounded-xl flex-shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-white/5 rounded w-3/4" />
+                    <div className="h-3 bg-white/5 rounded w-1/2" />
+                    <div className="h-3 bg-white/5 rounded w-1/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (newsSubTab === 'liked' ? likedNews : savedNews).length === 0 ? (
+            <div className="glass-card rounded-3xl p-16 text-center">
+              <Icon
+                name={newsSubTab === 'liked' ? 'HeartIcon' : 'BookmarkIcon'}
+                size={56}
+                className="text-neutral-600 mx-auto mb-4"
+              />
+              <h3 className="font-playfair text-xl text-white mb-2">
+                No {newsSubTab === 'liked' ? 'liked' : 'saved'} articles yet
+              </h3>
+              <p className="text-neutral-400 text-sm mb-6">
+                {newsSubTab === 'liked'
+                  ? 'Tap the heart on any article to like it.'
+                  : 'Tap the bookmark on any article to save it for later.'}
+              </p>
+              <Link
+                href="/celebrity-news"
+                className="inline-flex items-center gap-2 bg-primary text-black px-6 py-3 rounded-full font-semibold text-sm hover:glow-gold transition-all"
+              >
+                <Icon name="NewspaperIcon" size={16} /> Browse News
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {(newsSubTab === 'liked' ? likedNews : savedNews).map((article) => (
+                <div
+                  key={article.id}
+                  className="glass-card rounded-2xl overflow-hidden border border-white/10 hover:border-white/20 transition-all flex gap-0"
+                >
+                  {/* Thumbnail */}
+                  <Link href={`/celebrity-news/${article.slug}`} className="block relative w-32 sm:w-40 flex-shrink-0 overflow-hidden">
+                    {article.thumbnail ? (
+                      <AppImage
+                        src={article.thumbnail}
+                        alt={article.title}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full min-h-[100px] bg-gradient-to-br from-purple-900 to-indigo-900 flex items-center justify-center">
+                        <Icon name="NewspaperIcon" size={28} className="text-white/30" />
+                      </div>
+                    )}
+                    {/* Category badge */}
+                    <div className="absolute top-2 left-2 bg-accent/20 text-accent border border-accent/30 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full backdrop-blur-sm">
+                      {article.category}
+                    </div>
+                  </Link>
+
+                  {/* Info */}
+                  <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+                    <div>
+                      <Link href={`/celebrity-news/${article.slug}`}>
+                        <h4 className="font-playfair text-sm font-semibold text-white leading-snug line-clamp-2 hover:text-primary transition-colors mb-1.5">
+                          {article.title}
+                        </h4>
+                      </Link>
+                      {article.excerpt && (
+                        <p className="text-xs text-neutral-500 line-clamp-2 mb-2">{article.excerpt}</p>
+                      )}
+                      <div className="flex items-center gap-3 text-[11px] text-neutral-500">
+                        {article.celebrity && (
+                          <span className="text-accent flex items-center gap-1">
+                            <Icon name="StarIcon" size={10} className="fill-accent" />
+                            {article.celebrity.name}
+                          </span>
+                        )}
+                        <span>{timeAgo(article.publishDate)}</span>
+                        <span className="flex items-center gap-1"><Icon name="HeartIcon" size={10} />{article.likeCount}</span>
+                        <span className="flex items-center gap-1"><Icon name="BookmarkIcon" size={10} />{article.saveCount}</span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 mt-3">
+                      <Link
+                        href={`/celebrity-news/${article.slug}`}
+                        className="flex items-center gap-1.5 glass-card text-neutral-300 hover:text-white border border-white/10 hover:border-white/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                      >
+                        <Icon name="EyeIcon" size={12} /> Read
+                      </Link>
+                      {newsSubTab === 'liked' && (
+                        <button
+                          onClick={() => handleNewsInteract(article, 'unlike')}
+                          disabled={newsActing === article.id}
+                          className="flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50"
+                          title="Unlike"
+                        >
+                          {newsActing === article.id
+                            ? <div className="w-3 h-3 border border-rose-400 border-t-transparent rounded-full animate-spin" />
+                            : <Icon name="HeartIcon" size={12} className="fill-rose-400" />
+                          }
+                          Unlike
+                        </button>
+                      )}
+                      {newsSubTab === 'saved' && (
+                        <button
+                          onClick={() => handleNewsInteract(article, 'unsave')}
+                          disabled={newsActing === article.id}
+                          className="flex items-center gap-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50"
+                          title="Remove from saved"
+                        >
+                          {newsActing === article.id
+                            ? <div className="w-3 h-3 border border-yellow-400 border-t-transparent rounded-full animate-spin" />
+                            : <Icon name="BookmarkSlashIcon" size={12} />
+                          }
+                          Unsave
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

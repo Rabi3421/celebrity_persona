@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import CelebrityNews from '@/models/CelebrityNews';
+import Celebrity from '@/models/Celebrity';
 
 // ── API Key guard ─────────────────────────────────────────────────────────────
 function isAuthorized(req: NextRequest): boolean {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await dbConnect();
-
+    void Celebrity.modelName; // ensure Celebrity schema is registered for populate
     const { searchParams } = new URL(request.url);
     const page     = Math.max(1, parseInt(searchParams.get('page')  || '1',  10));
     const limit    = Math.min(50, parseInt(searchParams.get('limit') || '12', 10));
