@@ -10,14 +10,16 @@ import WishlistSection from './WishlistSection';
 import MyUploadsSection from './MyUploadsSection';
 import ActivityHistorySection from './ActivityHistorySection';
 import AccountSettingsSection from './AccountSettingsSection';
+import FavouritesSection from './FavouritesSection';
 
-type SectionType = 'profile' | 'wishlist' | 'uploads' | 'activity' | 'settings';
+type SectionType = 'profile' | 'wishlist' | 'uploads' | 'favourites' | 'activity' | 'settings';
 
 const menuItems: { id: SectionType; label: string; icon: string; desc: string }[] = [
   { id: 'profile',   label: 'Profile',     icon: 'UserIcon',        desc: 'Manage your personal information' },
   { id: 'wishlist',  label: 'Wishlist',    icon: 'HeartIcon',       desc: 'Saved celebrities & outfits' },
-  { id: 'uploads',   label: 'My Uploads',  icon: 'PhotoIcon',       desc: 'Your submitted fashion items' },
-  { id: 'activity',  label: 'Activity',    icon: 'ClockIcon',       desc: 'Recent actions & history' },
+  { id: 'uploads',    label: 'My Uploads',  icon: 'PhotoIcon',       desc: 'Your submitted fashion items' },
+  { id: 'favourites', label: 'Saved Outfits', icon: 'BookmarkIcon',  desc: 'Outfits you have saved' },
+  { id: 'activity',   label: 'Activity',    icon: 'ClockIcon',       desc: 'Recent actions & history' },
   { id: 'settings',  label: 'Settings',    icon: 'Cog6ToothIcon',   desc: 'Account preferences' },
 ];
 
@@ -49,8 +51,9 @@ export default function DashboardInteractive() {
     switch (activeSection) {
       case 'profile':   return <ProfileSection />;
       case 'wishlist':  return <WishlistSection />;
-      case 'uploads':   return <MyUploadsSection />;
-      case 'activity':  return <ActivityHistorySection />;
+      case 'uploads':    return <MyUploadsSection />;
+      case 'favourites':  return <FavouritesSection />;
+      case 'activity':    return <ActivityHistorySection />;
       case 'settings':  return <AccountSettingsSection />;
     }
   };

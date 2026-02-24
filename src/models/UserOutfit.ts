@@ -1,4 +1,4 @@
-import mongoose, { Document, Model, Schema } from 'mongoose';
+import mongoose, { Model, Schema } from 'mongoose';
 
 // ── Click sub-document ────────────────────────────────────────────────────────
 export interface IOutfitClick {
@@ -8,9 +8,19 @@ export interface IOutfitClick {
   timestamp: Date;
 }
 
-// ── Main interface ────────────────────────────────────────────────────────────
-export interface IUserOutfit extends Document {
+// ── Comment sub-document ─────────────────────────────────────────────────────
+export interface IOutfitComment {
   _id: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  userName: string;
+  userAvatar?: string;
+  text: string;
+  createdAt: Date;
+}
+
+// ── Main interface ────────────────────────────────────────────────────────────
+export interface IUserOutfit {
+  _id?: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   title: string;
   description?: string;
@@ -29,6 +39,8 @@ export interface IUserOutfit extends Document {
   slug: string;
   clicks: IOutfitClick[];
   likes: mongoose.Types.ObjectId[];
+  comments: IOutfitComment[];
+  favourites: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +52,18 @@ const clickSchema = new Schema<IOutfitClick>(
     userAgent:    { type: String },
     ipAddress:    { type: String, default: 'unknown' },
     timestamp:    { type: Date, default: Date.now },
+  },
+  { _id: true }
+);
+
+// ── Comment sub-schema ───────────────────────────────────────────────────────
+const commentSchema = new Schema<IOutfitComment>(
+  {
+    userId:     { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    userName:   { type: String, required: true },
+    userAvatar: { type: String },
+    text:       { type: String, required: true, trim: true, maxlength: 1000 },
+    createdAt:  { type: Date, default: Date.now },
   },
   { _id: true }
 );
@@ -69,8 +93,10 @@ const userOutfitSchema = new Schema<IUserOutfit>(
 
     slug: { type: String, unique: true, index: true },
 
-    clicks: { type: [clickSchema], default: [] },
-    likes:  [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    clicks:      { type: [clickSchema], default: [] },
+    likes:       [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    comments:    { type: [commentSchema], default: [] },
+    favourites:  [{ type: Schema.Types.ObjectId, ref: 'User' }],
   },
   { timestamps: true }
 );
