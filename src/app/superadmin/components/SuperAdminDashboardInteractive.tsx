@@ -16,8 +16,9 @@ import RoleManagementSection from './RoleManagementSection';
 import SuperAdminSettingsSection from './SuperAdminSettingsSection';
 import SystemControlsSection from './SystemControlsSection';
 import UserOutfitApprovalsSection from './UserOutfitApprovalsSection';
+import ApiKeyManagementSection from './ApiKeyManagementSection';
 
-type SectionType = 'overview' | 'roles' | 'celebrities' | 'outfits' | 'user-outfit-approvals' | 'news' | 'movies' | 'reviews' | 'data' | 'platform' | 'system' | 'settings';
+type SectionType = 'overview' | 'roles' | 'celebrities' | 'outfits' | 'user-outfit-approvals' | 'news' | 'movies' | 'reviews' | 'data' | 'platform' | 'system' | 'settings' | 'api-keys';
 
 const menuItems: { id: SectionType; label: string; icon: string; desc: string }[] = [
   { id: 'overview',  label: 'Overview',           icon: 'Squares2X2Icon',  desc: 'System at a glance'             },
@@ -28,6 +29,7 @@ const menuItems: { id: SectionType; label: string; icon: string; desc: string }[
   { id: 'news',        label: 'Celebrity News',    icon: 'NewspaperIcon',   desc: 'Manage news articles'            },
   { id: 'movies',      label: 'Upcoming Movies',   icon: 'FilmIcon',        desc: 'Manage movies & releases'        },
   { id: 'reviews',     label: 'Movie Reviews',     icon: 'DocumentTextIcon', desc: 'Manage movie reviews'           },
+  { id: 'api-keys',    label: 'API Key Tracker',   icon: 'KeyIcon',          desc: 'Monitor user API usage & payments' },
   // { id: 'data',        label: 'All Data Access',    icon: 'CircleStackIcon', desc: 'Full database access'           },
   // { id: 'platform',  label: 'Platform Analytics', icon: 'PresentationChartLineIcon', desc: 'Deep platform metrics' },
   // { id: 'system',    label: 'System Controls',    icon: 'CpuChipIcon',     desc: 'Server & system management'     },
@@ -70,6 +72,7 @@ export default function SuperAdminDashboardInteractive() {
       case 'news':        return <NewsManagementSection />;
       case 'movies':      return <MovieManagementSection />;
       case 'reviews':     return <ReviewManagementSection />;
+      case 'api-keys':   return <ApiKeyManagementSection />;
       case 'data':        return <AllDataAccessSection />;
       case 'platform':  return <PlatformAnalyticsSection />;
       case 'system':    return <SystemControlsSection />;

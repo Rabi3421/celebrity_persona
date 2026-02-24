@@ -31,6 +31,9 @@ export async function withApiKey(
 ): Promise<NextResponse> {
   const key = request.headers.get('x-api-key');
 
+  // Derive a clean endpoint label: "GET /api/v1/celebrities"
+  const endpoint = `${request.method} ${new URL(request.url).pathname}`;
+
   if (!key) {
     return NextResponse.json(
       {
@@ -108,6 +111,21 @@ export async function withApiKey(
 
   apiKeyDoc.totalHits += 1;
   apiKeyDoc.lastUsedAt = new Date();
+
+  // Update endpoint hits
+  const epEntry = apiKeyDoc.endpointHits?.find((e: any) => e.endpoint === endpoint);
+  if (epEntry) {
+    epEntry.count += 1;
+    epEntry.lastHitAt = new Date();
+  } else {
+    if (!apiKeyDoc.endpointHits) apiKeyDoc.endpointHits = [];
+    apiKeyDoc.endpointHits.push({ endpoint, count: 1, lastHitAt: new Date() });
+    // Keep only top 50 endpoints
+    if (apiKeyDoc.endpointHits.length > 50) {
+      apiKeyDoc.endpointHits.sort((a: any, b: any) => b.count - a.count);
+      apiKeyDoc.endpointHits = apiKeyDoc.endpointHits.slice(0, 50);
+    }
+  }
 
   // Save without awaiting to keep response fast
   apiKeyDoc.save().catch(() => {});
