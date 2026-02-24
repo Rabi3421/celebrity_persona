@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 import { API_PLANS } from '@/lib/apiPlans';
@@ -587,9 +587,8 @@ export default function ApiKeyManagementSection() {
                   </thead>
                   <tbody>
                     {(showOrphaned ? keys.filter(k => k.isOrphaned) : keys).map((k) => (
-                      <>
+                      <React.Fragment key={k.keyId}>
                         <tr
-                          key={k.keyId}
                           className="border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer"
                           onClick={() => setExpandedKey(expandedKey === k.keyId ? null : k.keyId)}
                         >
@@ -674,7 +673,7 @@ export default function ApiKeyManagementSection() {
                           </td>
                         </tr>
                         {expandedKey === k.keyId && <ApiKeyExpandedRow record={k} />}
-                      </>
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -797,9 +796,8 @@ export default function ApiKeyManagementSection() {
                   </thead>
                   <tbody>
                     {payments.map((p) => (
-                      <>
+                      <React.Fragment key={p.orderId}>
                         <tr
-                          key={p.orderId}
                           className="border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer"
                           onClick={() => setExpandedPayment(expandedPayment === p.orderId ? null : p.orderId)}
                         >
@@ -850,7 +848,7 @@ export default function ApiKeyManagementSection() {
 
                         {/* Expanded detail row */}
                         {expandedPayment === p.orderId && (
-                          <tr key={`${p.orderId}-detail`}>
+                          <tr>
                             <td colSpan={8} className="px-6 pb-4 pt-0">
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/10 text-xs">
                                 {[
@@ -872,7 +870,7 @@ export default function ApiKeyManagementSection() {
                             </td>
                           </tr>
                         )}
-                      </>
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
