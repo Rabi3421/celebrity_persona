@@ -16,6 +16,7 @@ export interface IUser extends Document {
   bio?: string;
   location?: string;
   avatar?: string;
+  followedCelebrities: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -83,6 +84,10 @@ const userSchema = new Schema<IUser>(
     avatar: {
       type: String,
       default: '',
+    },
+    followedCelebrities: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Celebrity' }],
+      default: [],
     },
   },
   {

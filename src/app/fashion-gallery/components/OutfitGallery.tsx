@@ -1,5 +1,6 @@
 "use client";
 
+import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import type { OutfitDoc } from './FashionGalleryInteractive';
 
@@ -53,7 +54,9 @@ export default function OutfitGallery({ outfits, loading }: Props) {
         const label    = outfit.event ? outfit.event.toUpperCase() : outfit.category?.toUpperCase() || 'OUTFIT';
 
         return (
-          <div key={outfit.id}
+          <Link
+            key={outfit.id}
+            href={`/celebrity-outfits/${outfit.slug}`}
             className={`group relative glass-card rounded-2xl overflow-hidden hover:scale-[1.02] hover:glow-rose transition-all duration-500 cursor-pointer ${
               isLarge ? 'md:col-span-2 md:row-span-2' : isMedium ? 'md:row-span-2' : ''
             }`}
@@ -101,21 +104,20 @@ export default function OutfitGallery({ outfits, loading }: Props) {
                   </div>
                 </div>
                 {outfit.purchaseLink ? (
-                  <a href={outfit.purchaseLink} target="_blank" rel="noopener noreferrer"
-                    className="w-full glass-card px-4 py-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <div className="w-full glass-card px-4 py-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <Icon name="ShoppingBagIcon" size={14} className="text-secondary" />
                     <span className="text-sm font-medium text-white">Shop Look</span>
                     <Icon name="ArrowRightIcon" size={14} className="text-white" />
-                  </a>
+                  </div>
                 ) : (
-                  <button className="w-full glass-card px-4 py-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <div className="w-full glass-card px-4 py-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <span className="text-sm font-medium text-white">View Details</span>
                     <Icon name="ArrowRightIcon" size={14} className="text-white" />
-                  </button>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>

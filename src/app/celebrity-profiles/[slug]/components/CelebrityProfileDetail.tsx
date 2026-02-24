@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
+import { useAuth } from '@/context/AuthContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Movie {
@@ -110,8 +112,49 @@ function InfoRow({ label, value }: { label: string; value?: string | number }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: FullCelebrity }) {
+  const { user, authHeaders } = useAuth();
+  const router = useRouter();
+
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const [activeQuote, setActiveQuote] = useState(0);
+
+  // Follow state
+  const [following, setFollowing]   = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followChecked, setFollowChecked] = useState(false);
+
+  // Check if user already follows this celebrity
+  useEffect(() => {
+    if (!user) { setFollowChecked(true); return; }
+    fetch('/api/user/celebrities/following', { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success) {
+          setFollowing(json.celebrities.some((cel: any) => cel.slug === c.slug));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setFollowChecked(true));
+  }, [user]); // eslint-disable-line
+
+  const handleFollow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!user) { router.push(`/login?redirect=/celebrity-profiles/${c.slug}`); return; }
+    if (followLoading) return;
+    setFollowLoading(true);
+    try {
+      const res  = await fetch('/api/user/celebrities/follow', {
+        method:  'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ celebrityId: c.id }),
+      });
+      const json = await res.json();
+      if (json.success) setFollowing(json.following);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   const coverImg   = c.coverImage   || c.profileImage || '';
   const profileImg = c.profileImage || c.coverImage   || '';
@@ -157,7 +200,7 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
           <img
             src={coverImg}
             alt={c.name}
-            className="w-full h-full object-cover object-top scale-105"
+            className="w-full h-full object-cover object-top scale-105 pointer-events-none"
             style={{ filter: 'brightness(0.7)' }}
           />
         ) : (
@@ -165,8 +208,8 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
         )}
 
         {/* Layered gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/20 to-transparent pointer-events-none" />
 
         {/* Back button */}
         <div className="absolute top-6 left-6 md:left-10">
@@ -179,35 +222,56 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
           </Link>
         </div>
 
-        {/* Social links — top right */}
-        {c.socialMedia && (
-          <div className="absolute top-6 right-6 md:right-10 flex gap-2">
-            {c.socialMedia.instagram && (
-              <a href={c.socialMedia.instagram} target="_blank" rel="noopener noreferrer"
-                className="glass-card p-2.5 rounded-full text-neutral-400 hover:text-pink-400 transition-all backdrop-blur-md">
-                <Icon name="CameraIcon" size={17} />
-              </a>
-            )}
-            {c.socialMedia.twitter && (
-              <a href={c.socialMedia.twitter} target="_blank" rel="noopener noreferrer"
-                className="glass-card p-2.5 rounded-full text-neutral-400 hover:text-sky-400 transition-all backdrop-blur-md">
-                <Icon name="ChatBubbleLeftEllipsisIcon" size={17} />
-              </a>
-            )}
-            {c.socialMedia.youtube && (
-              <a href={c.socialMedia.youtube} target="_blank" rel="noopener noreferrer"
-                className="glass-card p-2.5 rounded-full text-neutral-400 hover:text-red-400 transition-all backdrop-blur-md">
-                <Icon name="PlayCircleIcon" size={17} />
-              </a>
-            )}
-            {c.socialMedia.website && (
-              <a href={c.socialMedia.website} target="_blank" rel="noopener noreferrer"
-                className="glass-card p-2.5 rounded-full text-neutral-400 hover:text-emerald-400 transition-all backdrop-blur-md">
-                <Icon name="GlobeAltIcon" size={17} />
-              </a>
-            )}
-          </div>
-        )}
+        {/* Social links + Follow — top right */}
+        <div className="absolute top-6 right-6 md:right-10 flex items-center gap-2 z-10">
+          {/* Follow button */}
+          {followChecked && (
+            <button
+              onClick={handleFollow}
+              disabled={followLoading}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold backdrop-blur-md transition-all ${
+                following
+                  ? 'bg-primary text-black hover:bg-primary/80'
+                  : 'glass-card text-white hover:bg-white/10 border border-white/20'
+              }`}
+            >
+              {followLoading
+                ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                : <Icon name={following ? 'HeartIcon' : 'HeartIcon'} size={16} className={following ? 'fill-black' : ''} />
+              }
+              {following ? 'Following' : 'Follow'}
+            </button>
+          )}
+
+          {c.socialMedia && (
+            <>
+              {c.socialMedia.instagram && (
+                <a href={c.socialMedia.instagram} target="_blank" rel="noopener noreferrer"
+                  className="glass-card p-2.5 rounded-full text-neutral-400 hover:text-pink-400 transition-all backdrop-blur-md">
+                  <Icon name="CameraIcon" size={17} />
+                </a>
+              )}
+              {c.socialMedia.twitter && (
+                <a href={c.socialMedia.twitter} target="_blank" rel="noopener noreferrer"
+                  className="glass-card p-2.5 rounded-full text-neutral-400 hover:text-sky-400 transition-all backdrop-blur-md">
+                  <Icon name="ChatBubbleLeftEllipsisIcon" size={17} />
+                </a>
+              )}
+              {c.socialMedia.youtube && (
+                <a href={c.socialMedia.youtube} target="_blank" rel="noopener noreferrer"
+                  className="glass-card p-2.5 rounded-full text-neutral-400 hover:text-red-400 transition-all backdrop-blur-md">
+                  <Icon name="PlayCircleIcon" size={17} />
+                </a>
+              )}
+              {c.socialMedia.website && (
+                <a href={c.socialMedia.website} target="_blank" rel="noopener noreferrer"
+                  className="glass-card p-2.5 rounded-full text-neutral-400 hover:text-emerald-400 transition-all backdrop-blur-md">
+                  <Icon name="GlobeAltIcon" size={17} />
+                </a>
+              )}
+            </>
+          )}
+        </div>
 
         {/* Hero content — anchored to bottom */}
         <div className="absolute bottom-0 left-0 right-0 px-6 pb-12 md:px-16">
