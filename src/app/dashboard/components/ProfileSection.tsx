@@ -26,6 +26,10 @@ export default function ProfileSection() {
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
 
+  // Stats
+  interface Stats { savedOutfits: number; uploads: number; following: number; likedCelebrities: number }
+  const [stats, setStats] = useState<Stats | null>(null);
+
   // Edit form state
   const [editName,     setEditName]     = useState('');
   const [editBio,      setEditBio]      = useState('');
@@ -38,22 +42,26 @@ export default function ProfileSection() {
 
   // ── Fetch profile on mount ──────────────────────────────────────────────────
   useEffect(() => {
-    async function fetchProfile() {
+    async function fetchAll() {
       try {
-        const res = await fetch('/api/user/profile', {
-          headers: authHeaders(),
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          setProfile(data.profile);
-        }
+        const headers = authHeaders();
+        const [profileRes, statsRes] = await Promise.all([
+          fetch('/api/user/profile', { headers }),
+          fetch('/api/user/stats',   { headers }),
+        ]);
+        const [profileData, statsData] = await Promise.all([
+          profileRes.json(),
+          statsRes.json(),
+        ]);
+        if (profileRes.ok && profileData.success) setProfile(profileData.profile);
+        if (statsRes.ok   && statsData.success)   setStats(statsData.stats);
       } catch {
-        // silently fail, will show empty state
+        // silently fail
       } finally {
         setLoading(false);
       }
     }
-    fetchProfile();
+    fetchAll();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Open edit mode ──────────────────────────────────────────────────────────
@@ -314,14 +322,18 @@ export default function ProfileSection() {
       {/* ── Stats Grid ───────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Saved Outfits', value: '—', icon: 'HeartIcon',      color: 'text-secondary' },
-          { label: 'Uploads',       value: '—', icon: 'PhotoIcon',       color: 'text-primary'   },
-          { label: 'Following',     value: '—', icon: 'UserGroupIcon',   color: 'text-accent'    },
-          { label: 'Reviews',       value: '—', icon: 'StarIcon',        color: 'text-warning'   },
+          { label: 'Saved Outfits',      value: stats ? stats.savedOutfits      : null, icon: 'HeartIcon',    color: 'text-secondary' },
+          { label: 'Uploads',            value: stats ? stats.uploads            : null, icon: 'PhotoIcon',    color: 'text-primary'   },
+          { label: 'Following',          value: stats ? stats.following          : null, icon: 'UserGroupIcon',color: 'text-accent'    },
+          { label: 'Liked Celebrities',  value: stats ? stats.likedCelebrities   : null, icon: 'StarIcon',     color: 'text-warning'   },
         ].map((stat) => (
           <div key={stat.label} className="glass-card rounded-2xl p-6 text-center">
             <Icon name={stat.icon as never} size={24} className={`${stat.color} mx-auto mb-3`} />
-            <p className="font-playfair text-3xl font-bold text-white mb-1">{stat.value}</p>
+            {stat.value === null ? (
+              <div className="h-9 w-12 mx-auto mb-1 rounded-lg bg-white/10 animate-pulse" />
+            ) : (
+              <p className="font-playfair text-3xl font-bold text-white mb-1">{stat.value}</p>
+            )}
             <p className="text-sm text-neutral-400">{stat.label}</p>
           </div>
         ))}

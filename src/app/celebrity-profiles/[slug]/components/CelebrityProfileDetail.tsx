@@ -70,6 +70,7 @@ export interface FullCelebrity {
   viewCount?: number;
   popularityScore?: number;
   nationality_display?: string;
+  likes?: string[];
 }
 
 // ── Strip HTML tags and decode basic HTML entities ────────────────────────────
@@ -123,9 +124,40 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
   const [followLoading, setFollowLoading] = useState(false);
   const [followChecked, setFollowChecked] = useState(false);
 
-  // Check if user already follows this celebrity
+  // Like state — seed count from server-rendered prop immediately
+  const [liked, setLiked]           = useState(false);
+  const [likeCount, setLikeCount]   = useState((c.likes ?? []).length);
+  const [likeLoading, setLikeLoading] = useState(false);
+  const [likeChecked, setLikeChecked] = useState(false);
+
+  // Check follow / like state — count fetched for everyone, user status only when logged in
   useEffect(() => {
-    if (!user) { setFollowChecked(true); return; }
+    // Always fetch the total like count (no auth required)
+    fetch(`/api/user/celebrities/like-status/${c.slug}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success) setLikeCount(json.count);
+      })
+      .catch(() => {});
+
+    if (!user) {
+      setFollowChecked(true);
+      setLikeChecked(true);
+      return;
+    }
+
+    // Logged-in: get personal like + follow status
+    fetch(`/api/user/celebrities/like-status/${c.slug}`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success) {
+          setLiked(json.liked);
+          setLikeCount(json.count);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLikeChecked(true));
+
     fetch('/api/user/celebrities/following', { headers: authHeaders() })
       .then((r) => r.json())
       .then((json) => {
@@ -153,6 +185,28 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
       if (json.success) setFollowing(json.following);
     } finally {
       setFollowLoading(false);
+    }
+  };
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!user) { router.push(`/login?redirect=/celebrity-profiles/${c.slug}`); return; }
+    if (likeLoading) return;
+    setLikeLoading(true);
+    try {
+      const res  = await fetch('/api/user/celebrities/like', {
+        method:  'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ celebrityId: c.id }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setLiked(json.liked);
+        setLikeCount(json.count);
+      }
+    } finally {
+      setLikeLoading(false);
     }
   };
 
@@ -222,8 +276,26 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
           </Link>
         </div>
 
-        {/* Social links + Follow — top right */}
+        {/* Social links + Follow + Like — top right */}
         <div className="absolute top-6 right-6 md:right-10 flex items-center gap-2 z-10">
+          {/* Like button — always visible, count seeded from prop */}
+          <button
+            onClick={handleLike}
+            disabled={likeLoading}
+            className={`flex items-center gap-1.5 px-3 py-2.5 rounded-full text-sm font-semibold backdrop-blur-md transition-all ${
+              liked
+                ? 'bg-rose-500/30 text-rose-300 border border-rose-500/40'
+                : 'glass-card text-neutral-300 hover:bg-rose-500/20 hover:text-rose-300 border border-white/20'
+            }`}
+            title={liked ? 'Unlike' : 'Like'}
+          >
+            {likeLoading
+              ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              : <Icon name="HeartIcon" size={15} className={liked ? 'fill-rose-400 text-rose-400' : ''} />
+            }
+            <span className="text-xs">{likeCount > 0 ? likeCount : ''}</span>
+          </button>
+
           {/* Follow button */}
           {followChecked && (
             <button

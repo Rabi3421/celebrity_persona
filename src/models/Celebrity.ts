@@ -103,6 +103,7 @@ export interface ICelebrity extends Document {
   shareCount?: number;
   searchRank?: number;
   trendingScore?: number;
+  likes: mongoose.Types.ObjectId[];
   isActive: boolean;
   isFeatured?: boolean;
   isVerified?: boolean;
@@ -330,6 +331,10 @@ const celebritySchema = new Schema<ICelebrity>(
     trendingScore: {
       type: Number,
       default: 0
+    },
+    likes: {
+      type: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+      default: [],
     },
     isActive: {
       type: Boolean,
