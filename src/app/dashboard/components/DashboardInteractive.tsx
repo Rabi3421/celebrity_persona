@@ -11,8 +11,9 @@ import MyUploadsSection from './MyUploadsSection';
 import ActivityHistorySection from './ActivityHistorySection';
 import AccountSettingsSection from './AccountSettingsSection';
 import FavouritesSection from './FavouritesSection';
+import ApiSection from './ApiSection';
 
-type SectionType = 'profile' | 'wishlist' | 'uploads' | 'favourites' | 'activity' | 'settings';
+type SectionType = 'profile' | 'wishlist' | 'uploads' | 'favourites' | 'activity' | 'settings' | 'api';
 
 const menuItems: { id: SectionType; label: string; icon: string; desc: string }[] = [
   { id: 'profile',   label: 'Profile',     icon: 'UserIcon',        desc: 'Manage your personal information' },
@@ -21,6 +22,7 @@ const menuItems: { id: SectionType; label: string; icon: string; desc: string }[
   { id: 'favourites', label: 'Saved Outfits', icon: 'BookmarkIcon',  desc: 'Outfits you have saved' },
   { id: 'activity',   label: 'Activity',    icon: 'ClockIcon',       desc: 'Recent actions & history' },
   { id: 'settings',  label: 'Settings',    icon: 'Cog6ToothIcon',   desc: 'Account preferences' },
+  { id: 'api',        label: 'API Access',   icon: 'KeyIcon',         desc: 'Manage your API key & endpoints' },
 ];
 
 export default function DashboardInteractive() {
@@ -55,6 +57,7 @@ export default function DashboardInteractive() {
       case 'favourites':  return <FavouritesSection />;
       case 'activity':    return <ActivityHistorySection />;
       case 'settings':  return <AccountSettingsSection />;
+      case 'api':        return <ApiSection />;
     }
   };
 

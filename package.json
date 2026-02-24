@@ -76,6 +76,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.2.1",
     "next": "15.1.11",
+    "razorpay": "^2.9.6",
     "react": "19.0.3",
     "react-dom": "19.0.3",
     "recharts": "^2.15.2"

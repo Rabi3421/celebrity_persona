@@ -18,6 +18,8 @@ export default function Footer() {
 			{ id: 'fe_news', label: 'Celebrity News', href: '/celebrity-news' },
 			{ id: 'fe_movies', label: 'Upcoming Movies', href: '/upcoming-movies' },
 			{ id: 'fe_reviews', label: 'Movie Reviews', href: '/reviews' },
+			{ id: 'fe_api_docs', label: 'API Documentation', href: '/api-docs' },
+			{ id: 'fe_api_pricing', label: 'API Pricing', href: '/api-pricing' },
 		],
 		account: [
 			{ id: 'fa_login', label: 'Login', href: '/login' },
