@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import { AuthProvider } from '@/context/AuthContext';
+import ScrollToTop from '@/components/common/ScrollToTop';
 import '../styles/index.css';
 
 export const viewport: Viewport = {
@@ -27,6 +28,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
+          <ScrollToTop />
           {children}
         </AuthProvider>
       </body>

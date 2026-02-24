@@ -2,53 +2,50 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 
 export default function Footer() {
 	const [email, setEmail] = useState('');
 	const [subscribed, setSubscribed] = useState(false);
+	const router = useRouter();
 
 	const footerLinks = {
-		homeowners: [
-			{ id: 'fh_request', label: 'Request offers', href: '/request-offers' },
-			{ id: 'fh_compare', label: 'Compare specialists', href: '/compare' },
-			{ id: 'fh_how', label: 'How it works', href: '/how-it-works' },
-			{ id: 'fh_faq', label: 'Frequently asked questions', href: '/faq' },
-			{ id: 'fh_reviews', label: 'Reviews', href: '/reviews' },
+		explore: [
+			{ id: 'fe_home', label: 'Home', href: '/homepage' },
+			{ id: 'fe_celebrities', label: 'Celebrity Profiles', href: '/celebrity-profiles' },
+			{ id: 'fe_fashion', label: 'Fashion Gallery', href: '/fashion-gallery' },
+			{ id: 'fe_news', label: 'Celebrity News', href: '/celebrity-news' },
+			{ id: 'fe_movies', label: 'Upcoming Movies', href: '/upcoming-movies' },
+			{ id: 'fe_reviews', label: 'Movie Reviews', href: '/reviews' },
 		],
-		professionals: [
-			{ id: 'fp_become', label: 'Become a partner', href: '/partner' },
-			{ id: 'fp_benefits', label: 'Benefits for realtors', href: '/benefits' },
-			{ id: 'fp_contractors', label: 'Benefits for contractors', href: '/benefits' },
-			{ id: 'fp_login', label: 'Log in as professional', href: '/login' },
-			{ id: 'fp_rates', label: 'Rates', href: '/rates' },
+		account: [
+			{ id: 'fa_login', label: 'Login', href: '/login' },
+			{ id: 'fa_signup', label: 'Sign Up', href: '/signup' },
+			{ id: 'fa_dashboard', label: 'My Dashboard', href: '/dashboard' },
+			{ id: 'fa_reset', label: 'Reset Password', href: '/reset-password' },
 		],
-		diensten: [
-			{ id: 'd_moving', label: 'Moving', href: '/services/moving' },
-			{ id: 'd_renovation', label: 'Renovation', href: '/services/renovation' },
-			{ id: 'd_photography', label: 'Photography', href: '/services/photography' },
-			{ id: 'd_styling', label: 'Styling', href: '/services/styling' },
-			{ id: 'd_all', label: 'All services', href: '/services' },
-		],
-		contact: [
-			{ id: 'c_addr', label: 'Main Street 2', href: '#' },
-			{ id: 'c_zip', label: '1234AB Amsterdam', href: '#' },
-			{ id: 'c_email', label: 'info@celebritypersona.com', href: 'mailto:info@celebritypersona.com' },
-			{ id: 'c_kvk', label: 'KVK: 12345678', href: '#' },
-			{ id: 'c_support', label: 'Customer service', href: '/support' },
+		legal: [
+			{ id: 'fl_terms', label: 'Terms of Policy', href: '/terms' },
+			{ id: 'fl_privacy', label: 'Privacy Policy', href: '/privacy' },
+			{ id: 'fl_cookie', label: 'Cookie Policy', href: '/cookie-policy' },
 		],
 	};
 
 	const socialLinks = [
-		{ id: 'social_x', name: 'X', icon: 'XMarkIcon', href: '#' },
-		{ id: 'social_facebook', name: 'Facebook', icon: 'UserGroupIcon', href: '#' },
-		{ id: 'social_linkedin', name: 'LinkedIn', icon: 'LinkIcon', href: '#' },
+		{ id: 'social_x', name: 'X / Twitter', icon: 'XMarkIcon', href: 'https://twitter.com' },
+		{ id: 'social_facebook', name: 'Facebook', icon: 'UserGroupIcon', href: 'https://facebook.com' },
+		{ id: 'social_linkedin', name: 'LinkedIn', icon: 'LinkIcon', href: 'https://linkedin.com' },
 	];
+
+	function handleNavClick(href: string) {
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+		router.push(href);
+	}
 
 	function handleSubscribe(e: React.FormEvent) {
 		e.preventDefault();
 		if (!email) return;
-		// placeholder: in real app call API
 		setSubscribed(true);
 		setEmail('');
 	}
@@ -74,7 +71,7 @@ export default function Footer() {
 									className="flex-1 bg-input border border-border rounded-lg px-4 py-3 placeholder:text-muted-foreground text-card-foreground focus:outline-none"
 								/>
 								<button type="submit" className="rounded-lg bg-primary text-card-foreground px-5 py-3 font-medium hover:glow-gold transition-all">
-									{subscribed ? 'Subscribed' : 'Subscribe'}
+									{subscribed ? '✓ Subscribed!' : 'Subscribe'}
 								</button>
 							</div>
 						</form>
@@ -87,73 +84,122 @@ export default function Footer() {
 				<div className="grid grid-cols-1 md:grid-cols-6 gap-8 mt-8">
 					{/* Left: logo + description */}
 					<div className="md:col-span-2">
-						<div className="flex items-start gap-3 mb-4">
-							<div className="w-12 h-12 flex items-center justify-center rounded-full bg-card border border-border">
+						<button
+							onClick={() => handleNavClick('/homepage')}
+							className="flex items-start gap-3 mb-4 text-left hover:opacity-80 transition-opacity"
+						>
+							<div className="w-12 h-12 flex items-center justify-center rounded-full bg-card border border-border flex-shrink-0">
 								<Icon name="SparklesIcon" size={20} className="text-gradient-gold" />
 							</div>
 							<div>
 								<h4 className="font-playfair text-lg">CelebrityPersona</h4>
 								<p className="text-sm text-muted-foreground mt-2">CelebrityPersona brings together celebrity styles, reviews and curated looks. Sign up now for free to take advantage of exclusive content.</p>
 							</div>
-						</div>
+						</button>
 
 						<div className="flex items-center gap-3 mt-4">
 							{socialLinks.map((s) => (
-								<a key={s.id} href={s.href} aria-label={s.name} className="w-10 h-10 rounded-full flex items-center justify-center border border-border hover:bg-primary/10 transition-all">
+								<a
+									key={s.id}
+									href={s.href}
+									target="_blank"
+									rel="noopener noreferrer"
+									aria-label={s.name}
+									className="w-10 h-10 rounded-full flex items-center justify-center border border-border hover:bg-primary/10 hover:border-primary/50 transition-all"
+								>
 									<Icon name={s.icon as any} size={16} className="text-muted-foreground hover:text-primary transition-colors" />
 								</a>
 							))}
 						</div>
 					</div>
 
-					{/* Column 1: For homeowners */}
+					{/* Column 1: Explore */}
 					<div className="md:col-span-1">
-						<h5 className="text-xs uppercase tracking-wider text-gradient-gold mb-4 font-montserrat">For homeowners</h5>
+						<h5 className="text-xs uppercase tracking-wider text-gradient-gold mb-4 font-montserrat">Explore</h5>
 						<div className="space-y-2">
-							{footerLinks.homeowners.map((link) => (
-								<Link key={link.id} href={link.href} className="block text-sm text-muted-foreground hover:text-card-foreground transition-colors">{link.label}</Link>
+							{footerLinks.explore.map((link) => (
+								<button
+									key={link.id}
+									onClick={() => handleNavClick(link.href)}
+									className="block text-sm text-muted-foreground hover:text-card-foreground transition-colors text-left w-full"
+								>
+									{link.label}
+								</button>
 							))}
 						</div>
 					</div>
 
-					{/* Column 2: For professionals */}
+					{/* Column 2: Account */}
 					<div className="md:col-span-1">
-						<h5 className="text-xs uppercase tracking-wider text-gradient-rose mb-4 font-montserrat">For professionals</h5>
+						<h5 className="text-xs uppercase tracking-wider text-gradient-rose mb-4 font-montserrat">Account</h5>
 						<div className="space-y-2">
-							{footerLinks.professionals.map((link) => (
-								<Link key={link.id} href={link.href} className="block text-sm text-muted-foreground hover:text-card-foreground transition-colors">{link.label}</Link>
+							{footerLinks.account.map((link) => (
+								<button
+									key={link.id}
+									onClick={() => handleNavClick(link.href)}
+									className="block text-sm text-muted-foreground hover:text-card-foreground transition-colors text-left w-full"
+								>
+									{link.label}
+								</button>
 							))}
 						</div>
 					</div>
 
-					{/* Column 3: Diensten */}
+					{/* Column 3: Legal */}
 					<div className="md:col-span-1">
-						<h5 className="text-xs uppercase tracking-wider text-accent mb-4 font-montserrat">Diensten</h5>
+						<h5 className="text-xs uppercase tracking-wider text-accent mb-4 font-montserrat">Legal</h5>
 						<div className="space-y-2">
-							{footerLinks.diensten.map((link) => (
-								<Link key={link.id} href={link.href} className="block text-sm text-muted-foreground hover:text-card-foreground transition-colors">{link.label}</Link>
+							{footerLinks.legal.map((link) => (
+								<button
+									key={link.id}
+									onClick={() => handleNavClick(link.href)}
+									className="block text-sm text-muted-foreground hover:text-card-foreground transition-colors text-left w-full"
+								>
+									{link.label}
+								</button>
 							))}
 						</div>
 					</div>
 
 					{/* Column 4: Contact details */}
 					<div className="md:col-span-1">
-						<h5 className="text-xs uppercase tracking-wider text-accent mb-4 font-montserrat">Contact details</h5>
+						<h5 className="text-xs uppercase tracking-wider text-accent mb-4 font-montserrat">Contact</h5>
 						<div className="space-y-2 text-sm text-muted-foreground">
-							{footerLinks.contact.map((link) => (
-								<div key={link.id} className="block">{link.label}</div>
-							))}
+							<div className="flex items-start gap-2">
+								<Icon name="MapPinIcon" size={14} className="mt-0.5 flex-shrink-0 text-primary/60" />
+								<span>Main Street 2, Amsterdam</span>
+							</div>
+							<a
+								href="mailto:info@celebritypersona.com"
+								className="flex items-start gap-2 hover:text-card-foreground transition-colors"
+							>
+								<Icon name="EnvelopeIcon" size={14} className="mt-0.5 flex-shrink-0 text-primary/60" />
+								<span>info@celebritypersona.com</span>
+							</a>
+							<button
+								onClick={() => handleNavClick('/dashboard')}
+								className="flex items-start gap-2 hover:text-card-foreground transition-colors text-left"
+							>
+								<Icon name="UserCircleIcon" size={14} className="mt-0.5 flex-shrink-0 text-primary/60" />
+								<span>Customer Dashboard</span>
+							</button>
 						</div>
 					</div>
 				</div>
 
-				{/* Bottom small */}
+				{/* Bottom bar */}
 				<div className="mt-10 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
 					<p className="text-sm text-muted-foreground">© 2026 CelebrityPersona. All rights reserved.</p>
 					<div className="flex items-center gap-6">
-						<Link href="#terms" className="text-sm text-muted-foreground hover:text-card-foreground">Terms of Policy</Link>
-						<Link href="#privacy" className="text-sm text-muted-foreground hover:text-card-foreground">Privacy Policy</Link>
-						<Link href="#cookie" className="text-sm text-muted-foreground hover:text-card-foreground">Cookie Policy</Link>
+						{footerLinks.legal.map((link) => (
+							<button
+								key={link.id + '_bottom'}
+								onClick={() => handleNavClick(link.href)}
+								className="text-sm text-muted-foreground hover:text-card-foreground transition-colors"
+							>
+								{link.label}
+							</button>
+						))}
 					</div>
 				</div>
 			</div>
