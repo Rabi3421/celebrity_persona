@@ -43,6 +43,8 @@ interface RelatedArticle {
   slug: string;
   thumbnail: string;
   category: string;
+  publishDate?: string;
+  excerpt?: string;
 }
 
 interface ArticleDetailProps {
@@ -73,10 +75,11 @@ function timeAgo(raw: string) {
 export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   const { user, authHeaders } = useAuth();
 
-  const [article,  setArticle]  = useState<ArticleData | null>(null);
-  const [related,  setRelated]  = useState<RelatedArticle[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState('');
+  const [article,     setArticle]     = useState<ArticleData | null>(null);
+  const [related,     setRelated]     = useState<RelatedArticle[]>([]);
+  const [sidebarNews, setSidebarNews] = useState<RelatedArticle[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState('');
 
   // Interaction state
   const [liked,       setLiked]       = useState(false);
@@ -104,9 +107,15 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
     setLoading(true);
     setError('');
     const headers = user ? authHeaders() : {};
-    fetch(`/api/user/news/${encodeURIComponent(articleId)}`, { headers })
-      .then((r) => r.json())
-      .then((d) => {
+
+    // Fetch article + sidebar news in parallel
+    Promise.all([
+      fetch(`/api/user/news/${encodeURIComponent(articleId)}`, { headers }).then((r) => r.json()),
+      fetch(`/api/user/news?page=1&limit=8&sort=latest`, {
+        headers: { 'x-api-key': process.env.NEXT_PUBLIC_X_API_KEY || '' },
+      }).then((r) => r.json()).catch(() => ({ success: false })),
+    ])
+      .then(([d, sidebarD]) => {
         if (d.success) {
           const a: ArticleData = d.article;
           setArticle(a);
@@ -117,6 +126,23 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
           setSaveCount(a.saveCount);
           setComments(a.comments ?? []);
           setCommentCount(a.commentCount);
+
+          // Sidebar: latest news excluding current article
+          if (sidebarD?.success && sidebarD.data) {
+            const others = sidebarD.data
+              .filter((n: any) => String(n._id) !== d.article.id && n.slug !== d.article.slug)
+              .slice(0, 6)
+              .map((n: any) => ({
+                id:          String(n._id),
+                title:       n.title,
+                slug:        n.slug,
+                thumbnail:   n.thumbnail || '',
+                category:    n.category  || '',
+                publishDate: n.publishDate || n.createdAt,
+                excerpt:     n.excerpt    || '',
+              }));
+            setSidebarNews(others);
+          }
         } else {
           setError(d.message || 'Article not found.');
         }
@@ -208,17 +234,35 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   // ── Loading skeleton ──────────────────────────────────────────────────────
   if (loading) {
     return (
-      <article className="py-12 px-6 animate-pulse">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <div className="h-4 w-48 bg-white/10 rounded" />
-          <div className="h-10 w-3/4 bg-white/10 rounded-xl" />
-          <div className="h-6 w-1/3 bg-white/5 rounded" />
-          <div className="aspect-video w-full bg-white/10 rounded-2xl" />
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => <div key={i} className="h-4 bg-white/5 rounded" />)}
+      <div className="py-10 px-4 md:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex gap-10 animate-pulse">
+            {/* Main column */}
+            <div className="flex-1 min-w-0 space-y-6">
+              <div className="h-4 w-40 bg-white/10 rounded" />
+              <div className="h-10 w-3/4 bg-white/10 rounded-xl" />
+              <div className="h-5 w-1/3 bg-white/5 rounded" />
+              <div className="aspect-video w-full bg-white/10 rounded-2xl" />
+              <div className="space-y-3">
+                {[...Array(6)].map((_, i) => <div key={i} className="h-4 bg-white/5 rounded" />)}
+              </div>
+            </div>
+            {/* Sidebar */}
+            <div className="hidden lg:block w-80 flex-shrink-0 space-y-4">
+              <div className="h-6 w-32 bg-white/10 rounded" />
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex gap-3">
+                  <div className="w-16 h-16 bg-white/5 rounded-xl flex-shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 bg-white/5 rounded w-full" />
+                    <div className="h-3 bg-white/5 rounded w-2/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </article>
+      </div>
     );
   }
 
@@ -239,15 +283,19 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   }
 
   return (
-    <article className="py-12 px-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="py-10 px-4 md:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex gap-10 items-start">
 
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-neutral-400 mb-8">
-          <Link href="/celebrity-news" className="hover:text-accent transition-colors">Celebrity News</Link>
-          <Icon name="ChevronRightIcon" size={16} />
-          <span className="text-white">{article.category}</span>
-        </nav>
+          {/* ════════════════ LEFT — Main Article ════════════════ */}
+          <article className="flex-1 min-w-0">
+
+            {/* Breadcrumb */}
+            <nav className="flex items-center gap-2 text-sm text-neutral-400 mb-8">
+              <Link href="/celebrity-news" className="hover:text-accent transition-colors">Celebrity News</Link>
+              <Icon name="ChevronRightIcon" size={16} />
+              <span className="text-white">{article.category}</span>
+            </nav>
 
         {/* Article Header */}
         <div className="mb-8">
@@ -261,7 +309,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
               </span>
             )}
           </div>
-          <h1 className="font-playfair text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
+          <h1 className="font-playfair text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5 leading-tight">
             {article.title}
           </h1>
           {article.excerpt && (
@@ -290,242 +338,318 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
         )}
 
         {/* Author Info */}
-        <div className="glass-card rounded-2xl p-6 mb-8 flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-secondary flex-shrink-0 flex items-center justify-center">
-            <span className="text-black font-bold text-xl">{article.author.charAt(0).toUpperCase()}</span>
-          </div>
-          <div>
-            <p className="text-sm text-neutral-400 mb-0.5">Written by</p>
-            <p className="font-playfair text-lg font-semibold text-white">{article.author}</p>
-          </div>
-        </div>
-
-        {/* Article Content */}
-        <div
-          className="article-content prose prose-invert max-w-none mb-12"
-          dangerouslySetInnerHTML={{ __html: article.content }}
-        />
-
-        {/* ── Interaction Bar ────────────────────────────────────────────── */}
-        <div className="glass-card rounded-2xl p-5 mb-8 flex items-center gap-3 flex-wrap">
-
-          {/* Like */}
-          <button
-            onClick={handleLike}
-            disabled={likeLoading || !user}
-            title={user ? (liked ? 'Unlike' : 'Like') : 'Sign in to like'}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all disabled:opacity-60 ${
-              liked
-                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
-                : 'glass-card text-neutral-300 hover:text-rose-400 hover:border-rose-500/30 border border-white/10'
-            }`}
-          >
-            <Icon name={liked ? 'HeartIcon' : 'HeartIcon'} size={18}
-              className={liked ? 'text-rose-400 fill-rose-400' : ''} />
-            <span>{likeCount > 0 ? likeCount : ''} {liked ? 'Liked' : 'Like'}</span>
-          </button>
-
-          {/* Save */}
-          <button
-            onClick={handleSave}
-            disabled={saveLoading || !user}
-            title={user ? (saved ? 'Unsave' : 'Save article') : 'Sign in to save'}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all disabled:opacity-60 ${
-              saved
-                ? 'bg-primary/20 text-primary border border-primary/40'
-                : 'glass-card text-neutral-300 hover:text-primary hover:border-primary/30 border border-white/10'
-            }`}
-          >
-            <Icon name="BookmarkIcon" size={18} className={saved ? 'text-primary fill-primary' : ''} />
-            <span>{saveCount > 0 ? saveCount : ''} {saved ? 'Saved' : 'Save'}</span>
-          </button>
-
-          {/* Comments toggle */}
-          <button
-            onClick={() => { setShowComments(!showComments); setTimeout(() => commentInputRef.current?.focus(), 100); }}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all border ${
-              showComments
-                ? 'bg-accent/20 text-accent border-accent/40'
-                : 'glass-card text-neutral-300 hover:text-accent hover:border-accent/30 border-white/10'
-            }`}
-          >
-            <Icon name="ChatBubbleLeftIcon" size={18} />
-            <span>{commentCount > 0 ? commentCount : ''} Comment{commentCount !== 1 ? 's' : ''}</span>
-          </button>
-
-          {/* Share */}
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={handleCopyLink}
-              title="Copy link"
-              className="glass-card flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-300 hover:text-white border border-white/10 transition-all"
-            >
-              <Icon name={copied ? 'CheckIcon' : 'LinkIcon'} size={16} className={copied ? 'text-emerald-400' : ''} />
-              <span className={copied ? 'text-emerald-400' : ''}>{copied ? 'Copied!' : 'Copy link'}</span>
-            </button>
-            <a
-              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(article.title)}&url=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Share on X"
-              className="glass-card p-2.5 rounded-full text-neutral-300 hover:text-white border border-white/10 transition-all"
-            >
-              <Icon name="ShareIcon" size={16} />
-            </a>
-          </div>
-        </div>
-
-        {/* ── Comments Section ────────────────────────────────────────────── */}
-        {showComments && (
-          <div className="glass-card rounded-2xl p-8 mb-12">
-            <h3 className="font-playfair text-2xl font-bold text-white mb-6 flex items-center gap-2">
-              <Icon name="ChatBubbleLeftIcon" size={22} className="text-accent" />
-              Comments
-              {commentCount > 0 && (
-                <span className="text-base font-normal text-neutral-400">({commentCount})</span>
-              )}
-            </h3>
-
-            {/* Comment input */}
-            {user ? (
-              <form onSubmit={handleComment} className="mb-8">
-                <div className="flex gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex-shrink-0 flex items-center justify-center mt-1">
-                    <span className="text-black font-bold text-sm">{(user.name || 'U').charAt(0).toUpperCase()}</span>
-                  </div>
-                  <div className="flex-1 space-y-3">
-                    <textarea
-                      ref={commentInputRef}
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      rows={3}
-                      maxLength={1000}
-                      disabled={commentPosting}
-                      className="w-full glass-card px-4 py-3 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-none disabled:opacity-50"
-                      placeholder="Share your thoughts…"
-                    />
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-neutral-500">{commentText.length}/1000</span>
-                      <div className="flex items-center gap-3">
-                        {commentError && (
-                          <span className="text-xs text-red-400">{commentError}</span>
-                        )}
-                        <button
-                          type="submit"
-                          disabled={commentPosting || !commentText.trim()}
-                          className="bg-primary text-black px-5 py-2 rounded-full text-sm font-semibold hover:glow-gold transition-all disabled:opacity-50 flex items-center gap-2"
-                        >
-                          {commentPosting && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
-                          {commentPosting ? 'Posting…' : 'Post'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </form>
-            ) : (
-              <div className="mb-8 p-4 rounded-xl border border-white/10 text-center">
-                <p className="text-neutral-400 text-sm">
-                  <Link href="/login" className="text-accent hover:underline">Sign in</Link> to leave a comment.
-                </p>
+            <div className="glass-card rounded-2xl p-5 mb-8 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex-shrink-0 flex items-center justify-center">
+                <span className="text-black font-bold text-lg">{article.author.charAt(0).toUpperCase()}</span>
               </div>
-            )}
-
-            {/* Comment list */}
-            {comments.length === 0 ? (
-              <p className="text-neutral-500 text-sm text-center py-4">
-                No comments yet. Be the first to share your thoughts!
-              </p>
-            ) : (
-              <div className="space-y-5">
-                {comments.map((c) => (
-                  <div key={c.id} className="flex gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-600 to-indigo-700 flex-shrink-0 flex items-center justify-center overflow-hidden mt-0.5">
-                      {c.userAvatar ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={c.userAvatar} alt={c.userName} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-white text-xs font-bold">{c.userName.charAt(0).toUpperCase()}</span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-sm font-semibold text-white">{c.userName}</span>
-                        {c.isOwn && (
-                          <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full">You</span>
-                        )}
-                        <span className="text-xs text-neutral-500">{timeAgo(c.createdAt)}</span>
-                      </div>
-                      <p className="text-sm text-neutral-300 leading-relaxed break-words">{c.text}</p>
-                    </div>
-                    {c.isOwn && (
-                      <button
-                        onClick={() => handleDeleteComment(c.id)}
-                        title="Delete comment"
-                        className="text-neutral-600 hover:text-red-400 transition-colors flex-shrink-0 self-start mt-1"
-                      >
-                        <Icon name="TrashIcon" size={15} />
-                      </button>
-                    )}
-                  </div>
-                ))}
+              <div>
+                <p className="text-xs text-neutral-400 mb-0.5">Written by</p>
+                <p className="font-playfair text-base font-semibold text-white">{article.author}</p>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Tags */}
-        {article.tags.length > 0 && (
-          <div className="glass-card rounded-2xl p-8 mb-12">
-            <h3 className="font-playfair text-2xl font-bold text-white mb-6 flex items-center gap-2">
-              <Icon name="UserGroupIcon" size={24} className="text-accent" />
-              Featured Celebrities
-            </h3>
-            <div className="flex flex-wrap gap-3">
-              {article.tags.map((tag) => (
-                <Link key={tag} href={`/celebrity-profiles?search=${encodeURIComponent(tag)}`}>
-                  <span className="glass-card px-4 py-2 rounded-full text-sm font-medium text-white hover:glow-gold transition-all cursor-pointer">
-                    {tag}
-                  </span>
-                </Link>
-              ))}
             </div>
-          </div>
-        )}
 
-        {/* Related Articles */}
-        {related.length > 0 && (
-          <div>
-            <h3 className="font-playfair text-3xl font-bold text-white mb-8">Related Articles</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {related.map((rel) => (
-                <Link key={rel.id} href={`/celebrity-news/${rel.slug || rel.id}`}>
-                  <div className="glass-card rounded-2xl overflow-hidden hover:scale-[1.02] hover:glow-emerald transition-all duration-500 cursor-pointer">
-                    {rel.thumbnail ? (
-                      <div className="relative aspect-video">
-                        <AppImage src={rel.thumbnail} alt={rel.title} className="w-full h-full object-cover" />
-                        <div className="absolute top-4 left-4">
-                          <span className="bg-accent/20 text-accent border border-accent/30 font-montserrat text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-full">
-                            {rel.category}
-                          </span>
+            {/* Article Content */}
+            <div
+              className="article-content prose prose-invert max-w-none mb-10"
+              dangerouslySetInnerHTML={{ __html: article.content }}
+            />
+
+            {/* ── Interaction Bar ── */}
+            <div className="glass-card rounded-2xl p-4 mb-8 flex items-center gap-3 flex-wrap">
+
+              {/* Like */}
+              <button
+                onClick={handleLike}
+                disabled={likeLoading || !user}
+                title={user ? (liked ? 'Unlike' : 'Like') : 'Sign in to like'}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm transition-all disabled:opacity-60 ${
+                  liked
+                    ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                    : 'glass-card text-neutral-300 hover:text-rose-400 hover:border-rose-500/30 border border-white/10'
+                }`}
+              >
+                <Icon name="HeartIcon" size={16} className={liked ? 'text-rose-400 fill-rose-400' : ''} />
+                <span>{likeCount > 0 ? likeCount : ''} {liked ? 'Liked' : 'Like'}</span>
+              </button>
+
+              {/* Save */}
+              <button
+                onClick={handleSave}
+                disabled={saveLoading || !user}
+                title={user ? (saved ? 'Unsave' : 'Save article') : 'Sign in to save'}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm transition-all disabled:opacity-60 ${
+                  saved
+                    ? 'bg-primary/20 text-primary border border-primary/40'
+                    : 'glass-card text-neutral-300 hover:text-primary hover:border-primary/30 border border-white/10'
+                }`}
+              >
+                <Icon name="BookmarkIcon" size={16} className={saved ? 'text-primary fill-primary' : ''} />
+                <span>{saveCount > 0 ? saveCount : ''} {saved ? 'Saved' : 'Save'}</span>
+              </button>
+
+              {/* Comments toggle */}
+              <button
+                onClick={() => { setShowComments(!showComments); setTimeout(() => commentInputRef.current?.focus(), 100); }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm transition-all border ${
+                  showComments
+                    ? 'bg-accent/20 text-accent border-accent/40'
+                    : 'glass-card text-neutral-300 hover:text-accent hover:border-accent/30 border-white/10'
+                }`}
+              >
+                <Icon name="ChatBubbleLeftIcon" size={16} />
+                <span>{commentCount > 0 ? commentCount : ''} Comment{commentCount !== 1 ? 's' : ''}</span>
+              </button>
+
+              {/* Share */}
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={handleCopyLink}
+                  title="Copy link"
+                  className="glass-card flex items-center gap-2 px-3 py-2 rounded-full text-sm text-neutral-300 hover:text-white border border-white/10 transition-all"
+                >
+                  <Icon name={copied ? 'CheckIcon' : 'LinkIcon'} size={15} className={copied ? 'text-emerald-400' : ''} />
+                  <span className={copied ? 'text-emerald-400' : ''}>{copied ? 'Copied!' : 'Copy'}</span>
+                </button>
+                <a
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(article.title)}&url=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Share on X"
+                  className="glass-card p-2 rounded-full text-neutral-300 hover:text-white border border-white/10 transition-all"
+                >
+                  <Icon name="ShareIcon" size={15} />
+                </a>
+              </div>
+            </div>
+
+            {/* ── Comments Section ── */}
+            {showComments && (
+              <div className="glass-card rounded-2xl p-6 mb-10">
+                <h3 className="font-playfair text-xl font-bold text-white mb-5 flex items-center gap-2">
+                  <Icon name="ChatBubbleLeftIcon" size={20} className="text-accent" />
+                  Comments
+                  {commentCount > 0 && (
+                    <span className="text-sm font-normal text-neutral-400">({commentCount})</span>
+                  )}
+                </h3>
+
+                {user ? (
+                  <form onSubmit={handleComment} className="mb-6">
+                    <div className="flex gap-3">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex-shrink-0 flex items-center justify-center mt-0.5">
+                        <span className="text-black font-bold text-xs">{(user.name || 'U').charAt(0).toUpperCase()}</span>
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <textarea
+                          ref={commentInputRef}
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          rows={3}
+                          maxLength={1000}
+                          disabled={commentPosting}
+                          className="w-full glass-card px-4 py-3 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-none disabled:opacity-50"
+                          placeholder="Share your thoughts…"
+                        />
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-neutral-500">{commentText.length}/1000</span>
+                          <div className="flex items-center gap-3">
+                            {commentError && <span className="text-xs text-red-400">{commentError}</span>}
+                            <button
+                              type="submit"
+                              disabled={commentPosting || !commentText.trim()}
+                              className="bg-primary text-black px-4 py-1.5 rounded-full text-sm font-semibold hover:glow-gold transition-all disabled:opacity-50 flex items-center gap-2"
+                            >
+                              {commentPosting && <Icon name="ArrowPathIcon" size={13} className="animate-spin" />}
+                              {commentPosting ? 'Posting…' : 'Post'}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    ) : (
-                      <div className="aspect-video bg-gradient-to-br from-purple-900 to-indigo-900 flex items-center justify-center">
-                        <Icon name="NewspaperIcon" size={40} className="text-white/30" />
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <h4 className="font-playfair text-base font-semibold text-white line-clamp-2">{rel.title}</h4>
                     </div>
+                  </form>
+                ) : (
+                  <div className="mb-6 p-4 rounded-xl border border-white/10 text-center">
+                    <p className="text-neutral-400 text-sm">
+                      <Link href="/login" className="text-accent hover:underline">Sign in</Link> to leave a comment.
+                    </p>
                   </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+                )}
 
-    </article>
+                {comments.length === 0 ? (
+                  <p className="text-neutral-500 text-sm text-center py-4">No comments yet. Be the first!</p>
+                ) : (
+                  <div className="space-y-4">
+                    {comments.map((c) => (
+                      <div key={c.id} className="flex gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-indigo-700 flex-shrink-0 flex items-center justify-center overflow-hidden mt-0.5">
+                          {c.userAvatar
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={c.userAvatar} alt={c.userName} className="w-full h-full object-cover" />
+                            : <span className="text-white text-xs font-bold">{c.userName.charAt(0).toUpperCase()}</span>
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-sm font-semibold text-white">{c.userName}</span>
+                            {c.isOwn && <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full">You</span>}
+                            <span className="text-xs text-neutral-500">{timeAgo(c.createdAt)}</span>
+                          </div>
+                          <p className="text-sm text-neutral-300 leading-relaxed break-words">{c.text}</p>
+                        </div>
+                        {c.isOwn && (
+                          <button onClick={() => handleDeleteComment(c.id)} title="Delete" className="text-neutral-600 hover:text-red-400 transition-colors flex-shrink-0 self-start mt-1">
+                            <Icon name="TrashIcon" size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tags */}
+            {article.tags.length > 0 && (
+              <div className="glass-card rounded-2xl p-6 mb-10">
+                <h3 className="font-playfair text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <Icon name="UserGroupIcon" size={20} className="text-accent" />
+                  Featured Celebrities
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {article.tags.map((tag) => (
+                    <Link key={tag} href={`/celebrity-profiles?search=${encodeURIComponent(tag)}`}>
+                      <span className="glass-card px-3 py-1.5 rounded-full text-sm font-medium text-white hover:glow-gold transition-all cursor-pointer">{tag}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Related Articles */}
+            {related.length > 0 && (
+              <div>
+                <h3 className="font-playfair text-2xl font-bold text-white mb-6">Related Articles</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {related.map((rel) => (
+                    <Link key={rel.id} href={`/celebrity-news/${rel.slug || rel.id}`}>
+                      <div className="glass-card rounded-2xl overflow-hidden hover:scale-[1.02] hover:glow-emerald transition-all duration-500 cursor-pointer">
+                        {rel.thumbnail ? (
+                          <div className="relative aspect-video">
+                            <AppImage src={rel.thumbnail} alt={rel.title} className="w-full h-full object-cover" />
+                            <div className="absolute top-3 left-3">
+                              <span className="bg-accent/20 text-accent border border-accent/30 font-montserrat text-[9px] uppercase tracking-wider px-2.5 py-1 rounded-full">
+                                {rel.category}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="aspect-video bg-gradient-to-br from-purple-900 to-indigo-900 flex items-center justify-center">
+                            <Icon name="NewspaperIcon" size={36} className="text-white/30" />
+                          </div>
+                        )}
+                        <div className="p-4">
+                          <h4 className="font-playfair text-sm font-semibold text-white line-clamp-2">{rel.title}</h4>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </article>
+
+          {/* ════════════════ RIGHT — Sticky Sidebar ════════════════ */}
+          <aside className="hidden lg:block w-72 xl:w-80 flex-shrink-0">
+            <div className="sticky top-28 space-y-5">
+
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <h3 className="font-playfair text-lg font-bold text-white">More News</h3>
+                <Link href="/celebrity-news" className="text-xs text-accent hover:underline flex items-center gap-1">
+                  View all <Icon name="ArrowRightIcon" size={12} />
+                </Link>
+              </div>
+
+              {/* News list */}
+              {sidebarNews.length === 0 ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="flex gap-3 animate-pulse">
+                      <div className="w-16 h-16 bg-white/5 rounded-xl flex-shrink-0" />
+                      <div className="flex-1 space-y-2 py-1">
+                        <div className="h-3 bg-white/5 rounded w-full" />
+                        <div className="h-3 bg-white/5 rounded w-2/3" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {sidebarNews.map((n, idx) => (
+                    <Link key={n.id} href={`/celebrity-news/${n.slug || n.id}`}>
+                      <div className={`flex gap-3 p-3 rounded-xl transition-all hover:bg-white/5 group ${
+                        n.slug === article.slug || n.id === article.id
+                          ? 'bg-primary/10 border border-primary/20'
+                          : ''
+                      }`}>
+                        {/* Thumbnail */}
+                        <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-purple-900 to-indigo-900">
+                          {n.thumbnail ? (
+                            <AppImage
+                              src={n.thumbnail}
+                              alt={n.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Icon name="NewspaperIcon" size={20} className="text-white/30" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-accent/80 mb-0.5 block">
+                            {n.category}
+                          </span>
+                          <p className="text-xs font-semibold text-white line-clamp-3 leading-snug group-hover:text-primary transition-colors">
+                            {n.title}
+                          </p>
+                          {n.publishDate && (
+                            <p className="text-[10px] text-neutral-500 mt-1">{formatDate(n.publishDate)}</p>
+                          )}
+                        </div>
+
+                        {/* Index */}
+                        <span className="text-[10px] text-neutral-700 font-bold self-start mt-0.5 flex-shrink-0">
+                          {String(idx + 1).padStart(2, '0')}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {/* Category shortcuts */}
+              <div className="pt-4 border-t border-white/10">
+                <p className="text-xs text-neutral-500 uppercase tracking-wider mb-3">Browse by category</p>
+                <div className="flex flex-wrap gap-2">
+                  {['Celebrity News', 'Fashion', 'Movies', 'Lifestyle', 'Events'].map((cat) => (
+                    <Link
+                      key={cat}
+                      href={`/celebrity-news?category=${encodeURIComponent(cat)}`}
+                      className="text-[11px] px-3 py-1.5 rounded-full glass-card text-neutral-400 hover:text-white hover:border-white/20 border border-white/10 transition-all"
+                    >
+                      {cat}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+
+        </div>
+      </div>
+    </div>
   );
 }
