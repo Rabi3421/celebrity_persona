@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
+import MovieInteractions from './MovieInteractions';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CastMember {
@@ -278,7 +279,14 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
               </motion.div>
             )}
 
-            {/* Synopsis */}
+            {/* Like / Save / Comment interactions */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.05 }}
+            >
+              <MovieInteractions slug={movie.slug} movieTitle={movie.title} />
+            </motion.div>
             {movie.synopsis && (
               <motion.section
                 initial={{ opacity: 0, y: 20 }}

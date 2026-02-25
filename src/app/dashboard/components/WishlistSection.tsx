@@ -6,7 +6,7 @@ import Icon from '@/components/ui/AppIcon';
 import AppImage from '@/components/ui/AppImage';
 import { useAuth } from '@/context/AuthContext';
 
-type WishlistTab = 'celebrities' | 'outfits' | 'news' | 'reviews';
+type WishlistTab = 'celebrities' | 'outfits' | 'news' | 'reviews' | 'movies';
 type NewsSubTab  = 'liked' | 'saved';
 
 interface FollowedCelebrity {
@@ -72,6 +72,22 @@ interface SavedReview {
   commentCount: number;
 }
 
+interface SavedMovie {
+  id: string;
+  title: string;
+  slug: string;
+  poster: string | null;
+  backdrop: string | null;
+  releaseDate: string | null;
+  genre: string[];
+  status: string;
+  anticipationScore: number | null;
+  featured: boolean;
+  likeCount: number;
+  saveCount: number;
+  commentCount: number;
+}
+
 function timeAgo(raw: string) {
   const diff = Date.now() - new Date(raw).getTime();
   const m = Math.floor(diff / 60000);
@@ -109,6 +125,11 @@ export default function WishlistSection() {
   const [savedReviews,      setSavedReviews]      = useState<SavedReview[]>([]);
   const [reviewsLoading,    setReviewsLoading]    = useState(true);
   const [unsavingReview,    setUnsavingReview]    = useState<string | null>(null);
+
+  // Movies state
+  const [savedMovies,     setSavedMovies]     = useState<SavedMovie[]>([]);
+  const [moviesLoading,   setMoviesLoading]   = useState(true);
+  const [unsavingMovie,   setUnsavingMovie]   = useState<string | null>(null);
 
   const fetchCelebrities = useCallback(async () => {
     setCelebLoading(true);
@@ -165,11 +186,22 @@ export default function WishlistSection() {
     finally { setReviewsLoading(false); }
   }, [authHeaders]);
 
+  const fetchSavedMovies = useCallback(async () => {
+    setMoviesLoading(true);
+    try {
+      const res  = await fetch('/api/user/movies/saved', { headers: authHeaders() });
+      const json = await res.json();
+      if (json.success) setSavedMovies(json.movies);
+    } catch { /* ignore */ }
+    finally { setMoviesLoading(false); }
+  }, [authHeaders]);
+
   useEffect(() => {
     fetchCelebrities();
     fetchOutfits();
     fetchNews();
     fetchSavedReviews();
+    fetchSavedMovies();
   }, []); // eslint-disable-line
 
   const handleUnfollow = async (celeb: FollowedCelebrity) => {
@@ -261,6 +293,16 @@ export default function WishlistSection() {
           <Icon name="FilmIcon" size={18} />
           Saved Reviews
           {!reviewsLoading && <span className="ml-1 opacity-70">({savedReviews.length})</span>}
+        </button>
+        <button
+          onClick={() => setActiveTab('movies')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all ${
+            activeTab === 'movies' ? 'bg-primary text-black' : 'glass-card text-neutral-400 hover:text-white'
+          }`}
+        >
+          <Icon name="VideoCameraIcon" size={18} />
+          Upcoming Movies
+          {!moviesLoading && <span className="ml-1 opacity-70">({savedMovies.length})</span>}
         </button>
       </div>
 
@@ -724,8 +766,134 @@ export default function WishlistSection() {
           </div>
         )
       )}
+
+      {/* ── Saved Upcoming Movies ─────────────────────────────────────────── */}
+      {activeTab === 'movies' && (
+        moviesLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse">
+            {[...Array(6)].map((_, i) => <div key={i} className="h-64 bg-white/5 rounded-2xl" />)}
+          </div>
+        ) : savedMovies.length === 0 ? (
+          <div className="glass-card rounded-3xl p-16 text-center">
+            <Icon name="VideoCameraIcon" size={56} className="text-neutral-600 mx-auto mb-4" />
+            <h3 className="font-playfair text-xl text-white mb-2">No wishlisted movies yet</h3>
+            <p className="text-neutral-400 text-sm mb-6">Tap the Wishlist button on any upcoming movie to save it here.</p>
+            <Link
+              href="/upcoming-movies"
+              className="inline-flex items-center gap-2 bg-primary text-black px-6 py-3 rounded-full font-semibold text-sm hover:glow-gold transition-all"
+            >
+              <Icon name="FilmIcon" size={16} /> Browse Upcoming Movies
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {savedMovies.map((movie) => {
+              const releaseLabel = movie.releaseDate
+                ? new Date(movie.releaseDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                : 'TBA';
+              const scoreColor = !movie.anticipationScore ? 'text-neutral-400'
+                : movie.anticipationScore >= 9 ? 'text-emerald-400'
+                : movie.anticipationScore >= 7 ? 'text-yellow-400'
+                : 'text-orange-400';
+
+              return (
+                <div key={movie.id} className="glass-card rounded-2xl overflow-hidden border border-white/10 hover:border-primary/30 transition-all group">
+                  {/* Poster / Backdrop */}
+                  <Link href={`/upcoming-movies/${movie.slug}`} className="block relative h-48 overflow-hidden">
+                    {movie.poster || movie.backdrop ? (
+                      <AppImage
+                        src={movie.poster || movie.backdrop!}
+                        alt={movie.title}
+                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-indigo-900 to-blue-900 flex items-center justify-center">
+                        <Icon name="FilmIcon" size={40} className="text-white/20" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                    {/* Anticipation score badge */}
+                    {movie.anticipationScore !== null && (
+                      <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm rounded-lg px-2.5 py-1 text-xs font-bold font-playfair">
+                        <span className={scoreColor}>{movie.anticipationScore.toFixed(1)}</span>
+                        <span className="text-white/30 text-[10px]">/10</span>
+                      </div>
+                    )}
+                    {movie.featured && (
+                      <div className="absolute top-3 left-3 bg-yellow-500/90 text-black text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        ⭐ Featured
+                      </div>
+                    )}
+                    {/* Status badge */}
+                    <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-[10px] font-semibold px-2.5 py-1 rounded-full text-white/80 border border-white/10">
+                      {movie.status}
+                    </div>
+                  </Link>
+
+                  {/* Info */}
+                  <div className="p-4 space-y-3">
+                    <div>
+                      <Link href={`/upcoming-movies/${movie.slug}`}>
+                        <h3 className="font-playfair text-base font-bold text-white hover:text-primary transition-colors leading-tight line-clamp-2">
+                          {movie.title}
+                        </h3>
+                      </Link>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-xs text-neutral-500 flex items-center gap-1">
+                          📅 {releaseLabel}
+                        </span>
+                        {movie.genre.length > 0 && (
+                          <span className="text-xs text-blue-400/70">{movie.genre.slice(0, 2).join(' · ')}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] text-neutral-500">
+                      <span className="flex items-center gap-1"><Icon name="HeartIcon" size={10} />{movie.likeCount}</span>
+                      <span className="flex items-center gap-1"><Icon name="BookmarkIcon" size={10} />{movie.saveCount}</span>
+                      <span className="flex items-center gap-1"><Icon name="ChatBubbleLeftIcon" size={10} />{movie.commentCount}</span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Link
+                        href={`/upcoming-movies/${movie.slug}`}
+                        className="flex-1 flex items-center justify-center gap-1.5 glass-card text-neutral-300 hover:text-white border border-white/10 hover:border-white/30 py-2 rounded-xl text-xs font-medium transition-all"
+                      >
+                        <Icon name="EyeIcon" size={13} /> View
+                      </Link>
+                      <button
+                        onClick={async () => {
+                          setUnsavingMovie(movie.id);
+                          try {
+                            const res  = await fetch(`/api/user/movies/${movie.slug}/interact`, {
+                              method:  'POST',
+                              headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                              body:    JSON.stringify({ action: 'unsave' }),
+                            });
+                            const json = await res.json();
+                            if (json.success) setSavedMovies((prev) => prev.filter((m) => m.id !== movie.id));
+                          } finally { setUnsavingMovie(null); }
+                        }}
+                        disabled={unsavingMovie === movie.id}
+                        className="flex items-center justify-center gap-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 px-3 py-2 rounded-xl text-xs font-medium transition-all disabled:opacity-50"
+                        title="Remove from wishlist"
+                      >
+                        {unsavingMovie === movie.id
+                          ? <div className="w-3 h-3 border border-yellow-400 border-t-transparent rounded-full animate-spin" />
+                          : <Icon name="BookmarkSlashIcon" size={13} />
+                        }
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      )}
     </div>
   );
 }
+
 
 

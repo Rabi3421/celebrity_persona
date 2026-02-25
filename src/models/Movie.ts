@@ -1,4 +1,4 @@
-import mongoose, { Document, Model, Schema } from 'mongoose';
+import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
 // ── Sub-document interfaces ───────────────────────────────────────────────────
 
@@ -38,6 +38,16 @@ export interface IMovieSEO {
   changeFreq?: string;
 }
 
+// ── Comment sub-document ────────────────────────────────────────────────────
+export interface IMovieComment {
+  _id: Types.ObjectId;
+  userId:     Types.ObjectId;
+  userName:   string;
+  userAvatar?: string;
+  text:       string;
+  createdAt:  Date;
+}
+
 // ── Main interface ────────────────────────────────────────────────────────────
 export interface IMovie extends Document {
   title: string;
@@ -71,6 +81,10 @@ export interface IMovie extends Document {
   ticketLinks?: ITicketLink[];
   preOrderAvailable?: boolean;
   seoData?: IMovieSEO;
+  // interaction fields
+  likes:    Types.ObjectId[];
+  saves:    Types.ObjectId[];
+  comments: IMovieComment[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,6 +99,16 @@ const castSchema = new Schema<ICastMember>(
     celebrityId: { type: String, trim: true },
   },
   { _id: true }
+);
+
+const commentSchema = new Schema<IMovieComment>(
+  {
+    userId:     { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    userName:   { type: String, required: true },
+    userAvatar: { type: String },
+    text:       { type: String, required: true, maxlength: 1000 },
+  },
+  { _id: true, timestamps: { createdAt: true, updatedAt: false } }
 );
 
 const ticketLinkSchema = new Schema<ITicketLink>(
@@ -166,6 +190,10 @@ const movieSchema = new Schema<IMovie>(
     ticketLinks:        { type: [ticketLinkSchema], default: [] },
     preOrderAvailable:  { type: Boolean, default: false },
     seoData:            { type: seoDataSchema },
+    // interaction fields
+    likes:    { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
+    saves:    { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
+    comments: { type: [commentSchema], default: [] },
   },
   {
     timestamps: true,
