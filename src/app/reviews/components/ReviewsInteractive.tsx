@@ -1,242 +1,207 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AggregatedScores from './AggregatedScores';
 import FilterBar from './FilterBar';
 import ReviewsList from './ReviewsList';
+import Icon from '@/components/ui/AppIcon';
 
-interface Review {
-  id: string;
+/* ── Types ─────────────────────────────────────────────────────────────────── */
+
+export interface ReviewItem {
+  _id: string;
+  title: string;
+  slug: string;
   movieTitle: string;
-  moviePoster: string;
-  moviePosterAlt: string;
-  author: string;
-  avatar: string;
-  avatarAlt: string;
+  poster?: string;
+  backdropImage?: string;
   rating: number;
-  date: string;
-  content: string;
-  helpful: number;
-  verified: boolean;
+  excerpt?: string;
+  content?: string;
+  verdict?: string;
+  featured: boolean;
+  publishDate?: string;
+  createdAt?: string;
+  pros?: string[];
+  cons?: string[];
+  author?: {
+    name: string;
+    avatar?: string;
+    credentials?: string;
+  };
+  scores?: {
+    criticsScore?: number;
+    audienceScore?: number;
+    imdbRating?: number;
+    rottenTomatoesScore?: number;
+  };
+  movieDetails?: {
+    releaseYear?: number;
+    director?: string;
+    genre?: string[];
+    runtime?: number;
+    mpaaRating?: string;
+  };
 }
 
-interface AggregatedRatings {
-  imdb: {score: number;votes: string;};
-  rottenTomatoes: {critics: number;audience: number;};
-  aggregated: number;
-  totalReviews: number;
-  averageRating: number;
+export interface ReviewMeta {
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
 }
+
+export type SortOption = 'recent' | 'rating' | 'title';
+
+/* ── Component ─────────────────────────────────────────────────────────────── */
 
 export default function ReviewsInteractive() {
-  const [selectedRating, setSelectedRating] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState<'recent' | 'helpful' | 'rating'>('recent');
+  const [reviews, setReviews]           = useState<ReviewItem[]>([]);
+  const [meta, setMeta]                 = useState<ReviewMeta>({ total: 0, page: 1, limit: 12, pages: 1 });
+  const [loading, setLoading]           = useState(true);
+  const [loadingMore, setLoadingMore]   = useState(false);
+  const [error, setError]               = useState<string | null>(null);
 
-  const aggregatedRatings: AggregatedRatings = {
-    imdb: { score: 8.7, votes: '2.4M' },
-    rottenTomatoes: { critics: 92, audience: 88 },
-    aggregated: 89,
-    totalReviews: 1847,
-    averageRating: 4.3
+  const [search, setSearch]             = useState('');
+  const [minRating, setMinRating]       = useState<number | null>(null);
+  const [sort, setSort]                 = useState<SortOption>('recent');
+  const [featuredOnly, setFeaturedOnly] = useState(false);
+
+  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchReviews = useCallback(
+    async (page = 1, append = false) => {
+      if (!append) setLoading(true);
+      else setLoadingMore(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({
+          page:  String(page),
+          limit: '12',
+          sort:  sort === 'recent' ? 'latest' : sort === 'rating' ? 'rating_high' : 'title',
+        });
+        if (search.trim())      params.set('search', search.trim());
+        if (minRating !== null) params.set('minRating', String(minRating));
+        if (featuredOnly)       params.set('featured', 'true');
+
+        const res = await fetch(`/api/v1/reviews?${params}`, {
+          headers: { 'x-api-key': process.env.NEXT_PUBLIC_X_API_KEY ?? '' },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message || 'Failed to load');
+
+        const incoming: ReviewItem[] = json.data ?? [];
+        setReviews((prev) => append ? [...prev, ...incoming] : incoming);
+        setMeta(json.pagination ?? { total: incoming.length, page, limit: 12, pages: 1 });
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to load reviews');
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [search, minRating, sort, featuredOnly],
+  );
+
+  useEffect(() => {
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    searchDebounce.current = setTimeout(() => fetchReviews(1), 380);
+    return () => { if (searchDebounce.current) clearTimeout(searchDebounce.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchReviews(1); }, [minRating, sort, featuredOnly]);
+
+  const loadMore = () => fetchReviews(meta.page + 1, true);
+
+  const avg = (vals: (number | undefined)[]) => {
+    const clean = vals.filter((v): v is number => v !== undefined && v !== null);
+    return clean.length ? clean.reduce((s, v) => s + v, 0) / clean.length : 0;
   };
 
-  const allReviews: Review[] = [
-  {
-    id: 'review_1',
-    movieTitle: 'The Stellar Journey',
-    moviePoster: "https://img.rocket.new/generatedImages/rocket_gen_img_146821808-1768161022230.png",
-    moviePosterAlt: 'The Stellar Journey movie poster',
-    author: 'Sarah Mitchell',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_115b700a9-1763294224785.png",
-    avatarAlt: 'Sarah Mitchell profile photo',
-    rating: 5,
-    date: '2026-02-05T14:30:00Z',
-    content:
-    'An absolute masterpiece! The cinematography is breathtaking, and the emotional depth of the story left me in tears. Christopher Nolan has outdone himself with this one. The performances are stellar, especially McConaughey\'s portrayal of a father torn between duty and love. A must-watch for any sci-fi enthusiast.',
-    helpful: 342,
-    verified: true
-  },
-  {
-    id: 'review_2',
-    movieTitle: 'The Stellar Journey',
-    moviePoster: "https://img.rocket.new/generatedImages/rocket_gen_img_146821808-1768161022230.png",
-    moviePosterAlt: 'The Stellar Journey movie poster',
-    author: 'Marcus Chen',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1c1934fbd-1763293154553.png",
-    avatarAlt: 'Marcus Chen profile photo',
-    rating: 4,
-    date: '2026-02-04T09:15:00Z',
-    content:
-    'Visually stunning and intellectually engaging. The science behind the story is well-researched, though some plot points felt a bit rushed. The soundtrack by Hans Zimmer is hauntingly beautiful. Overall, a solid 4 stars for an ambitious and thought-provoking film.',
-    helpful: 218,
-    verified: true
-  },
-  {
-    id: 'review_3',
-    movieTitle: 'Crimson Horizon',
-    moviePoster: "https://images.unsplash.com/photo-1468527873268-f09d466af3c6",
-    moviePosterAlt: 'Crimson Horizon movie poster',
-    author: 'Emily Rodriguez',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_10458bf2c-1763293523905.png",
-    avatarAlt: 'Emily Rodriguez profile photo',
-    rating: 5,
-    date: '2026-02-03T18:45:00Z',
-    content:
-    'This film exceeded all my expectations! The action sequences are perfectly choreographed, and the character development is exceptional. The twist at the end completely caught me off guard. I\'ve already watched it twice and plan to see it again. Highly recommended!',
-    helpful: 456,
-    verified: true
-  },
-  {
-    id: 'review_4',
-    movieTitle: 'Echoes of Tomorrow',
-    moviePoster: "https://img.rocket.new/generatedImages/rocket_gen_img_17923adc8-1766517393557.png",
-    moviePosterAlt: 'Echoes of Tomorrow movie poster',
-    author: 'David Thompson',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1bf0c7d42-1763291659174.png",
-    avatarAlt: 'David Thompson profile photo',
-    rating: 3,
-    date: '2026-02-02T11:20:00Z',
-    content:
-    'A decent watch with some interesting concepts, but the pacing felt uneven. The first half was engaging, but the second half dragged a bit. The special effects are top-notch, and the cast delivers solid performances. Worth watching if you\'re a fan of the genre.',
-    helpful: 127,
-    verified: false
-  },
-  {
-    id: 'review_5',
-    movieTitle: 'The Stellar Journey',
-    moviePoster: "https://img.rocket.new/generatedImages/rocket_gen_img_146821808-1768161022230.png",
-    moviePosterAlt: 'The Stellar Journey movie poster',
-    author: 'Jessica Park',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_12800f9da-1763297638844.png",
-    avatarAlt: 'Jessica Park profile photo',
-    rating: 5,
-    date: '2026-02-01T16:00:00Z',
-    content:
-    'One of the best films I\'ve seen in years! The emotional resonance is powerful, and the themes of love transcending time and space are beautifully executed. Anne Hathaway and Matthew McConaughey have incredible chemistry. The ending left me speechless.',
-    helpful: 389,
-    verified: true
-  },
-  {
-    id: 'review_6',
-    movieTitle: 'Midnight Serenade',
-    moviePoster: "https://img.rocket.new/generatedImages/rocket_gen_img_19de7306d-1770610893944.png",
-    moviePosterAlt: 'Midnight Serenade movie poster',
-    author: 'Alex Johnson',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1d3c47105-1763293003147.png",
-    avatarAlt: 'Alex Johnson profile photo',
-    rating: 4,
-    date: '2026-01-31T13:30:00Z',
-    content:
-    'A beautifully crafted romantic drama with stellar performances. The cinematography captures the mood perfectly, and the soundtrack is enchanting. Some scenes felt a bit slow, but overall it\'s a touching and memorable film. Great for a cozy movie night.',
-    helpful: 203,
-    verified: true
-  },
-  {
-    id: 'review_7',
-    movieTitle: 'The Stellar Journey',
-    moviePoster: "https://img.rocket.new/generatedImages/rocket_gen_img_146821808-1768161022230.png",
-    moviePosterAlt: 'The Stellar Journey movie poster',
-    author: 'Michael Brown',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1bf0c7d42-1763291659174.png",
-    avatarAlt: 'Michael Brown profile photo',
-    rating: 2,
-    date: '2026-01-30T10:15:00Z',
-    content:
-    'While the visuals are impressive, I found the story to be overly complicated and confusing. The runtime is too long, and some scenes could have been cut. It\'s not a bad film, but it didn\'t live up to the hype for me. Fans of complex narratives might enjoy it more.',
-    helpful: 89,
-    verified: false
-  },
-  {
-    id: 'review_8',
-    movieTitle: 'Crimson Horizon',
-    moviePoster: "https://images.unsplash.com/photo-1468527873268-f09d466af3c6",
-    moviePosterAlt: 'Crimson Horizon movie poster',
-    author: 'Olivia Martinez',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1b86c5c3e-1763301834510.png",
-    avatarAlt: 'Olivia Martinez profile photo',
-    rating: 5,
-    date: '2026-01-29T15:45:00Z',
-    content:
-    'Absolutely phenomenal! The director\'s vision is clear in every frame. The performances are raw and authentic, and the story is both thrilling and emotionally resonant. This is cinema at its finest. I can\'t recommend it enough!',
-    helpful: 521,
-    verified: true
-  },
-  {
-    id: 'review_9',
-    movieTitle: 'Echoes of Tomorrow',
-    moviePoster: "https://img.rocket.new/generatedImages/rocket_gen_img_17923adc8-1766517393557.png",
-    moviePosterAlt: 'Echoes of Tomorrow movie poster',
-    author: 'Daniel Lee',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1ae0f3431-1763296290027.png",
-    avatarAlt: 'Daniel Lee profile photo',
-    rating: 4,
-    date: '2026-01-28T12:00:00Z',
-    content:
-    'A thought-provoking film with excellent world-building. The premise is intriguing, and the execution is mostly solid. Some dialogue felt a bit forced, but the overall experience was enjoyable. The ending sets up a potential sequel nicely.',
-    helpful: 165,
-    verified: true
-  },
-  {
-    id: 'review_10',
-    movieTitle: 'The Stellar Journey',
-    moviePoster: "https://img.rocket.new/generatedImages/rocket_gen_img_146821808-1768161022230.png",
-    moviePosterAlt: 'The Stellar Journey movie poster',
-    author: 'Sophia Williams',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_10458bf2c-1763293523905.png",
-    avatarAlt: 'Sophia Williams profile photo',
-    rating: 5,
-    date: '2026-01-27T08:30:00Z',
-    content:
-    'A cinematic triumph! Every aspect of this film is meticulously crafted. The performances are outstanding, the score is unforgettable, and the visuals are awe-inspiring. This is the kind of film that reminds you why you love movies. A true masterpiece!',
-    helpful: 612,
-    verified: true
-  }];
-
-
-  // Filter reviews by rating
-  const filteredReviews = selectedRating ?
-  allReviews.filter((review) => review.rating === selectedRating) :
-  allReviews;
-
-  // Sort reviews
-  const sortedReviews = [...filteredReviews].sort((a, b) => {
-    if (sortBy === 'recent') {
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
-    } else if (sortBy === 'helpful') {
-      return b.helpful - a.helpful;
-    } else if (sortBy === 'rating') {
-      return b.rating - a.rating;
-    }
-    return 0;
-  });
+  const avgRating   = avg(reviews.map(r => r.rating));
+  const avgImdb     = avg(reviews.map(r => r.scores?.imdbRating));
+  const avgCritics  = avg(reviews.map(r => r.scores?.criticsScore));
+  const avgAudience = avg(reviews.map(r => r.scores?.audienceScore));
 
   return (
-    <div className="max-w-7xl mx-auto px-6 pb-20">
-      {/* Page Header */}
-      <div className="mb-12 animate-fade-in-up">
-        <h1 className="font-playfair text-5xl md:text-6xl font-bold text-white mb-4">
-          Reviews & Ratings
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-24">
+
+      {/* Hero */}
+      <div className="mb-14">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 mb-5">
+          <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+          <span className="text-yellow-400 text-xs font-semibold font-montserrat uppercase tracking-widest">Movie Reviews</span>
+        </div>
+        <h1 className="font-playfair text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-5 leading-tight">
+          Reviews &amp;{' '}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-500">Ratings</span>
         </h1>
-        <p className="text-neutral-400 text-lg max-w-3xl">
-          Explore comprehensive reviews from our community, aggregated scores from
-          IMDb and Rotten Tomatoes, and find the perfect movie for your next watch.
+        <p className="text-neutral-400 text-lg max-w-2xl leading-relaxed">
+          Comprehensive critic &amp; audience reviews, aggregated scores, and everything you need to decide your next watch.
         </p>
       </div>
 
       {/* Aggregated Scores */}
-      <AggregatedScores ratings={aggregatedRatings} />
+      <AggregatedScores
+        totalReviews={meta.total}
+        avgRating={avgRating}
+        avgImdb={avgImdb}
+        avgCritics={avgCritics}
+        avgAudience={avgAudience}
+        loading={loading}
+      />
 
-      {/* Filter Bar */}
+      {/* Filter bar */}
       <FilterBar
-        selectedRating={selectedRating}
-        onRatingChange={setSelectedRating}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-        totalReviews={filteredReviews.length} />
-      
+        search={search}
+        onSearchChange={setSearch}
+        minRating={minRating}
+        onMinRatingChange={setMinRating}
+        sort={sort}
+        onSortChange={setSort}
+        featuredOnly={featuredOnly}
+        onFeaturedChange={setFeaturedOnly}
+        total={meta.total}
+        loading={loading}
+      />
 
-      {/* Reviews List */}
-      <ReviewsList reviews={sortedReviews} />
-    </div>);
+      {/* Reviews */}
+      {error ? (
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-12 text-center">
+          <Icon name="ExclamationCircleIcon" size={40} className="text-red-400 mx-auto mb-3" />
+          <p className="text-red-300 font-semibold text-lg mb-1">Failed to load reviews</p>
+          <p className="text-neutral-500 text-sm mb-5">{error}</p>
+          <button
+            onClick={() => fetchReviews(1)}
+            className="px-6 py-2.5 rounded-xl bg-yellow-500 text-black text-sm font-semibold font-montserrat hover:bg-yellow-400 transition-all"
+          >
+            Try again
+          </button>
+        </div>
+      ) : (
+        <ReviewsList reviews={reviews} loading={loading} />
+      )}
 
+      {/* Load more */}
+      {!loading && !error && meta.page < meta.pages && (
+        <div className="mt-10 flex flex-col items-center gap-2">
+          <p className="text-neutral-500 text-xs font-montserrat">
+            Showing {reviews.length} of {meta.total} reviews
+          </p>
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="mt-1 inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold font-montserrat text-sm hover:bg-white/10 hover:border-yellow-500/40 transition-all disabled:opacity-50"
+          >
+            {loadingMore
+              ? <><Icon name="ArrowPathIcon" size={16} className="animate-spin" /> Loading…</>
+              : <><Icon name="ChevronDownIcon" size={16} /> Load more reviews</>}
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }

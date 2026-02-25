@@ -1,104 +1,141 @@
 "use client";
 
+import { useRef } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import type { SortOption } from './ReviewsInteractive';
 
 interface FilterBarProps {
-  selectedRating: number | null;
-  onRatingChange: (rating: number | null) => void;
-  sortBy: 'recent' | 'helpful' | 'rating';
-  onSortChange: (sort: 'recent' | 'helpful' | 'rating') => void;
-  totalReviews: number;
+  search: string;
+  onSearchChange: (s: string) => void;
+  minRating: number | null;
+  onMinRatingChange: (r: number | null) => void;
+  sort: SortOption;
+  onSortChange: (s: SortOption) => void;
+  featuredOnly: boolean;
+  onFeaturedChange: (v: boolean) => void;
+  total: number;
+  loading?: boolean;
 }
 
+const RATING_PILLS: { label: string; value: number | null }[] = [
+  { label: 'All', value: null },
+  { label: '9+', value: 9 },
+  { label: '8+', value: 8 },
+  { label: '7+', value: 7 },
+  { label: '6+', value: 6 },
+];
+
+const SORT_OPTS: { label: string; value: SortOption; icon: string }[] = [
+  { label: 'Most Recent', value: 'recent', icon: 'ClockIcon' },
+  { label: 'Highest Rated', value: 'rating', icon: 'StarIcon' },
+  { label: 'A – Z', value: 'title', icon: 'Bars3BottomLeftIcon' },
+];
+
 export default function FilterBar({
-  selectedRating,
-  onRatingChange,
-  sortBy,
-  onSortChange,
-  totalReviews,
+  search, onSearchChange,
+  minRating, onMinRatingChange,
+  sort, onSortChange,
+  featuredOnly, onFeaturedChange,
+  total, loading,
 }: FilterBarProps) {
-  const ratingOptions = [5, 4, 3, 2, 1];
+  const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="glass-card p-6 rounded-2xl mb-8 animate-fade-in-up delay-300">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-        {/* Filter by Rating */}
-        <div className="flex-1">
-          <h3 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
-            <Icon name="FunnelIcon" size={16} className="text-primary" />
-            Filter by Rating
-          </h3>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => onRatingChange(null)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                selectedRating === null
-                  ? 'bg-primary text-black' :'glass-card text-neutral-300 hover:text-white'
-              }`}
-            >
-              All
-            </button>
-            {ratingOptions.map((rating) => (
-              <button
-                key={rating}
-                onClick={() => onRatingChange(rating)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-1 ${
-                  selectedRating === rating
-                    ? 'bg-primary text-black' :'glass-card text-neutral-300 hover:text-white'
-                }`}
-              >
-                <Icon
-                  name="StarIcon"
-                  variant="solid"
-                  size={14}
-                  className={selectedRating === rating ? 'text-black' : 'text-primary'}
-                />
-                {rating}
-              </button>
-            ))}
-          </div>
-        </div>
+    <div className="mb-8 space-y-4">
 
-        {/* Sort Options */}
-        <div>
-          <h3 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
-            <Icon name="ArrowsUpDownIcon" size={16} className="text-primary" />
-            Sort By
-          </h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onSortChange('recent')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                sortBy === 'recent' ?'bg-primary text-black' :'glass-card text-neutral-300 hover:text-white'
-              }`}
-            >
-              Most Recent
-            </button>
-            <button
-              onClick={() => onSortChange('helpful')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                sortBy === 'helpful' ?'bg-primary text-black' :'glass-card text-neutral-300 hover:text-white'
-              }`}
-            >
-              Most Helpful
-            </button>
-            <button
-              onClick={() => onSortChange('rating')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                sortBy === 'rating' ?'bg-primary text-black' :'glass-card text-neutral-300 hover:text-white'
-              }`}
-            >
-              Highest Rated
-            </button>
-          </div>
+      {/* Search bar */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+          <Icon name="MagnifyingGlassIcon" size={18} className="text-neutral-500" />
         </div>
+        <input
+          ref={inputRef}
+          type="text"
+          value={search}
+          onChange={e => onSearchChange(e.target.value)}
+          placeholder="Search reviews by movie title…"
+          className="w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl pl-11 pr-11 py-3.5
+            text-white placeholder-neutral-600 font-montserrat text-sm
+            focus:outline-none focus:border-yellow-500/60 focus:bg-white/[0.06] transition-all"
+        />
+        {search && (
+          <button
+            onClick={() => { onSearchChange(''); inputRef.current?.focus(); }}
+            className="absolute inset-y-0 right-4 flex items-center text-neutral-500 hover:text-white transition-colors"
+          >
+            <Icon name="XMarkIcon" size={16} />
+          </button>
+        )}
       </div>
 
-      {/* Results Count */}
-      <div className="mt-4 pt-4 border-t border-white/10">
-        <p className="text-neutral-400 text-sm">
-          Showing <span className="text-white font-bold">{totalReviews}</span> reviews
-        </p>
+      {/* Controls row */}
+      <div className="flex flex-wrap items-center gap-3">
+
+        {/* Rating pills */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-neutral-500 text-xs font-montserrat mr-1">Rating:</span>
+          {RATING_PILLS.map(p => (
+            <button
+              key={p.label}
+              onClick={() => onMinRatingChange(p.value)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold font-montserrat transition-all border
+                ${minRating === p.value
+                  ? 'bg-yellow-500 text-black border-yellow-500 shadow-lg shadow-yellow-500/25'
+                  : 'bg-white/[0.04] text-neutral-400 border-white/[0.08] hover:bg-white/[0.08] hover:text-white hover:border-white/20'
+                }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Divider */}
+        <div className="hidden sm:block h-6 w-px bg-white/[0.08]" />
+
+        {/* Sort buttons */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-neutral-500 text-xs font-montserrat mr-1">Sort:</span>
+          {SORT_OPTS.map(o => (
+            <button
+              key={o.value}
+              onClick={() => onSortChange(o.value)}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold font-montserrat transition-all border
+                ${sort === o.value
+                  ? 'bg-yellow-500 text-black border-yellow-500 shadow-lg shadow-yellow-500/25'
+                  : 'bg-white/[0.04] text-neutral-400 border-white/[0.08] hover:bg-white/[0.08] hover:text-white hover:border-white/20'
+                }`}
+            >
+              <Icon name={o.icon} size={12} />
+              {o.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Divider */}
+        <div className="hidden sm:block h-6 w-px bg-white/[0.08]" />
+
+        {/* Featured toggle */}
+        <button
+          onClick={() => onFeaturedChange(!featuredOnly)}
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold font-montserrat transition-all border
+            ${featuredOnly
+              ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+              : 'bg-white/[0.04] text-neutral-400 border-white/[0.08] hover:bg-white/[0.08] hover:text-white hover:border-white/20'
+            }`}
+        >
+          <Icon name="StarIcon" variant="solid" size={12}
+            className={featuredOnly ? 'text-amber-400' : 'text-neutral-500'} />
+          Featured only
+        </button>
+
+        {/* Spacer + counter */}
+        <div className="flex-1 hidden sm:block" />
+        {!loading && (
+          <span className="text-neutral-500 text-xs font-montserrat ml-auto">
+            <span className="text-white font-semibold">{total.toLocaleString()}</span> review{total !== 1 ? 's' : ''} found
+          </span>
+        )}
+
       </div>
     </div>
   );

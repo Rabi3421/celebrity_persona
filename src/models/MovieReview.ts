@@ -50,6 +50,15 @@ export interface IReviewStats {
   notHelpful?: number;
 }
 
+export interface IReviewComment {
+  _id: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  userName: string;
+  userAvatar?: string;
+  text: string;
+  createdAt: Date;
+}
+
 export interface IReviewSEO {
   metaTitle?: string;
   metaDescription?: string;
@@ -98,6 +107,9 @@ export interface IMovieReview extends Document {
   verdict?: string;
   seoData?: IReviewSEO;
   seo?: IReviewSEO;  // alias used in some DB documents
+  likes: mongoose.Types.ObjectId[];
+  saves: mongoose.Types.ObjectId[];
+  comments: IReviewComment[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -160,6 +172,17 @@ const statsSchema = new Schema<IReviewStats>(
     shares:     { type: Number, default: 0 },
     helpful:    { type: Number, default: 0 },
     notHelpful: { type: Number, default: 0 },
+  },
+  { _id: true }
+);
+
+const commentSchema = new Schema<IReviewComment>(
+  {
+    userId:     { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    userName:   { type: String, required: true },
+    userAvatar: { type: String },
+    text:       { type: String, required: true, maxlength: 1000 },
+    createdAt:  { type: Date, default: Date.now },
   },
   { _id: true }
 );
@@ -238,6 +261,9 @@ const movieReviewSchema = new Schema<IMovieReview>(
     verdict:      { type: String },
     seoData:      { type: seoSchema },
     seo:          { type: seoSchema },  // alias for documents saved with 'seo' key
+    likes:        [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    saves:        [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    comments:     [commentSchema],
   },
   { timestamps: true }
 );

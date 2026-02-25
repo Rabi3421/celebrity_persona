@@ -6,7 +6,7 @@ import Icon from '@/components/ui/AppIcon';
 import AppImage from '@/components/ui/AppImage';
 import { useAuth } from '@/context/AuthContext';
 
-type WishlistTab = 'celebrities' | 'outfits' | 'news';
+type WishlistTab = 'celebrities' | 'outfits' | 'news' | 'reviews';
 type NewsSubTab  = 'liked' | 'saved';
 
 interface FollowedCelebrity {
@@ -57,6 +57,21 @@ interface NewsArticle {
   saved: boolean;
 }
 
+interface SavedReview {
+  id: string;
+  title: string;
+  slug: string;
+  movieTitle: string;
+  poster: string | null;
+  rating: number | null;
+  excerpt: string;
+  publishDate: string | null;
+  featured: boolean;
+  likeCount: number;
+  saveCount: number;
+  commentCount: number;
+}
+
 function timeAgo(raw: string) {
   const diff = Date.now() - new Date(raw).getTime();
   const m = Math.floor(diff / 60000);
@@ -89,6 +104,11 @@ export default function WishlistSection() {
   const [savedNews,     setSavedNews]     = useState<NewsArticle[]>([]);
   const [newsLoading,   setNewsLoading]   = useState(true);
   const [newsActing,    setNewsActing]    = useState<string | null>(null);
+
+  // Reviews state
+  const [savedReviews,      setSavedReviews]      = useState<SavedReview[]>([]);
+  const [reviewsLoading,    setReviewsLoading]    = useState(true);
+  const [unsavingReview,    setUnsavingReview]    = useState<string | null>(null);
 
   const fetchCelebrities = useCallback(async () => {
     setCelebLoading(true);
@@ -135,10 +155,21 @@ export default function WishlistSection() {
     finally { setNewsLoading(false); }
   }, [authHeaders]);
 
+  const fetchSavedReviews = useCallback(async () => {
+    setReviewsLoading(true);
+    try {
+      const res  = await fetch('/api/user/reviews/saved', { headers: authHeaders() });
+      const json = await res.json();
+      if (json.success) setSavedReviews(json.reviews);
+    } catch { /* ignore */ }
+    finally { setReviewsLoading(false); }
+  }, [authHeaders]);
+
   useEffect(() => {
     fetchCelebrities();
     fetchOutfits();
     fetchNews();
+    fetchSavedReviews();
   }, []); // eslint-disable-line
 
   const handleUnfollow = async (celeb: FollowedCelebrity) => {
@@ -220,6 +251,16 @@ export default function WishlistSection() {
           <Icon name="NewspaperIcon" size={18} />
           News
           {!newsLoading && <span className="ml-1 opacity-70">({likedNews.length + savedNews.length})</span>}
+        </button>
+        <button
+          onClick={() => setActiveTab('reviews')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all ${
+            activeTab === 'reviews' ? 'bg-primary text-black' : 'glass-card text-neutral-400 hover:text-white'
+          }`}
+        >
+          <Icon name="FilmIcon" size={18} />
+          Saved Reviews
+          {!reviewsLoading && <span className="ml-1 opacity-70">({savedReviews.length})</span>}
         </button>
       </div>
 
@@ -567,6 +608,121 @@ export default function WishlistSection() {
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Saved Reviews ─────────────────────────────────────────────────── */}
+      {activeTab === 'reviews' && (
+        reviewsLoading ? (
+          <div className="space-y-4 animate-pulse">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex gap-4 glass-card rounded-2xl p-4">
+                <div className="w-24 h-20 bg-white/5 rounded-xl flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-white/5 rounded w-3/4" />
+                  <div className="h-3 bg-white/5 rounded w-1/2" />
+                  <div className="h-3 bg-white/5 rounded w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : savedReviews.length === 0 ? (
+          <div className="glass-card rounded-3xl p-16 text-center">
+            <Icon name="BookmarkIcon" size={56} className="text-neutral-600 mx-auto mb-4" />
+            <h3 className="font-playfair text-xl text-white mb-2">No saved reviews yet</h3>
+            <p className="text-neutral-400 text-sm mb-6">Tap the bookmark on any movie review to save it here.</p>
+            <Link
+              href="/reviews"
+              className="inline-flex items-center gap-2 bg-primary text-black px-6 py-3 rounded-full font-semibold text-sm hover:glow-gold transition-all"
+            >
+              <Icon name="FilmIcon" size={16} /> Browse Reviews
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {savedReviews.map((review) => (
+              <div
+                key={review.id}
+                className="glass-card rounded-2xl overflow-hidden border border-white/10 hover:border-white/20 transition-all flex gap-0"
+              >
+                {/* Poster */}
+                <Link href={`/reviews/${review.slug}`} className="block relative w-24 sm:w-32 flex-shrink-0 overflow-hidden">
+                  {review.poster ? (
+                    <AppImage
+                      src={review.poster}
+                      alt={review.movieTitle}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full min-h-[100px] bg-gradient-to-br from-zinc-800 to-neutral-900 flex items-center justify-center">
+                      <Icon name="FilmIcon" size={28} className="text-white/20" />
+                    </div>
+                  )}
+                  {review.rating !== null && (
+                    <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm rounded-lg px-2 py-0.5 text-xs font-bold font-playfair text-yellow-400">
+                      {review.rating}<span className="text-white/40 text-[10px]">/10</span>
+                    </div>
+                  )}
+                </Link>
+
+                {/* Info */}
+                <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+                  <div>
+                    <Link href={`/reviews/${review.slug}`}>
+                      <h4 className="font-playfair text-sm font-semibold text-white leading-snug line-clamp-2 hover:text-primary transition-colors mb-1">
+                        {review.title}
+                      </h4>
+                    </Link>
+                    {review.movieTitle !== review.title && (
+                      <p className="text-xs text-primary/80 font-medium mb-1">{review.movieTitle}</p>
+                    )}
+                    {review.excerpt && (
+                      <p className="text-xs text-neutral-500 line-clamp-2 mb-2">{review.excerpt}</p>
+                    )}
+                    <div className="flex items-center gap-3 text-[11px] text-neutral-500">
+                      {review.publishDate && <span>{timeAgo(review.publishDate)}</span>}
+                      <span className="flex items-center gap-1"><Icon name="HeartIcon" size={10} />{review.likeCount}</span>
+                      <span className="flex items-center gap-1"><Icon name="BookmarkIcon" size={10} />{review.saveCount}</span>
+                      <span className="flex items-center gap-1"><Icon name="ChatBubbleLeftIcon" size={10} />{review.commentCount}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 mt-3">
+                    <Link
+                      href={`/reviews/${review.slug}`}
+                      className="flex items-center gap-1.5 glass-card text-neutral-300 hover:text-white border border-white/10 hover:border-white/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                    >
+                      <Icon name="EyeIcon" size={12} /> Read Review
+                    </Link>
+                    <button
+                      onClick={async () => {
+                        setUnsavingReview(review.id);
+                        try {
+                          const res  = await fetch(`/api/user/reviews/${review.slug}/interact`, {
+                            method:  'POST',
+                            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                            body:    JSON.stringify({ action: 'unsave' }),
+                          });
+                          const json = await res.json();
+                          if (json.success) setSavedReviews((prev) => prev.filter((r) => r.id !== review.id));
+                        } finally { setUnsavingReview(null); }
+                      }}
+                      disabled={unsavingReview === review.id}
+                      className="flex items-center gap-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50"
+                      title="Remove from saved"
+                    >
+                      {unsavingReview === review.id
+                        ? <div className="w-3 h-3 border border-yellow-400 border-t-transparent rounded-full animate-spin" />
+                        : <Icon name="BookmarkSlashIcon" size={12} />
+                      }
+                      Unsave
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       )}
     </div>
   );
