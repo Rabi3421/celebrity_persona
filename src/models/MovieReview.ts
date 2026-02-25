@@ -53,7 +53,27 @@ export interface IReviewStats {
 export interface IReviewSEO {
   metaTitle?: string;
   metaDescription?: string;
-  keywords?: string[];
+  metaKeywords?: string[];
+  canonicalUrl?: string;
+  noindex?: boolean;
+  nofollow?: boolean;
+  robots?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogType?: string;
+  ogSiteName?: string;
+  ogUrl?: string;
+  ogImages?: string[];
+  ogLocale?: string;
+  twitterCard?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  twitterSite?: string;
+  twitterCreator?: string;
+  schemaType?: string;
+  focusKeyword?: string;
+  structuredDataDepth?: string;
 }
 
 // ── Main interface ────────────────────────────────────────────────────────────
@@ -77,6 +97,7 @@ export interface IMovieReview extends Document {
   cons?: string[];
   verdict?: string;
   seoData?: IReviewSEO;
+  seo?: IReviewSEO;  // alias used in some DB documents
   createdAt: Date;
   updatedAt: Date;
 }
@@ -145,11 +166,31 @@ const statsSchema = new Schema<IReviewStats>(
 
 const seoSchema = new Schema<IReviewSEO>(
   {
-    metaTitle:       String,
-    metaDescription: String,
-    keywords:        [{ type: String }],
+    metaTitle:            String,
+    metaDescription:      String,
+    metaKeywords:         [{ type: String }],
+    canonicalUrl:         String,
+    noindex:              { type: Boolean, default: false },
+    nofollow:             { type: Boolean, default: false },
+    robots:               { type: String, default: 'index,follow' },
+    ogTitle:              String,
+    ogDescription:        String,
+    ogType:               { type: String, default: 'article' },
+    ogSiteName:           { type: String, default: 'Celebrity Persona' },
+    ogUrl:                String,
+    ogImages:             [{ type: String }],
+    ogLocale:             { type: String, default: 'en_US' },
+    twitterCard:          { type: String, default: 'summary_large_image' },
+    twitterTitle:         String,
+    twitterDescription:   String,
+    twitterImage:         String,
+    twitterSite:          String,
+    twitterCreator:       String,
+    schemaType:           { type: String, default: 'Review' },
+    focusKeyword:         String,
+    structuredDataDepth:  { type: String, default: 'minimal' },
   },
-  { _id: true }
+  { _id: false }
 );
 
 // ── Main schema ───────────────────────────────────────────────────────────────
@@ -196,6 +237,7 @@ const movieReviewSchema = new Schema<IMovieReview>(
     cons:         [{ type: String }],
     verdict:      { type: String },
     seoData:      { type: seoSchema },
+    seo:          { type: seoSchema },  // alias for documents saved with 'seo' key
   },
   { timestamps: true }
 );

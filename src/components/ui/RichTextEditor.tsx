@@ -1,5 +1,6 @@
 "use client";
 
+import React from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -248,7 +249,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface RichTextEditorProps {
-  label: string;
+  label: React.ReactNode;
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
