@@ -88,6 +88,17 @@ interface SavedMovie {
   commentCount: number;
 }
 
+function isReleased(movie: SavedMovie): boolean {
+  const releasedStatuses = ['released', 'now showing', 'now playing', 'in theatres', 'in theaters'];
+  if (releasedStatuses.includes((movie.status ?? '').toLowerCase())) return true;
+  if (movie.releaseDate && new Date(movie.releaseDate) <= new Date()) return true;
+  return false;
+}
+
+function movieHref(movie: SavedMovie): string {
+  return isReleased(movie) ? `/movie-details/${movie.slug}` : `/upcoming-movies/${movie.slug}`;
+}
+
 function timeAgo(raw: string) {
   const diff = Date.now() - new Date(raw).getTime();
   const m = Math.floor(diff / 60000);
@@ -301,7 +312,7 @@ export default function WishlistSection() {
           }`}
         >
           <Icon name="VideoCameraIcon" size={18} />
-          Upcoming Movies
+          Saved Movies
           {!moviesLoading && <span className="ml-1 opacity-70">({savedMovies.length})</span>}
         </button>
       </div>
@@ -767,7 +778,7 @@ export default function WishlistSection() {
         )
       )}
 
-      {/* ── Saved Upcoming Movies ─────────────────────────────────────────── */}
+      {/* ── Saved Movies (upcoming + released) ────────────────────────────── */}
       {activeTab === 'movies' && (
         moviesLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse">
@@ -776,14 +787,22 @@ export default function WishlistSection() {
         ) : savedMovies.length === 0 ? (
           <div className="glass-card rounded-3xl p-16 text-center">
             <Icon name="VideoCameraIcon" size={56} className="text-neutral-600 mx-auto mb-4" />
-            <h3 className="font-playfair text-xl text-white mb-2">No wishlisted movies yet</h3>
-            <p className="text-neutral-400 text-sm mb-6">Tap the Wishlist button on any upcoming movie to save it here.</p>
-            <Link
-              href="/upcoming-movies"
-              className="inline-flex items-center gap-2 bg-primary text-black px-6 py-3 rounded-full font-semibold text-sm hover:glow-gold transition-all"
-            >
-              <Icon name="FilmIcon" size={16} /> Browse Upcoming Movies
-            </Link>
+            <h3 className="font-playfair text-xl text-white mb-2">No saved movies yet</h3>
+            <p className="text-neutral-400 text-sm mb-6">Tap the Wishlist button on any movie — upcoming or released — to save it here.</p>
+            <div className="flex gap-3 justify-center flex-wrap">
+              <Link
+                href="/upcoming-movies"
+                className="inline-flex items-center gap-2 bg-primary text-black px-5 py-2.5 rounded-full font-semibold text-sm hover:glow-gold transition-all"
+              >
+                <Icon name="FilmIcon" size={16} /> Browse Upcoming
+              </Link>
+              <Link
+                href="/movie-details"
+                className="inline-flex items-center gap-2 glass-card text-white border border-white/20 px-5 py-2.5 rounded-full font-semibold text-sm hover:border-primary/40 transition-all"
+              >
+                <Icon name="FilmIcon" size={16} /> Browse Released
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -795,11 +814,13 @@ export default function WishlistSection() {
                 : movie.anticipationScore >= 9 ? 'text-emerald-400'
                 : movie.anticipationScore >= 7 ? 'text-yellow-400'
                 : 'text-orange-400';
+              const href = movieHref(movie);
+              const released = isReleased(movie);
 
               return (
                 <div key={movie.id} className="glass-card rounded-2xl overflow-hidden border border-white/10 hover:border-primary/30 transition-all group">
                   {/* Poster / Backdrop */}
-                  <Link href={`/upcoming-movies/${movie.slug}`} className="block relative h-48 overflow-hidden">
+                  <Link href={href} className="block relative h-48 overflow-hidden">
                     {movie.poster || movie.backdrop ? (
                       <AppImage
                         src={movie.poster || movie.backdrop!}
@@ -825,15 +846,19 @@ export default function WishlistSection() {
                       </div>
                     )}
                     {/* Status badge */}
-                    <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-[10px] font-semibold px-2.5 py-1 rounded-full text-white/80 border border-white/10">
-                      {movie.status}
+                    <div className={`absolute bottom-3 left-3 backdrop-blur-sm text-[10px] font-semibold px-2.5 py-1 rounded-full border ${
+                      released
+                        ? 'bg-emerald-500/80 text-white border-emerald-400/30'
+                        : 'bg-black/60 text-white/80 border-white/10'
+                    }`}>
+                      {released ? '🎬 Now Showing' : movie.status}
                     </div>
                   </Link>
 
                   {/* Info */}
                   <div className="p-4 space-y-3">
                     <div>
-                      <Link href={`/upcoming-movies/${movie.slug}`}>
+                      <Link href={href}>
                         <h3 className="font-playfair text-base font-bold text-white hover:text-primary transition-colors leading-tight line-clamp-2">
                           {movie.title}
                         </h3>
@@ -856,7 +881,7 @@ export default function WishlistSection() {
 
                     <div className="flex gap-2">
                       <Link
-                        href={`/upcoming-movies/${movie.slug}`}
+                        href={href}
                         className="flex-1 flex items-center justify-center gap-1.5 glass-card text-neutral-300 hover:text-white border border-white/10 hover:border-white/30 py-2 rounded-xl text-xs font-medium transition-all"
                       >
                         <Icon name="EyeIcon" size={13} /> View

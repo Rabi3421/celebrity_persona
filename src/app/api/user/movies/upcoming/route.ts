@@ -27,21 +27,41 @@ export async function GET(request: NextRequest) {
     const genre = searchParams.get('genre')?.trim();
     const sort  = searchParams.get('sort') || 'anticipation'; // anticipation | release | rating
 
-    // Only surface publicly-visible statuses
+    // Only surface movies whose release date is in the future
+    // (excludes already-released / now-showing movies)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filter: Record<string, any> = {};
+    const filter: Record<string, any> = {
+      $and: [
+        // releaseDate must be in the future OR not set yet (TBA)
+        {
+          $or: [
+            { releaseDate: { $gt: new Date() } },
+            { releaseDate: null },
+            { releaseDate: { $exists: false } },
+          ],
+        },
+        // exclude statuses that mean the movie is already out
+        {
+          status: {
+            $nin: ['Released', 'Now Showing', 'Now Playing', 'In Theatres', 'In Theaters'],
+          },
+        },
+      ],
+    };
 
     if (q) {
-      filter.$or = [
-        { title:    { $regex: q, $options: 'i' } },
-        { director: { $regex: q, $options: 'i' } },
-        { 'cast.name': { $regex: q, $options: 'i' } },
-        { synopsis: { $regex: q, $options: 'i' } },
-      ];
+      filter.$and.push({
+        $or: [
+          { title:       { $regex: q, $options: 'i' } },
+          { director:    { $regex: q, $options: 'i' } },
+          { 'cast.name': { $regex: q, $options: 'i' } },
+          { synopsis:    { $regex: q, $options: 'i' } },
+        ],
+      });
     }
 
     if (genre && genre !== 'all') {
-      filter.genre = { $regex: genre, $options: 'i' };
+      filter.$and.push({ genre: { $regex: genre, $options: 'i' } });
     }
 
     // Sort strategy

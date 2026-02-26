@@ -66,15 +66,15 @@ export default function Header() {
       { id: 'nav_reviews', label: 'Movie Reviews', href: '/reviews' },
     ];
 
-    if (isAuthenticated && user) {
-      if (user.role === 'superadmin') {
-        baseLinks.push({ id: 'nav_superadmin', label: 'SuperAdmin', href: '/superadmin' });
-      } else if (user.role === 'admin') {
-        baseLinks.push({ id: 'nav_admin', label: 'Admin', href: '/admin' });
-      } else {
-        baseLinks.push({ id: 'nav_dashboard', label: 'Dashboard', href: '/dashboard' });
-      }
-    }
+    // if (isAuthenticated && user) {
+    //   if (user.role === 'superadmin') {
+    //     baseLinks.push({ id: 'nav_superadmin', label: 'SuperAdmin', href: '/superadmin' });
+    //   } else if (user.role === 'admin') {
+    //     baseLinks.push({ id: 'nav_admin', label: 'Admin', href: '/admin' });
+    //   } else {
+    //     baseLinks.push({ id: 'nav_dashboard', label: 'Dashboard', href: '/dashboard' });
+    //   }
+    // }
 
     return baseLinks;
   };
@@ -132,7 +132,7 @@ export default function Header() {
                 onClick={() => setShowMore(!showMore)}
                 className="relative text-sm font-medium text-neutral-300 hover:text-white flex items-center gap-2"
               >
-                More
+                Movies
                 <Icon name="ChevronDownIcon" size={14} className="text-neutral-300" />
               </button>
 
