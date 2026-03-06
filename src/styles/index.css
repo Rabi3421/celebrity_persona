@@ -195,6 +195,25 @@
   color: #a5f3fc;
 }
 
+/* Ensure native select dropdowns match the dark theme (options menu) */
+select,
+select:focus,
+select:active {
+  color: #e6e6ea; /* selected text color */
+}
+
+select option,
+select optgroup {
+  background-color: rgba(6,3,22,0.98); /* dark background for options */
+  color: #e6e6ea; /* option text color */
+}
+
+/* Some platforms/browsers need the high-specificity rule */
+select::-webkit-dropdown-menu {
+  background-color: rgba(6,3,22,0.98);
+}
+
+
 .article-content img {
   width: 100%;
   border-radius: 12px;
