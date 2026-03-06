@@ -41,6 +41,16 @@ export interface IOutfitSEO {
   searchVolume?: number;
 }
 
+// ── Comment sub-document ─────────────────────────────────────────────────────
+export interface IOutfitComment {
+  _id: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  userName: string;
+  userAvatar?: string;
+  text: string;
+  createdAt: Date;
+}
+
 // ── Main interface ────────────────────────────────────────────────────────────
 export interface ICelebrityOutfit extends Document {
   _id: string;
@@ -62,6 +72,9 @@ export interface ICelebrityOutfit extends Document {
   isFeatured: boolean;
   likesCount: number;
   commentsCount: number;
+  likes: mongoose.Types.ObjectId[];
+  favourites: mongoose.Types.ObjectId[];
+  comments: IOutfitComment[];
   seo?: IOutfitSEO;
   createdAt: Date;
   updatedAt: Date;
@@ -109,6 +122,18 @@ const seoSchema = new Schema<IOutfitSEO>(
     searchVolume:          { type: Number, default: 0 },
   },
   { _id: false }
+);
+
+// ── Comment sub-schema ───────────────────────────────────────────────────────
+const outfitCommentSchema = new Schema<IOutfitComment>(
+  {
+    userId:     { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    userName:   { type: String, required: true },
+    userAvatar: { type: String, default: '' },
+    text:       { type: String, required: true, trim: true, maxlength: 1000 },
+    createdAt:  { type: Date, default: Date.now },
+  },
+  { _id: true }
 );
 
 // ── Main schema ───────────────────────────────────────────────────────────────
@@ -190,6 +215,20 @@ const celebrityOutfitSchema = new Schema<ICelebrityOutfit>(
     commentsCount: {
       type: Number,
       default: 0,
+    },
+    likes: {
+      type: [Schema.Types.ObjectId],
+      ref: 'User',
+      default: [],
+    },
+    favourites: {
+      type: [Schema.Types.ObjectId],
+      ref: 'User',
+      default: [],
+    },
+    comments: {
+      type: [outfitCommentSchema],
+      default: [],
     },
     seo: {
       type: seoSchema,

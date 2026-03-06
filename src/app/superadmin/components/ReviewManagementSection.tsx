@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
+import RichTextEditor from '@/components/ui/RichTextEditor';
+import { uploadImage, validateImageFile } from '@/lib/imageUpload';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,32 @@ interface IScores {
   audienceScore?: number;
   imdbRating?: number;
   rottenTomatoesScore?: number;
+}
+
+interface IReviewSEO {
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string[];
+  canonicalUrl?: string;
+  noindex?: boolean;
+  nofollow?: boolean;
+  robots?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogType?: string;
+  ogSiteName?: string;
+  ogUrl?: string;
+  ogImages?: string[];
+  ogLocale?: string;
+  twitterCard?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  twitterSite?: string;
+  twitterCreator?: string;
+  schemaType?: string;
+  focusKeyword?: string;
+  structuredDataDepth?: string;
 }
 
 interface IAuthorSocial {
@@ -71,10 +99,10 @@ interface ReviewFull extends ReviewRow {
   scores?: IScores;
   pros?: string[];
   cons?: string[];
-  seoData?: { metaTitle?: string; metaDescription?: string; keywords?: string[] };
+  seoData?: IReviewSEO;
 }
 
-type FormTab = 'basic' | 'content' | 'movie' | 'scores';
+type FormTab = 'basic' | 'content' | 'movie' | 'scores' | 'images' | 'seo';
 type PanelMode = 'add' | 'edit' | null;
 type Toast = { type: 'success' | 'error'; message: string } | null;
 
@@ -85,8 +113,10 @@ const PAGE_SIZES = [10, 20, 50];
 const TABS: { key: FormTab; label: string; icon: string }[] = [
   { key: 'basic',   label: 'Basic Info',    icon: 'DocumentTextIcon'    },
   { key: 'content', label: 'Review',        icon: 'PencilSquareIcon'    },
+  { key: 'images',  label: 'Images',        icon: 'PhotoIcon'           },
   { key: 'movie',   label: 'Movie Details', icon: 'FilmIcon'            },
   { key: 'scores',  label: 'Scores',        icon: 'StarIcon'            },
+  { key: 'seo',     label: 'SEO',           icon: 'MagnifyingGlassIcon' },
 ];
 
 const EMPTY_AUTHOR: IAuthor = {
@@ -134,7 +164,31 @@ const EMPTY_FORM: ReviewFull = {
   },
   pros: [],
   cons: [],
-  seoData: { metaTitle: '', metaDescription: '', keywords: [] },
+  seoData: {
+    metaTitle: '',
+    metaDescription: '',
+    metaKeywords: [],
+    canonicalUrl: '',
+    noindex: false,
+    nofollow: false,
+    robots: 'index,follow',
+    ogTitle: '',
+    ogDescription: '',
+    ogType: 'article',
+    ogSiteName: 'Celebrity Persona',
+    ogUrl: '',
+    ogImages: [],
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: '',
+    twitterDescription: '',
+    twitterImage: '',
+    twitterSite: '@celebritypersona',
+    twitterCreator: '',
+    schemaType: 'Review',
+    focusKeyword: '',
+    structuredDataDepth: 'minimal',
+  },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -190,6 +244,8 @@ export default function ReviewManagementSection() {
   const [formLoading, setFormLoading]       = useState(false);
   const [formApiError, setFormApiError]     = useState('');
   const [loadingDetail, setLoadingDetail]   = useState(false);
+  const [uploading, setUploading]           = useState<Record<string, boolean>>({});
+  const [dragOver, setDragOver]             = useState<Record<string, boolean>>({});
   const panelRef = useRef<HTMLDivElement>(null);
 
   // ── helpers ────────────────────────────────────────────────────────────
@@ -212,6 +268,55 @@ export default function ReviewManagementSection() {
 
   const setScoreField = <K extends keyof IScores>(key: K, value: IScores[K]) =>
     setForm((p) => ({ ...p, scores: { ...p.scores, [key]: value } }));
+
+  // ── auto-slug from movie title ──────────────────────────────────────────
+  const toSlug = (s: string) =>
+    s.toLowerCase().trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .slice(0, 96);
+
+  const handleMovieTitleChange = (val: string) => {
+    setField('movieTitle', val);
+    if (!form.slug || form.slug === toSlug(form.movieTitle)) {
+      setField('slug', toSlug(val));
+    }
+  };
+
+  // ── image upload ────────────────────────────────────────────────────────
+  const handleImageUpload = async (file: File, type: 'poster' | 'backdrop') => {
+    const err = validateImageFile(file);
+    if (err) { showToast('error', err); return; }
+    setUploading((p) => ({ ...p, [type]: true }));
+    try {
+      const slug = form.slug || form.movieTitle.toLowerCase().replace(/\s+/g, '-') || 'review';
+      const url  = await uploadImage(file, `reviews/${slug}/${type}`);
+      setField(type === 'poster' ? 'poster' : 'backdropImage', url);
+      showToast('success', `${type === 'poster' ? 'Poster' : 'Backdrop'} uploaded`);
+    } catch {
+      showToast('error', `Failed to upload ${type}`);
+    } finally {
+      setUploading((p) => ({ ...p, [type]: false }));
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, type: 'poster' | 'backdrop') => {
+    e.preventDefault();
+    setDragOver((p) => ({ ...p, [type]: false }));
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleImageUpload(file, type);
+  };
+
+  const handleFilePick = (type: 'poster' | 'backdrop') => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) handleImageUpload(file, type);
+    };
+    input.click();
+  };
 
   // ── fetch ──────────────────────────────────────────────────────────────
   const fetchList = useCallback(async (p = 1, lim = limit) => {
@@ -315,7 +420,32 @@ export default function ReviewManagementSection() {
         },
         pros:    d.pros    || [],
         cons:    d.cons    || [],
-        seoData: d.seoData || { metaTitle: '', metaDescription: '', keywords: [] },
+        // MongoDB doc uses 'seo' field name; form uses 'seoData'
+        seoData: {
+          metaTitle:           d.seo?.metaTitle           || d.seoData?.metaTitle           || '',
+          metaDescription:     d.seo?.metaDescription     || d.seoData?.metaDescription     || '',
+          metaKeywords:        d.seo?.metaKeywords        || d.seoData?.metaKeywords        || d.seoData?.keywords || [],
+          canonicalUrl:        d.seo?.canonicalUrl        || d.seoData?.canonicalUrl        || '',
+          noindex:             d.seo?.noindex             ?? d.seoData?.noindex             ?? false,
+          nofollow:            d.seo?.nofollow            ?? d.seoData?.nofollow            ?? false,
+          robots:              d.seo?.robots              || d.seoData?.robots              || 'index,follow',
+          ogTitle:             d.seo?.ogTitle             || d.seoData?.ogTitle             || '',
+          ogDescription:       d.seo?.ogDescription       || d.seoData?.ogDescription       || '',
+          ogType:              d.seo?.ogType              || d.seoData?.ogType              || 'article',
+          ogSiteName:          d.seo?.ogSiteName          || d.seoData?.ogSiteName          || 'Celebrity Persona',
+          ogUrl:               d.seo?.ogUrl               || d.seoData?.ogUrl               || '',
+          ogImages:            d.seo?.ogImages            || d.seoData?.ogImages            || [],
+          ogLocale:            d.seo?.ogLocale            || d.seoData?.ogLocale            || 'en_US',
+          twitterCard:         d.seo?.twitterCard         || d.seoData?.twitterCard         || 'summary_large_image',
+          twitterTitle:        d.seo?.twitterTitle        || d.seoData?.twitterTitle        || '',
+          twitterDescription:  d.seo?.twitterDescription  || d.seoData?.twitterDescription  || '',
+          twitterImage:        d.seo?.twitterImage        || d.seoData?.twitterImage        || '',
+          twitterSite:         d.seo?.twitterSite         || d.seoData?.twitterSite         || '@celebritypersona',
+          twitterCreator:      d.seo?.twitterCreator      || d.seoData?.twitterCreator      || '',
+          schemaType:          d.seo?.schemaType          || d.seoData?.schemaType          || 'Review',
+          focusKeyword:        d.seo?.focusKeyword        || d.seoData?.focusKeyword        || '',
+          structuredDataDepth: d.seo?.structuredDataDepth || d.seoData?.structuredDataDepth || 'minimal',
+        },
       });
     } catch (err: any) {
       showToast('error', err.message || 'Failed to load review');
@@ -357,7 +487,8 @@ export default function ReviewManagementSection() {
     scores:        form.scores,
     pros:          form.pros    || [],
     cons:          form.cons    || [],
-    seoData:       form.seoData,
+    seo:           form.seoData,   // save under 'seo' to match DB field name
+    seoData:       form.seoData,   // also save under 'seoData' for backwards compat
   });
 
   // ── create ───────────────────────────────────────────────────────────────
@@ -502,21 +633,22 @@ export default function ReviewManagementSection() {
               Movie Title <span className="text-yellow-400">*</span>
             </label>
             <input type="text" value={form.movieTitle}
-              onChange={(e) => setField('movieTitle', e.target.value)}
+              onChange={(e) => handleMovieTitleChange(e.target.value)}
               placeholder="e.g. Kantara: A Legend – Chapter 1"
               className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${errBorder('movieTitle')}`}
             />
             {formErrors.movieTitle && <p className="text-red-400 text-xs mt-1 font-montserrat">{formErrors.movieTitle}</p>}
           </div>
 
-          {/* Slug */}
+          {/* Slug — auto-generated from movie title */}
           <div>
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Slug</label>
             <input type="text" value={form.slug || ''}
               onChange={(e) => setField('slug', e.target.value)}
-              placeholder="auto-generated from title"
+              placeholder="auto-generated from movie title"
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
             />
+            <p className="text-[10px] text-neutral-600 mt-0.5">Auto-fills from movie title. Edit to override.</p>
           </div>
 
           {/* Rating */}
@@ -541,38 +673,6 @@ export default function ReviewManagementSection() {
               onChange={(e) => setField('publishDate', e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
             />
-          </div>
-
-          {/* Poster */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Poster URL</label>
-            <div className="flex gap-3 items-start">
-              <input type="url" value={form.poster || ''}
-                onChange={(e) => setField('poster', e.target.value)}
-                placeholder="https://firebasestorage.googleapis.com/..."
-                className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-              />
-              {form.poster && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={form.poster} alt="" className="w-12 h-16 rounded-xl object-cover border border-white/10 shrink-0" />
-              )}
-            </div>
-          </div>
-
-          {/* Backdrop */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Backdrop Image URL</label>
-            <div className="flex gap-3 items-start">
-              <input type="url" value={form.backdropImage || ''}
-                onChange={(e) => setField('backdropImage', e.target.value)}
-                placeholder="https://firebasestorage.googleapis.com/..."
-                className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-              />
-              {form.backdropImage && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={form.backdropImage} alt="" className="w-24 h-14 rounded-xl object-cover border border-white/10 shrink-0" />
-              )}
-            </div>
           </div>
 
           {/* Trailer */}
@@ -653,6 +753,14 @@ export default function ReviewManagementSection() {
                 />
               </div>
               <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Twitter / X</label>
+                <input type="url" value={form.author.socialMedia?.twitter || ''}
+                  onChange={(e) => setAuthorField('socialMedia', { ...form.author.socialMedia, twitter: e.target.value })}
+                  placeholder="https://x.com/..."
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Instagram</label>
                 <input type="url" value={form.author.socialMedia?.instagram || ''}
                   onChange={(e) => setAuthorField('socialMedia', { ...form.author.socialMedia, instagram: e.target.value })}
@@ -671,25 +779,253 @@ export default function ReviewManagementSection() {
             </div>
           </div>
 
-          {/* SEO */}
-          <div className="md:col-span-2 space-y-3 pt-2 border-t border-white/10">
-            <p className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider">SEO Data</p>
-            <input type="text" value={form.seoData?.metaTitle || ''}
-              onChange={(e) => setField('seoData', { ...form.seoData, metaTitle: e.target.value })}
-              placeholder="SEO Meta Title"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
-            <textarea value={form.seoData?.metaDescription || ''} rows={2}
-              onChange={(e) => setField('seoData', { ...form.seoData, metaDescription: e.target.value })}
-              placeholder="SEO Meta Description"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-            <textarea
-              value={joinLines(form.seoData?.keywords)} rows={2}
-              onChange={(e) => setField('seoData', { ...form.seoData, keywords: splitLines(e.target.value) })}
-              placeholder={"Kantara review\nIndian cinema 2025\nRishab Shetty film"}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
+        </div>
+      );
+
+      // ── IMAGES ─────────────────────────────────────────────────────────
+      case 'images': return (
+        <div className="space-y-8">
+
+          {/* Poster */}
+          <div>
+            <p className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Icon name="PhotoIcon" size={13} /> Poster
+              <span className="text-neutral-600 normal-case font-normal">· recommended 2:3 (e.g. 800×1200)</span>
+            </p>
+            {form.poster ? (
+              <div className="flex gap-4 items-start">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={form.poster} alt="poster" className="w-28 h-40 rounded-xl object-cover border border-white/10 shrink-0" />
+                <div className="flex flex-col gap-2 pt-1">
+                  <p className="text-xs text-neutral-400 font-montserrat break-all max-w-xs">{form.poster}</p>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => handleFilePick('poster')}
+                      className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-montserrat hover:bg-white/10 transition-all flex items-center gap-1.5">
+                      <Icon name="ArrowPathIcon" size={12} /> Replace
+                    </button>
+                    <button type="button" onClick={() => setField('poster', '')}
+                      className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-montserrat hover:bg-red-500/20 transition-all flex items-center gap-1.5">
+                      <Icon name="TrashIcon" size={12} /> Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                onDrop={(e) => handleDrop(e, 'poster')}
+                onDragOver={(e) => { e.preventDefault(); setDragOver((p) => ({ ...p, poster: true })); }}
+                onDragLeave={() => setDragOver((p) => ({ ...p, poster: false }))}
+                onClick={() => handleFilePick('poster')}
+                className={`relative border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
+                  dragOver.poster ? 'border-yellow-500/70 bg-yellow-500/5' : 'border-white/10 hover:border-yellow-500/40 hover:bg-white/[0.02]'
+                }`}
+              >
+                {uploading.poster ? (
+                  <><Icon name="ArrowPathIcon" size={28} className="text-yellow-500 animate-spin" />
+                  <p className="text-sm font-montserrat text-neutral-400">Uploading…</p></>
+                ) : (
+                  <><Icon name="CloudArrowUpIcon" size={32} className="text-neutral-500" />
+                  <div className="text-center">
+                    <p className="text-sm font-montserrat text-neutral-300">Drop poster here or <span className="text-yellow-400">click to browse</span></p>
+                    <p className="text-xs text-neutral-600 mt-1">PNG, JPG, WebP · max 5 MB</p>
+                  </div></>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Backdrop */}
+          <div>
+            <p className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Icon name="PhotoIcon" size={13} /> Backdrop
+              <span className="text-neutral-600 normal-case font-normal">· recommended 16:9 (e.g. 1920×1080)</span>
+            </p>
+            {form.backdropImage ? (
+              <div className="flex gap-4 items-start">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={form.backdropImage} alt="backdrop" className="w-48 h-28 rounded-xl object-cover border border-white/10 shrink-0" />
+                <div className="flex flex-col gap-2 pt-1">
+                  <p className="text-xs text-neutral-400 font-montserrat break-all max-w-xs">{form.backdropImage}</p>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => handleFilePick('backdrop')}
+                      className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-montserrat hover:bg-white/10 transition-all flex items-center gap-1.5">
+                      <Icon name="ArrowPathIcon" size={12} /> Replace
+                    </button>
+                    <button type="button" onClick={() => setField('backdropImage', '')}
+                      className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-montserrat hover:bg-red-500/20 transition-all flex items-center gap-1.5">
+                      <Icon name="TrashIcon" size={12} /> Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                onDrop={(e) => handleDrop(e, 'backdrop')}
+                onDragOver={(e) => { e.preventDefault(); setDragOver((p) => ({ ...p, backdrop: true })); }}
+                onDragLeave={() => setDragOver((p) => ({ ...p, backdrop: false }))}
+                onClick={() => handleFilePick('backdrop')}
+                className={`relative border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
+                  dragOver.backdrop ? 'border-yellow-500/70 bg-yellow-500/5' : 'border-white/10 hover:border-yellow-500/40 hover:bg-white/[0.02]'
+                }`}
+              >
+                {uploading.backdrop ? (
+                  <><Icon name="ArrowPathIcon" size={28} className="text-yellow-500 animate-spin" />
+                  <p className="text-sm font-montserrat text-neutral-400">Uploading…</p></>
+                ) : (
+                  <><Icon name="CloudArrowUpIcon" size={32} className="text-neutral-500" />
+                  <div className="text-center">
+                    <p className="text-sm font-montserrat text-neutral-300">Drop backdrop here or <span className="text-yellow-400">click to browse</span></p>
+                    <p className="text-xs text-neutral-600 mt-1">PNG, JPG, WebP · max 5 MB</p>
+                  </div></>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Hint */}
+          <p className="text-xs text-neutral-600 font-montserrat">Images are uploaded to Firebase Storage under <code className="text-neutral-400">reviews/&#123;slug&#125;/</code> and the URL is saved automatically.</p>
+        </div>
+      );
+
+      // ── SEO ────────────────────────────────────────────────────────────
+      case 'seo': return (
+        <div className="space-y-6">
+
+          {/* Core */}
+          <div>
+            <p className="text-[11px] text-neutral-500 font-montserrat uppercase tracking-wider mb-3">Core SEO</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Focus Keyword</label>
+                <input type="text" value={form.seoData?.focusKeyword || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, focusKeyword: e.target.value })}
+                  placeholder="e.g. Thamma movie review"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Meta Title</label>
+                  <input type="text" value={form.seoData?.metaTitle || ''}
+                    onChange={(e) => setField('seoData', { ...form.seoData, metaTitle: e.target.value })}
+                    placeholder="SEO page title (55–60 chars)"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                  />
+                  <p className="text-[10px] text-neutral-600 mt-0.5">{(form.seoData?.metaTitle || '').length}/60</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Canonical URL</label>
+                  <input type="url" value={form.seoData?.canonicalUrl || ''}
+                    onChange={(e) => setField('seoData', { ...form.seoData, canonicalUrl: e.target.value })}
+                    placeholder="https://celebritypersona.com/reviews/..."
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Meta Description</label>
+                  <textarea value={form.seoData?.metaDescription || ''} rows={2}
+                    onChange={(e) => setField('seoData', { ...form.seoData, metaDescription: e.target.value })}
+                    placeholder="SEO meta description (150–160 chars)"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                  />
+                  <p className="text-[10px] text-neutral-600 mt-0.5">{(form.seoData?.metaDescription || '').length}/160</p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Meta Keywords (one per line)</label>
+                  <textarea value={(form.seoData?.metaKeywords || []).join('\n')} rows={3}
+                    onChange={(e) => setField('seoData', { ...form.seoData, metaKeywords: splitLines(e.target.value) })}
+                    placeholder={"Thamma review\nAyushmann Khurrana\nHorror comedy 2025"}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Robots</label>
+                  <select value={form.seoData?.robots || 'index,follow'}
+                    onChange={(e) => setField('seoData', { ...form.seoData, robots: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#1a1330] border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer"
+                  >
+                    <option value="index,follow">index, follow</option>
+                    <option value="noindex,follow">noindex, follow</option>
+                    <option value="index,nofollow">index, nofollow</option>
+                    <option value="noindex,nofollow">noindex, nofollow</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Open Graph */}
+          <div>
+            <p className="text-[11px] text-neutral-500 font-montserrat uppercase tracking-wider mb-3 border-t border-white/5 pt-4">Open Graph</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">OG Title</label>
+                <input type="text" value={form.seoData?.ogTitle || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, ogTitle: e.target.value })}
+                  placeholder="Leave blank to use Meta Title"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">OG URL</label>
+                <input type="url" value={form.seoData?.ogUrl || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, ogUrl: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">OG Description</label>
+                <textarea value={form.seoData?.ogDescription || ''} rows={2}
+                  onChange={(e) => setField('seoData', { ...form.seoData, ogDescription: e.target.value })}
+                  placeholder="Leave blank to use Meta Description"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Twitter Card */}
+          <div>
+            <p className="text-[11px] text-neutral-500 font-montserrat uppercase tracking-wider mb-3 border-t border-white/5 pt-4">Twitter Card</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Twitter Title</label>
+                <input type="text" value={form.seoData?.twitterTitle || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, twitterTitle: e.target.value })}
+                  placeholder="Leave blank to use Meta Title"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Twitter Image URL</label>
+                <input type="url" value={form.seoData?.twitterImage || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, twitterImage: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Twitter Creator</label>
+                <input type="text" value={form.seoData?.twitterCreator || ''}
+                  onChange={(e) => setField('seoData', { ...form.seoData, twitterCreator: e.target.value })}
+                  placeholder="@handle"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Twitter Card Type</label>
+                <select value={form.seoData?.twitterCard || 'summary_large_image'}
+                  onChange={(e) => setField('seoData', { ...form.seoData, twitterCard: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#1a1330] border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer"
+                >
+                  <option value="summary_large_image">summary_large_image</option>
+                  <option value="summary">summary</option>
+                  <option value="app">app</option>
+                  <option value="player">player</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       );
@@ -698,31 +1034,26 @@ export default function ReviewManagementSection() {
       case 'content': return (
         <div className="space-y-5">
 
-          {/* Main Review Content */}
+          {/* Main Review Content — Rich Text Editor */}
           <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-              Review Content (HTML) <span className="text-yellow-400">*</span>
-            </label>
-            <textarea
+            <RichTextEditor
+              label={<>Review Content <span className="text-yellow-400">*</span></>}
               value={form.content}
-              onChange={(e) => setField('content', e.target.value)}
-              rows={16}
-              placeholder={'<p><strong>Film Title</strong> is a...</p>\n<p>The story revolves around...</p>'}
-              className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm resize-y font-mono ${errBorder('content')}`}
+              onChange={(html) => setField('content', html)}
+              placeholder="Start writing the review... Use headings, bold, lists etc."
+              minHeight={350}
             />
             {formErrors.content && <p className="text-red-400 text-xs mt-1 font-montserrat">{formErrors.content}</p>}
-            <p className="text-neutral-600 text-xs mt-1 font-montserrat">{form.content.length} chars</p>
           </div>
 
-          {/* Verdict */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Final Verdict</label>
-            <textarea value={form.verdict || ''} rows={4}
-              onChange={(e) => setField('verdict', e.target.value)}
-              placeholder="Wrap-up verdict paragraph shown at the bottom of the review..."
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-          </div>
+          {/* Verdict — Rich Text Editor */}
+          <RichTextEditor
+            label="Final Verdict"
+            value={form.verdict || ''}
+            onChange={(html) => setField('verdict', html)}
+            placeholder="Wrap-up verdict paragraph shown at the bottom of the review..."
+            minHeight={120}
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Pros */}

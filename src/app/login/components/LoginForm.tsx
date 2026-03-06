@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
@@ -22,6 +22,8 @@ export default function LoginForm() {
 
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -61,9 +63,11 @@ export default function LoginForm() {
           setEmail('');
           setPassword('');
           
-          // Redirect based on user role
+          // Redirect based on user role (or back to intended page)
           setTimeout(() => {
-            if (result.user?.role === 'superadmin') {
+            if (redirectTo) {
+              router.push(redirectTo);
+            } else if (result.user?.role === 'superadmin') {
               router.push('/superadmin');
             } else if (result.user?.role === 'admin') {
               router.push('/admin');

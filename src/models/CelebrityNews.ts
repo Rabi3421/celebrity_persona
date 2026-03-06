@@ -42,6 +42,15 @@ export interface INewsSEO {
 }
 
 // ── Main interface ────────────────────────────────────────────────────────────
+export interface INewsComment {
+  _id: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  userName: string;
+  userAvatar?: string;
+  text: string;
+  createdAt: Date;
+}
+
 export interface ICelebrityNews extends Document {
   title: string;
   slug: string;
@@ -54,6 +63,9 @@ export interface ICelebrityNews extends Document {
   tags?: string[];
   publishDate?: Date;
   featured: boolean;
+  likes: mongoose.Types.ObjectId[];
+  saves: mongoose.Types.ObjectId[];
+  comments: INewsComment[];
   seo?: INewsSEO;
   createdAt: Date;
   updatedAt: Date;
@@ -101,6 +113,18 @@ const seoSchema = new Schema<INewsSEO>(
     searchVolume:        { type: Number, default: 0 },
   },
   { _id: false }
+);
+
+// ── Comment sub-schema ──────────────────────────────────────────────────────
+const newsCommentSchema = new Schema<INewsComment>(
+  {
+    userId:     { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    userName:   { type: String, required: true },
+    userAvatar: { type: String, default: '' },
+    text:       { type: String, required: true, trim: true, maxlength: 1000 },
+    createdAt:  { type: Date, default: Date.now },
+  },
+  { _id: true }
 );
 
 // ── Main schema ───────────────────────────────────────────────────────────────
@@ -155,6 +179,9 @@ const celebrityNewsSchema = new Schema<ICelebrityNews>(
       type: Boolean,
       default: false,
     },
+    likes:    { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
+    saves:    { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
+    comments: { type: [newsCommentSchema], default: [] },
     seo: {
       type: seoSchema,
     },

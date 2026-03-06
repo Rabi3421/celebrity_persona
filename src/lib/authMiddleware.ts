@@ -8,6 +8,8 @@ export interface AuthenticatedRequest extends NextRequest {
     userId: string;
     email: string;
     role: string;
+    name: string;
+    avatar?: string;
   };
 }
 
@@ -84,6 +86,8 @@ export function authMiddleware(requiredRoles?: string[]) {
         userId: user._id,
         email: user.email,
         role: user.role,
+        name: user.name,
+        avatar: (user as any).avatar || '',
       };
 
       return null; // Continue to next handler

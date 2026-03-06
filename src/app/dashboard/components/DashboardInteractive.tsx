@@ -1,24 +1,28 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 import ProfileSection from './ProfileSection';
 import WishlistSection from './WishlistSection';
-import UploadedItemsSection from './UploadedItemsSection';
+import MyUploadsSection from './MyUploadsSection';
 import ActivityHistorySection from './ActivityHistorySection';
 import AccountSettingsSection from './AccountSettingsSection';
+import FavouritesSection from './FavouritesSection';
+import ApiSection from './ApiSection';
 
-type SectionType = 'profile' | 'wishlist' | 'uploads' | 'activity' | 'settings';
+type SectionType = 'profile' | 'wishlist' | 'uploads' | 'favourites' | 'activity' | 'settings' | 'api';
 
 const menuItems: { id: SectionType; label: string; icon: string; desc: string }[] = [
   { id: 'profile',   label: 'Profile',     icon: 'UserIcon',        desc: 'Manage your personal information' },
   { id: 'wishlist',  label: 'Wishlist',    icon: 'HeartIcon',       desc: 'Saved celebrities & outfits' },
-  { id: 'uploads',   label: 'My Uploads',  icon: 'PhotoIcon',       desc: 'Your submitted fashion items' },
-  { id: 'activity',  label: 'Activity',    icon: 'ClockIcon',       desc: 'Recent actions & history' },
+  { id: 'uploads',    label: 'My Uploads',  icon: 'PhotoIcon',       desc: 'Your submitted fashion items' },
+  { id: 'favourites', label: 'Saved Outfits', icon: 'BookmarkIcon',  desc: 'Outfits you have saved' },
+  { id: 'activity',   label: 'Activity',    icon: 'ClockIcon',       desc: 'Recent actions & history' },
   { id: 'settings',  label: 'Settings',    icon: 'Cog6ToothIcon',   desc: 'Account preferences' },
+  { id: 'api',        label: 'API Access',   icon: 'KeyIcon',         desc: 'Manage your API key & endpoints' },
 ];
 
 export default function DashboardInteractive() {
@@ -27,6 +31,15 @@ export default function DashboardInteractive() {
   const [logoutLoading, setLogoutLoading] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Handle ?section=uploads from navbar redirect
+  useEffect(() => {
+    const section = searchParams.get('section') as SectionType | null;
+    if (section && menuItems.find((m) => m.id === section)) {
+      setActiveSection(section);
+    }
+  }, [searchParams]);
 
   const handleLogout = async () => {
     setLogoutLoading(true);
@@ -40,9 +53,11 @@ export default function DashboardInteractive() {
     switch (activeSection) {
       case 'profile':   return <ProfileSection />;
       case 'wishlist':  return <WishlistSection />;
-      case 'uploads':   return <UploadedItemsSection />;
-      case 'activity':  return <ActivityHistorySection />;
+      case 'uploads':    return <MyUploadsSection />;
+      case 'favourites':  return <FavouritesSection />;
+      case 'activity':    return <ActivityHistorySection />;
       case 'settings':  return <AccountSettingsSection />;
+      case 'api':        return <ApiSection />;
     }
   };
 

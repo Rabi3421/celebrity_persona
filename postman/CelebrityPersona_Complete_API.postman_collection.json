@@ -1,0 +1,1120 @@
+{
+  "info": {
+    "name": "CelebrityPersona — Complete API",
+    "_postman_id": "cp-complete-api-2026",
+    "description": "Full API collection for CelebrityPersona.\n\n## Setup\n1. Set `baseUrl` variable → `http://localhost:4028`\n2. Set `apiKey` variable → value of your `X_API_KEY` env var\n3. Login via **Auth / Login (Any Role)** — `accessToken` and `refreshToken` are auto-saved\n4. All protected requests use `{{accessToken}}` automatically",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",      "value": "http://localhost:4028", "type": "string" },
+    { "key": "apiKey",       "value": "YOUR_X_API_KEY_HERE",  "type": "string" },
+    { "key": "accessToken",  "value": "",                      "type": "string" },
+    { "key": "refreshToken", "value": "",                      "type": "string" },
+    { "key": "userId",       "value": "",                      "type": "string" },
+    { "key": "adminId",      "value": "",                      "type": "string" },
+    { "key": "celebrityId",  "value": "",                      "type": "string" },
+    { "key": "movieId",      "value": "",                      "type": "string" },
+    { "key": "newsId",       "value": "",                      "type": "string" },
+    { "key": "outfitId",     "value": "",                      "type": "string" },
+    { "key": "reviewId",     "value": "",                      "type": "string" },
+    { "key": "celebritySlug","value": "sara-arjun",            "type": "string" },
+    { "key": "superAdminKey","value": "YOUR_SUPERADMIN_KEY",   "type": "string" }
+  ],
+  "item": [
+
+    {
+      "name": "🔐 Auth",
+      "item": [
+
+        {
+          "name": "Login (Any Role — auto-detects)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 200) {",
+            "  const d = pm.response.json();",
+            "  pm.collectionVariables.set('accessToken',  d.accessToken);",
+            "  pm.collectionVariables.set('refreshToken', d.refreshToken);",
+            "  if (d.user) pm.collectionVariables.set('userId', d.user.id);",
+            "  pm.test('Login successful', () => pm.expect(d.success).to.be.true);",
+            "}"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"your@email.com\",\n  \"password\": \"yourpassword\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api","auth","login"] }
+          }
+        },
+
+        {
+          "name": "User — Sign Up",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/user/signup", "host": ["{{baseUrl}}"], "path": ["api","auth","user","signup"] }
+          }
+        },
+
+        {
+          "name": "User — Login",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 200) {",
+            "  const d = pm.response.json();",
+            "  pm.collectionVariables.set('accessToken',  d.accessToken);",
+            "  pm.collectionVariables.set('refreshToken', d.refreshToken);",
+            "  if (d.user) pm.collectionVariables.set('userId', d.user.id);",
+            "}"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/user/login", "host": ["{{baseUrl}}"], "path": ["api","auth","user","login"] }
+          }
+        },
+
+        {
+          "name": "Admin — Login",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 200) {",
+            "  const d = pm.response.json();",
+            "  pm.collectionVariables.set('accessToken',  d.accessToken);",
+            "  pm.collectionVariables.set('refreshToken', d.refreshToken);",
+            "}"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"adminpassword\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/admin/login", "host": ["{{baseUrl}}"], "path": ["api","auth","admin","login"] }
+          }
+        },
+
+        {
+          "name": "Superadmin — Login",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 200) {",
+            "  const d = pm.response.json();",
+            "  pm.collectionVariables.set('accessToken',  d.accessToken);",
+            "  pm.collectionVariables.set('refreshToken', d.refreshToken);",
+            "}"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"superadmin@example.com\",\n  \"password\": \"superpassword\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/superadmin/login", "host": ["{{baseUrl}}"], "path": ["api","auth","superadmin","login"] }
+          }
+        },
+
+        {
+          "name": "Get Current User (me)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api","auth","me"] }
+          }
+        },
+
+        {
+          "name": "Refresh Token",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.response.code === 200) {",
+            "  const d = pm.response.json();",
+            "  pm.collectionVariables.set('accessToken', d.accessToken);",
+            "}"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api","auth","refresh"] }
+          }
+        },
+
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api","auth","logout"] }
+          }
+        },
+
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"john@example.com\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/user/forgot-password", "host": ["{{baseUrl}}"], "path": ["api","auth","user","forgot-password"] }
+          }
+        },
+
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"RESET_TOKEN_FROM_EMAIL\",\n  \"password\": \"newpassword123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/user/reset-password", "host": ["{{baseUrl}}"], "path": ["api","auth","user","reset-password"] }
+          }
+        },
+
+        {
+          "name": "Change Password (Logged In)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"currentPassword\": \"oldpassword\",\n  \"newPassword\": \"newpassword123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/user/change-password", "host": ["{{baseUrl}}"], "path": ["api","auth","user","change-password"] }
+          }
+        },
+
+        {
+          "name": "Update User Profile (Auth)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"John Updated\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/user/profile", "host": ["{{baseUrl}}"], "path": ["api","auth","user","profile"] }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "👤 User — Profile",
+      "item": [
+
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/user/profile", "host": ["{{baseUrl}}"], "path": ["api","user","profile"] }
+          }
+        },
+
+        {
+          "name": "Update My Profile (name / bio / location)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Rabi Narayan\",\n  \"bio\": \"Fashion enthusiast and celebrity follower.\",\n  \"location\": \"Mumbai, India\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/user/profile", "host": ["{{baseUrl}}"], "path": ["api","user","profile"] }
+          }
+        },
+
+        {
+          "name": "Upload Profile Avatar",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "avatar", "type": "file", "src": "", "description": "Select an image file (max 5MB)" }]
+            },
+            "url": { "raw": "{{baseUrl}}/api/user/profile/avatar", "host": ["{{baseUrl}}"], "path": ["api","user","profile","avatar"] }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "🌟 User — Public Browse (x-api-key)",
+      "item": [
+
+        {
+          "name": "List Celebrities",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/celebrities?page=1&limit=10&search=&category=&isFeatured=&sort=popular",
+              "host": ["{{baseUrl}}"], "path": ["api","user","celebrities"],
+              "query": [
+                { "key": "page",       "value": "1" },
+                { "key": "limit",      "value": "10" },
+                { "key": "search",     "value": "" },
+                { "key": "category",   "value": "", "description": "movie|fashion|music|sports" },
+                { "key": "isFeatured", "value": "", "description": "true" },
+                { "key": "sort",       "value": "popular", "description": "popular|latest|oldest|name" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Get Celebrity by Slug",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+            "url": { "raw": "{{baseUrl}}/api/user/celebrities/{{celebritySlug}}", "host": ["{{baseUrl}}"], "path": ["api","user","celebrities","{{celebritySlug}}"] }
+          }
+        },
+
+        {
+          "name": "List Movies (Upcoming)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/movies?page=1&limit=10&search=&sort=anticipation",
+              "host": ["{{baseUrl}}"], "path": ["api","user","movies"],
+              "query": [
+                { "key": "page",  "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search","value": "" },
+                { "key": "sort",  "value": "anticipation", "description": "anticipation|release|rating" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Get Movie by Slug/ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+            "url": { "raw": "{{baseUrl}}/api/user/movies/{{movieId}}", "host": ["{{baseUrl}}"], "path": ["api","user","movies","{{movieId}}"] }
+          }
+        },
+
+        {
+          "name": "List News",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/news?page=1&limit=10&search=&isFeatured=&sort=latest",
+              "host": ["{{baseUrl}}"], "path": ["api","user","news"],
+              "query": [
+                { "key": "page",       "value": "1" },
+                { "key": "limit",      "value": "10" },
+                { "key": "search",     "value": "" },
+                { "key": "isFeatured", "value": "" },
+                { "key": "sort",       "value": "latest", "description": "latest|oldest|featured" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Get News by ID/Slug",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+            "url": { "raw": "{{baseUrl}}/api/user/news/{{newsId}}", "host": ["{{baseUrl}}"], "path": ["api","user","news","{{newsId}}"] }
+          }
+        },
+
+        {
+          "name": "List Outfits",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/outfits?page=1&limit=12&search=&category=&celebrity=&isFeatured=&sort=latest",
+              "host": ["{{baseUrl}}"], "path": ["api","user","outfits"],
+              "query": [
+                { "key": "page",       "value": "1" },
+                { "key": "limit",      "value": "12" },
+                { "key": "search",     "value": "" },
+                { "key": "category",   "value": "" },
+                { "key": "celebrity",  "value": "" },
+                { "key": "isFeatured", "value": "" },
+                { "key": "sort",       "value": "latest" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Get Reviews (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/reviews?page=1&limit=10",
+              "host": ["{{baseUrl}}"], "path": ["api","content","reviews"],
+              "query": [
+                { "key": "page",  "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Celebrity Search Dropdown",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/celebrities/search?q=sara&limit=10&published=true",
+              "host": ["{{baseUrl}}"], "path": ["api","content","celebrities","search"],
+              "query": [
+                { "key": "q",         "value": "sara" },
+                { "key": "limit",     "value": "10" },
+                { "key": "published", "value": "true" }
+              ]
+            }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "📦 Content — Admin",
+      "description": "Requires Bearer token with admin or superadmin role",
+      "item": [
+
+        {
+          "name": "Celebrities",
+          "item": [
+            {
+              "name": "List Celebrities (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/celebrities?page=1&limit=20&search=&status=",
+                  "host": ["{{baseUrl}}"], "path": ["api","content","celebrities"],
+                  "query": [
+                    { "key": "page",   "value": "1" },
+                    { "key": "limit",  "value": "20" },
+                    { "key": "search", "value": "" },
+                    { "key": "status", "value": "" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Celebrity",
+              "event": [{ "listen": "test", "script": { "exec": [
+                "if (pm.response.code === 201) {",
+                "  const d = pm.response.json();",
+                "  if (d.celebrity) pm.collectionVariables.set('celebrityId', d.celebrity._id);",
+                "}"
+              ], "type": "text/javascript" }}],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Test Celebrity\",\n  \"nationality\": \"Indian\",\n  \"occupation\": [\"Actor\"],\n  \"born\": \"1 January 1990\",\n  \"introduction\": \"A talented actor.\",\n  \"categories\": [\"movie\"],\n  \"status\": \"published\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/content/celebrities", "host": ["{{baseUrl}}"], "path": ["api","content","celebrities"] }
+              }
+            },
+            {
+              "name": "Get Celebrity by ID (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/content/celebrities/{{celebrityId}}", "host": ["{{baseUrl}}"], "path": ["api","content","celebrities","{{celebrityId}}"] }
+              }
+            },
+            {
+              "name": "Update Celebrity",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"isFeatured\": true,\n  \"status\": \"published\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/content/celebrities/{{celebrityId}}", "host": ["{{baseUrl}}"], "path": ["api","content","celebrities","{{celebrityId}}"] }
+              }
+            },
+            {
+              "name": "Delete Celebrity",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/content/celebrities/{{celebrityId}}", "host": ["{{baseUrl}}"], "path": ["api","content","celebrities","{{celebrityId}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Movies",
+          "item": [
+            {
+              "name": "List Movies (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/movies?page=1&limit=20",
+                  "host": ["{{baseUrl}}"], "path": ["api","content","movies"],
+                  "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }]
+                }
+              }
+            },
+            {
+              "name": "Create Movie",
+              "event": [{ "listen": "test", "script": { "exec": [
+                "if (pm.response.code === 201) {",
+                "  const d = pm.response.json();",
+                "  if (d.movie) pm.collectionVariables.set('movieId', d.movie._id);",
+                "}"
+              ], "type": "text/javascript" }}],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"title\": \"Upcoming Blockbuster\",\n  \"slug\": \"upcoming-blockbuster\",\n  \"releaseDate\": \"2026-12-25\",\n  \"genre\": [\"Action\"],\n  \"director\": \"Famous Director\",\n  \"synopsis\": \"An epic movie.\",\n  \"status\": \"upcoming\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/content/movies", "host": ["{{baseUrl}}"], "path": ["api","content","movies"] }
+              }
+            },
+            {
+              "name": "Get Movie by ID (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/content/movies/{{movieId}}", "host": ["{{baseUrl}}"], "path": ["api","content","movies","{{movieId}}"] }
+              }
+            },
+            {
+              "name": "Update Movie",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"anticipationScore\": 95,\n  \"isFeatured\": true\n}" },
+                "url": { "raw": "{{baseUrl}}/api/content/movies/{{movieId}}", "host": ["{{baseUrl}}"], "path": ["api","content","movies","{{movieId}}"] }
+              }
+            },
+            {
+              "name": "Delete Movie",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/content/movies/{{movieId}}", "host": ["{{baseUrl}}"], "path": ["api","content","movies","{{movieId}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "News",
+          "item": [
+            {
+              "name": "List News (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/news?page=1&limit=20",
+                  "host": ["{{baseUrl}}"], "path": ["api","content","news"],
+                  "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }]
+                }
+              }
+            },
+            {
+              "name": "Create News Article",
+              "event": [{ "listen": "test", "script": { "exec": [
+                "if (pm.response.code === 201) {",
+                "  const d = pm.response.json();",
+                "  if (d.news) pm.collectionVariables.set('newsId', d.news._id);",
+                "}"
+              ], "type": "text/javascript" }}],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"title\": \"Breaking Celebrity News\",\n  \"content\": \"Full article content here.\",\n  \"category\": \"Entertainment\",\n  \"celebrity\": \"{{celebrityId}}\",\n  \"isFeatured\": false,\n  \"status\": \"published\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/content/news", "host": ["{{baseUrl}}"], "path": ["api","content","news"] }
+              }
+            },
+            {
+              "name": "Get News by ID (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/content/news/{{newsId}}", "host": ["{{baseUrl}}"], "path": ["api","content","news","{{newsId}}"] }
+              }
+            },
+            {
+              "name": "Update News Article",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"isFeatured\": true,\n  \"title\": \"Updated Title\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/content/news/{{newsId}}", "host": ["{{baseUrl}}"], "path": ["api","content","news","{{newsId}}"] }
+              }
+            },
+            {
+              "name": "Delete News Article",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/content/news/{{newsId}}", "host": ["{{baseUrl}}"], "path": ["api","content","news","{{newsId}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Outfits",
+          "item": [
+            {
+              "name": "List Outfits (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/content/outfits?page=1&limit=20",
+                  "host": ["{{baseUrl}}"], "path": ["api","content","outfits"],
+                  "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }]
+                }
+              }
+            },
+            {
+              "name": "Create Outfit",
+              "event": [{ "listen": "test", "script": { "exec": [
+                "if (pm.response.code === 201) {",
+                "  const d = pm.response.json();",
+                "  if (d.outfit) pm.collectionVariables.set('outfitId', d.outfit._id);",
+                "}"
+              ], "type": "text/javascript" }}],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"title\": \"Red Carpet Look\",\n  \"celebrity\": \"{{celebrityId}}\",\n  \"images\": [\"https://example.com/image.jpg\"],\n  \"category\": \"Red Carpet\",\n  \"occasion\": \"Award Show\",\n  \"description\": \"Stunning red carpet outfit.\",\n  \"tags\": [\"glamour\",\"fashion\"]\n}" },
+                "url": { "raw": "{{baseUrl}}/api/content/outfits", "host": ["{{baseUrl}}"], "path": ["api","content","outfits"] }
+              }
+            },
+            {
+              "name": "Get Outfit by ID (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/content/outfits/{{outfitId}}", "host": ["{{baseUrl}}"], "path": ["api","content","outfits","{{outfitId}}"] }
+              }
+            },
+            {
+              "name": "Update Outfit",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"isFeatured\": true,\n  \"tags\": [\"glamour\",\"fashion\",\"iconic\"]\n}" },
+                "url": { "raw": "{{baseUrl}}/api/content/outfits/{{outfitId}}", "host": ["{{baseUrl}}"], "path": ["api","content","outfits","{{outfitId}}"] }
+              }
+            },
+            {
+              "name": "Delete Outfit",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/content/outfits/{{outfitId}}", "host": ["{{baseUrl}}"], "path": ["api","content","outfits","{{outfitId}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Reviews",
+          "item": [
+            {
+              "name": "Get Review by ID (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/content/reviews/{{reviewId}}", "host": ["{{baseUrl}}"], "path": ["api","content","reviews","{{reviewId}}"] }
+              }
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "👑 Superadmin",
+      "description": "Requires Bearer token with superadmin role",
+      "item": [
+
+        {
+          "name": "Stats",
+          "item": [
+            {
+              "name": "Get Dashboard Stats",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/stats", "host": ["{{baseUrl}}"], "path": ["api","superadmin","stats"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Users",
+          "item": [
+            {
+              "name": "Get All Users",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/all-users", "host": ["{{baseUrl}}"], "path": ["api","superadmin","all-users"] }
+              }
+            },
+            {
+              "name": "Get User by ID",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","users","{{userId}}"] }
+              }
+            },
+            {
+              "name": "Update User",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"isActive\": true,\n  \"name\": \"Updated Name\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","users","{{userId}}"] }
+              }
+            },
+            {
+              "name": "Delete User",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","users","{{userId}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Admins",
+          "item": [
+            {
+              "name": "Get All Admins",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/admins", "host": ["{{baseUrl}}"], "path": ["api","superadmin","admins"] }
+              }
+            },
+            {
+              "name": "Create Admin",
+              "event": [{ "listen": "test", "script": { "exec": [
+                "if (pm.response.code === 201) {",
+                "  const d = pm.response.json();",
+                "  if (d.admin) pm.collectionVariables.set('adminId', d.admin._id);",
+                "}"
+              ], "type": "text/javascript" }}],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"New Admin\",\n  \"email\": \"newadmin@example.com\",\n  \"password\": \"adminpass123\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/admins", "host": ["{{baseUrl}}"], "path": ["api","superadmin","admins"] }
+              }
+            },
+            {
+              "name": "Get Admin by ID",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/admins/{{adminId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","admins","{{adminId}}"] }
+              }
+            },
+            {
+              "name": "Update Admin",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"isActive\": true,\n  \"name\": \"Updated Admin Name\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/admins/{{adminId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","admins","{{adminId}}"] }
+              }
+            },
+            {
+              "name": "Delete Admin",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/admins/{{adminId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","admins","{{adminId}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Celebrities (Superadmin)",
+          "item": [
+            {
+              "name": "List Celebrities",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/superadmin/celebrities?page=1&limit=20&search=",
+                  "host": ["{{baseUrl}}"], "path": ["api","superadmin","celebrities"],
+                  "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }, { "key": "search", "value": "" }]
+                }
+              }
+            },
+            {
+              "name": "Create Celebrity",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"New Star\",\n  \"nationality\": \"Indian\",\n  \"occupation\": [\"Actor\",\"Singer\"],\n  \"born\": \"15 March 1995\",\n  \"introduction\": \"Rising star in Bollywood.\",\n  \"categories\": [\"movie\",\"music\"],\n  \"status\": \"published\",\n  \"isFeatured\": false\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/celebrities", "host": ["{{baseUrl}}"], "path": ["api","superadmin","celebrities"] }
+              }
+            },
+            {
+              "name": "Get Celebrity by ID",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/celebrities/{{celebrityId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","celebrities","{{celebrityId}}"] }
+              }
+            },
+            {
+              "name": "Update Celebrity",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"isFeatured\": true,\n  \"netWorth\": \"$5 Million\",\n  \"status\": \"published\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/celebrities/{{celebrityId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","celebrities","{{celebrityId}}"] }
+              }
+            },
+            {
+              "name": "Delete Celebrity",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/celebrities/{{celebrityId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","celebrities","{{celebrityId}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Movies (Superadmin)",
+          "item": [
+            {
+              "name": "List Movies",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/superadmin/movies?page=1&limit=20",
+                  "host": ["{{baseUrl}}"], "path": ["api","superadmin","movies"],
+                  "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }]
+                }
+              }
+            },
+            {
+              "name": "Create Movie",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"title\": \"Epic Movie 2026\",\n  \"slug\": \"epic-movie-2026\",\n  \"releaseDate\": \"2026-06-15\",\n  \"genre\": [\"Drama\",\"Action\"],\n  \"director\": \"Top Director\",\n  \"cast\": [\"{{celebrityId}}\"],\n  \"synopsis\": \"An epic tale.\",\n  \"status\": \"upcoming\",\n  \"anticipationScore\": 88\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/movies", "host": ["{{baseUrl}}"], "path": ["api","superadmin","movies"] }
+              }
+            },
+            {
+              "name": "Get Movie by ID",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/movies/{{movieId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","movies","{{movieId}}"] }
+              }
+            },
+            {
+              "name": "Update Movie",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"anticipationScore\": 95,\n  \"isFeatured\": true\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/movies/{{movieId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","movies","{{movieId}}"] }
+              }
+            },
+            {
+              "name": "Delete Movie",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/movies/{{movieId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","movies","{{movieId}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "News (Superadmin)",
+          "item": [
+            {
+              "name": "List News",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/superadmin/news?page=1&limit=20",
+                  "host": ["{{baseUrl}}"], "path": ["api","superadmin","news"],
+                  "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }]
+                }
+              }
+            },
+            {
+              "name": "Create News",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"title\": \"Big Celebrity News\",\n  \"content\": \"Detailed news content here.\",\n  \"category\": \"Entertainment\",\n  \"celebrity\": \"{{celebrityId}}\",\n  \"isFeatured\": true,\n  \"status\": \"published\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/news", "host": ["{{baseUrl}}"], "path": ["api","superadmin","news"] }
+              }
+            },
+            {
+              "name": "Get News by ID",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/news/{{newsId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","news","{{newsId}}"] }
+              }
+            },
+            {
+              "name": "Update News",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"isFeatured\": false,\n  \"status\": \"draft\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/news/{{newsId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","news","{{newsId}}"] }
+              }
+            },
+            {
+              "name": "Delete News",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/news/{{newsId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","news","{{newsId}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Outfits (Superadmin)",
+          "item": [
+            {
+              "name": "List Outfits",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/superadmin/outfits?page=1&limit=20",
+                  "host": ["{{baseUrl}}"], "path": ["api","superadmin","outfits"],
+                  "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }]
+                }
+              }
+            },
+            {
+              "name": "Create Outfit",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"title\": \"Golden Gala Dress\",\n  \"celebrity\": \"{{celebrityId}}\",\n  \"images\": [\"https://example.com/dress.jpg\"],\n  \"category\": \"Gala\",\n  \"occasion\": \"Film Festival\",\n  \"description\": \"Stunning golden gown.\",\n  \"isFeatured\": true,\n  \"tags\": [\"gala\",\"golden\",\"luxury\"]\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/outfits", "host": ["{{baseUrl}}"], "path": ["api","superadmin","outfits"] }
+              }
+            },
+            {
+              "name": "Get Outfit by ID",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/outfits/{{outfitId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","outfits","{{outfitId}}"] }
+              }
+            },
+            {
+              "name": "Update Outfit",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"isFeatured\": true\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/outfits/{{outfitId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","outfits","{{outfitId}}"] }
+              }
+            },
+            {
+              "name": "Delete Outfit",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/outfits/{{outfitId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","outfits","{{outfitId}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Reviews (Superadmin)",
+          "item": [
+            {
+              "name": "List Reviews",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/superadmin/reviews?page=1&limit=20",
+                  "host": ["{{baseUrl}}"], "path": ["api","superadmin","reviews"],
+                  "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }]
+                }
+              }
+            },
+            {
+              "name": "Create Review",
+              "event": [{ "listen": "test", "script": { "exec": [
+                "if (pm.response.code === 201) {",
+                "  const d = pm.response.json();",
+                "  if (d.review) pm.collectionVariables.set('reviewId', d.review._id);",
+                "}"
+              ], "type": "text/javascript" }}],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"movie\": \"{{movieId}}\",\n  \"rating\": 8.5,\n  \"title\": \"Amazing Film\",\n  \"content\": \"This movie exceeded all expectations.\",\n  \"reviewer\": \"Staff Critic\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/reviews", "host": ["{{baseUrl}}"], "path": ["api","superadmin","reviews"] }
+              }
+            },
+            {
+              "name": "Get Review by ID",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/reviews/{{reviewId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","reviews","{{reviewId}}"] }
+              }
+            },
+            {
+              "name": "Update Review",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type",  "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"rating\": 9.0,\n  \"content\": \"Updated review content.\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/superadmin/reviews/{{reviewId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","reviews","{{reviewId}}"] }
+              }
+            },
+            {
+              "name": "Delete Review",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/superadmin/reviews/{{reviewId}}", "host": ["{{baseUrl}}"], "path": ["api","superadmin","reviews","{{reviewId}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Superadmin Account",
+          "item": [
+            {
+              "name": "Create Superadmin (Special Key)",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Super Admin\",\n  \"email\": \"superadmin@example.com\",\n  \"password\": \"supersecret123\",\n  \"specialKey\": \"{{superAdminKey}}\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/auth/superadmin/create", "host": ["{{baseUrl}}"], "path": ["api","auth","superadmin","create"] }
+              }
+            },
+            {
+              "name": "Delete Superadmin (Special Key)",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"email\": \"superadmin@example.com\",\n  \"specialKey\": \"{{superAdminKey}}\"\n}" },
+                "url": { "raw": "{{baseUrl}}/api/auth/superadmin/delete", "host": ["{{baseUrl}}"], "path": ["api","auth","superadmin","delete"] }
+              }
+            },
+            {
+              "name": "Get Superadmin Profile",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/auth/superadmin/profile", "host": ["{{baseUrl}}"], "path": ["api","auth","superadmin","profile"] }
+              }
+            }
+          ]
+        }
+
+      ]
+    }
+
+  ]
+}

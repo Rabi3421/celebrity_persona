@@ -47,6 +47,15 @@ export default function Header() {
     router.push('/homepage');
   };
 
+  const handleUploadOutfit = () => {
+    if (isAuthenticated && user) {
+      router.push('/dashboard?section=uploads');
+    } else {
+      router.push('/login?redirect=/dashboard?section=uploads');
+    }
+    setIsMobileMenuOpen(false);
+  };
+
   const getNavLinks = () => {
     const baseLinks = [
       { id: 'nav_profiles', label: 'Celebrity Profiles', href: '/celebrity-profiles' },
@@ -57,15 +66,15 @@ export default function Header() {
       { id: 'nav_reviews', label: 'Movie Reviews', href: '/reviews' },
     ];
 
-    if (isAuthenticated && user) {
-      if (user.role === 'superadmin') {
-        baseLinks.push({ id: 'nav_superadmin', label: 'SuperAdmin', href: '/superadmin' });
-      } else if (user.role === 'admin') {
-        baseLinks.push({ id: 'nav_admin', label: 'Admin', href: '/admin' });
-      } else {
-        baseLinks.push({ id: 'nav_dashboard', label: 'Dashboard', href: '/dashboard' });
-      }
-    }
+    // if (isAuthenticated && user) {
+    //   if (user.role === 'superadmin') {
+    //     baseLinks.push({ id: 'nav_superadmin', label: 'SuperAdmin', href: '/superadmin' });
+    //   } else if (user.role === 'admin') {
+    //     baseLinks.push({ id: 'nav_admin', label: 'Admin', href: '/admin' });
+    //   } else {
+    //     baseLinks.push({ id: 'nav_dashboard', label: 'Dashboard', href: '/dashboard' });
+    //   }
+    // }
 
     return baseLinks;
   };
@@ -123,7 +132,7 @@ export default function Header() {
                 onClick={() => setShowMore(!showMore)}
                 className="relative text-sm font-medium text-neutral-300 hover:text-white flex items-center gap-2"
               >
-                More
+                Movies
                 <Icon name="ChevronDownIcon" size={14} className="text-neutral-300" />
               </button>
 
@@ -148,6 +157,14 @@ export default function Header() {
         {/* Auth Buttons - Desktop */}
         {isAuthenticated && user ? (
           <div className="hidden md:flex items-center gap-3">
+            {/* Upload Outfit button always visible for logged-in users */}
+            <button
+              onClick={handleUploadOutfit}
+              className="bg-primary text-black px-5 py-2.5 rounded-full text-sm font-medium hover:glow-gold transition-all flex items-center gap-2"
+            >
+              <Icon name="ArrowUpTrayIcon" size={16} className="text-black" />
+              Upload Outfit
+            </button>
             <div className="relative user-menu-container">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
@@ -194,12 +211,12 @@ export default function Header() {
             >
               Login
             </Link>
-            <Link
-              href="/login"
+            <button
+              onClick={handleUploadOutfit}
               className="bg-primary text-black px-5 py-2.5 rounded-full text-sm font-medium hover:glow-gold transition-all"
             >
               Upload Outfit
-            </Link>
+            </button>
           </div>
         )}
 
@@ -255,18 +272,20 @@ export default function Header() {
                 >
                   Login
                 </Link>
-                <Link
-                  href="/login"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                <button
+                  onClick={handleUploadOutfit}
                   className="block w-full text-center bg-primary text-black px-5 py-3 rounded-full text-sm font-medium hover:glow-gold transition-all"
                 >
                   Upload Outfit
-                </Link>
+                </button>
               </>
             )}
           </div>
           {isAuthenticated && (
-            <button className="w-full flex items-center justify-center gap-2 bg-primary text-black px-5 py-3 rounded-full font-medium">
+            <button
+              onClick={handleUploadOutfit}
+              className="w-full flex items-center justify-center gap-2 bg-primary text-black px-5 py-3 rounded-full font-medium"
+            >
               <Icon name="ArrowUpTrayIcon" size={18} />
               <span>Upload Outfit</span>
             </button>

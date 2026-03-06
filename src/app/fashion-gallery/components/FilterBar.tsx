@@ -3,104 +3,90 @@
 import { useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 
+interface FilterState {
+  category: string;
+  event: string;
+  brand: string;
+}
+
 interface FilterBarProps {
-  onFilterChange: (filters: {
-    occasion: string;
-    celebrity: string;
-    priceRange: string;
-  }) => void;
+  onFilterChange: (filters: FilterState) => void;
 }
 
 export default function FilterBar({ onFilterChange }: FilterBarProps) {
-  const [selectedOccasion, setSelectedOccasion] = useState('all');
-  const [selectedCelebrity, setSelectedCelebrity] = useState('all');
-  const [selectedPriceRange, setSelectedPriceRange] = useState('all');
+  const [category, setCategory] = useState('all');
+  const [event,    setEvent]    = useState('all');
 
-  const occasions = [
-    { id: 'occasion_all', value: 'all', label: 'All Occasions' },
-    { id: 'occasion_red_carpet', value: 'RED CARPET', label: 'Red Carpet' },
-    { id: 'occasion_airport', value: 'AIRPORT', label: 'Airport' },
-    { id: 'occasion_casual', value: 'CASUAL', label: 'Casual' },
-    { id: 'occasion_party', value: 'PARTY', label: 'Party' },
+  const events = [
+    { id: 'ev_all',         value: 'all',           label: 'All Events'   },
+    { id: 'ev_red_carpet',  value: 'Red Carpet',    label: 'Red Carpet'   },
+    { id: 'ev_airport',     value: 'Airport',       label: 'Airport'      },
+    { id: 'ev_casual',      value: 'Casual',        label: 'Casual'       },
+    { id: 'ev_party',       value: 'Party',         label: 'Party'        },
+    { id: 'ev_wedding',     value: 'Wedding',       label: 'Wedding'      },
+    { id: 'ev_premiere',    value: 'Premiere',      label: 'Premiere'     },
   ];
 
-  const priceRanges = [
-    { id: 'price_all', value: 'all', label: 'All Prices' },
-    { id: 'price_low', value: '$', label: 'Under $500' },
-    { id: 'price_mid', value: '$$', label: '$500 - $1000' },
-    { id: 'price_high', value: '$$$', label: 'Over $1000' },
+  const categories = [
+    { id: 'cat_all',         value: 'all',             label: 'All Categories'   },
+    { id: 'cat_traditional', value: 'Traditional Wear', label: 'Traditional'     },
+    { id: 'cat_western',     value: 'Western Wear',     label: 'Western'         },
+    { id: 'cat_ethnic',      value: 'Ethnic',           label: 'Ethnic'          },
+    { id: 'cat_streetwear',  value: 'Streetwear',       label: 'Streetwear'      },
+    { id: 'cat_formal',      value: 'Formal',           label: 'Formal'          },
   ];
 
-  const handleOccasionChange = (value: string) => {
-    setSelectedOccasion(value);
-    onFilterChange({
-      occasion: value,
-      celebrity: selectedCelebrity,
-      priceRange: selectedPriceRange,
-    });
-  };
+  const emit = (ev: string, cat: string) =>
+    onFilterChange({ event: ev, category: cat, brand: 'all' });
 
-  const handlePriceRangeChange = (value: string) => {
-    setSelectedPriceRange(value);
-    onFilterChange({
-      occasion: selectedOccasion,
-      celebrity: selectedCelebrity,
-      priceRange: value,
-    });
+  const handleEvent = (v: string) => { setEvent(v);    emit(v, category); };
+  const handleCat   = (v: string) => { setCategory(v); emit(event, v);    };
+
+  const clear = () => {
+    setEvent('all'); setCategory('all');
+    onFilterChange({ event: 'all', category: 'all', brand: 'all' });
   };
 
   return (
     <div className="glass-card rounded-2xl p-6 space-y-6">
-      {/* Occasion Filter */}
+      {/* Event Filter */}
       <div>
         <label className="font-montserrat text-xs uppercase tracking-wider text-neutral-400 mb-3 block">
-          Occasion
+          Event
         </label>
         <div className="flex flex-wrap gap-2">
-          {occasions.map((occasion) => (
-            <button
-              key={occasion.id}
-              onClick={() => handleOccasionChange(occasion.value)}
+          {events.map((e) => (
+            <button key={e.id} onClick={() => handleEvent(e.value)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                selectedOccasion === occasion.value
-                  ? 'bg-secondary text-black' :'bg-neutral-800 text-neutral-400 hover:text-white'
+                event === e.value ? 'bg-secondary text-black' : 'bg-neutral-800 text-neutral-400 hover:text-white'
               }`}
             >
-              {occasion.label}
+              {e.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Price Range Filter */}
+      {/* Category Filter */}
       <div>
         <label className="font-montserrat text-xs uppercase tracking-wider text-neutral-400 mb-3 block">
-          Price Range
+          Category
         </label>
         <div className="flex flex-wrap gap-2">
-          {priceRanges.map((range) => (
-            <button
-              key={range.id}
-              onClick={() => handlePriceRangeChange(range.value)}
+          {categories.map((c) => (
+            <button key={c.id} onClick={() => handleCat(c.value)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                selectedPriceRange === range.value
-                  ? 'bg-primary text-black' :'bg-neutral-800 text-neutral-400 hover:text-white'
+                category === c.value ? 'bg-primary text-black' : 'bg-neutral-800 text-neutral-400 hover:text-white'
               }`}
             >
-              {range.label}
+              {c.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Clear Filters */}
-      <button
-        onClick={() => {
-          setSelectedOccasion('all');
-          setSelectedCelebrity('all');
-          setSelectedPriceRange('all');
-          onFilterChange({ occasion: 'all', celebrity: 'all', priceRange: 'all' });
-        }}
+      {/* Clear */}
+      <button onClick={clear}
         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white transition-all"
       >
         <Icon name="XMarkIcon" size={16} />

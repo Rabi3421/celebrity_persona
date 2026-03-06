@@ -1,12 +1,41 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { uploadImage, deleteImage, validateImageFile } from '@/lib/imageUpload';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
+
+interface INewsSEO {
+  metaTitle?: string;
+  metaDescription?: string;
+  focusKeyword?: string;
+  metaKeywords?: string[];
+  canonicalUrl?: string;
+  robots?: string;
+  noindex?: boolean;
+  nofollow?: boolean;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogType?: string;
+  ogSiteName?: string;
+  ogImages?: string[];
+  twitterCard?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  twitterSite?: string;
+  twitterCreator?: string;
+  authorName?: string;
+  authorUrl?: string;
+  section?: string;
+  relatedTopics?: string[];
+  schemaType?: string;
+  structuredData?: string;
+}
 
 interface NewsRow {
   id: string;
@@ -25,25 +54,51 @@ interface NewsRow {
 
 interface NewsFull extends NewsRow {
   content: string;
-  seo?: any;
+  seo?: INewsSEO;
 }
 
-type FormTab   = 'basic' | 'content' | 'meta';
+type FormTab   = 'basic' | 'content' | 'meta' | 'seo';
 type PanelMode = 'add' | 'edit' | null;
 type Toast     = { type: 'success' | 'error'; message: string } | null;
 
 const PAGE_SIZES = [10, 20, 50];
 
+const EMPTY_SEO: INewsSEO = {
+  metaTitle: '', metaDescription: '', focusKeyword: '',
+  metaKeywords: [], canonicalUrl: '', robots: 'index,follow',
+  noindex: false, nofollow: false,
+  ogTitle: '', ogDescription: '', ogType: 'article', ogSiteName: '', ogImages: [],
+  twitterCard: 'summary_large_image', twitterTitle: '', twitterDescription: '',
+  twitterImage: '', twitterSite: '', twitterCreator: '',
+  authorName: '', authorUrl: '', section: '', relatedTopics: [],
+  schemaType: 'NewsArticle', structuredData: '',
+};
+
 const EMPTY_FORM: NewsFull = {
   id: '', title: '', slug: '', content: '', excerpt: '',
   thumbnail: '', author: '', category: '', celebrity: '',
   tags: [], publishDate: '', featured: false,
+  seo: { ...EMPTY_SEO },
 };
 
 const TABS: { key: FormTab; label: string; icon: string }[] = [
-  { key: 'basic',   label: 'Basic Info', icon: 'InformationCircleIcon' },
-  { key: 'content', label: 'Content',    icon: 'DocumentTextIcon'      },
-  { key: 'meta',    label: 'Details',    icon: 'TagIcon'               },
+  { key: 'basic',   label: 'Basic Info', icon: 'InformationCircleIcon'  },
+  { key: 'content', label: 'Content',    icon: 'DocumentTextIcon'       },
+  { key: 'meta',    label: 'Details',    icon: 'TagIcon'                },
+  { key: 'seo',     label: 'SEO',        icon: 'MagnifyingGlassIcon'    },
+];
+
+// Predefined categories for news articles
+const NEWS_CATEGORIES = [
+  'Celebrity News',
+  'Tamil Cinema',
+  'Bollywood',
+  'Hollywood',
+  'Interviews',
+  'Fashion',
+  'Reviews',
+  'Trailers',
+  'Industry',
 ];
 
 const splitLines = (v: string) => v.split('\n').map((s) => s.trim()).filter(Boolean);
@@ -59,6 +114,15 @@ function toDateInputValue(d?: string) {
   if (!d) return '';
   try { return new Date(d).toISOString().slice(0, 10); }
   catch { return ''; }
+}
+
+function slugify(s: string) {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,6 +157,10 @@ export default function NewsManagementSection() {
   const [formLoading, setFormLoading]     = useState(false);
   const [formApiError, setFormApiError]   = useState('');
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const isSlugEditedRef = useRef(false);
+  const [celebrities, setCelebrities] = useState<Array<{ id: string; name: string }>>([]);
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [thumbnailDragActive, setThumbnailDragActive] = useState(false);
 
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -132,10 +200,84 @@ export default function NewsManagementSection() {
 
   useEffect(() => { fetchList(1); }, [fetchList]);
 
+  // fetch celebrities for optional dropdown
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/superadmin/celebrities?limit=500`, {
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) return;
+        if (!mounted) return;
+        const list = (data.data || []).map((c: any) => ({
+          id: String(c.id ?? c._id ?? c._id?.toString() ?? ''),
+          name: c.name || c.fullName || c.title || c.slug || String(c._id ?? c.id ?? ''),
+        })).filter((x: any) => x.id);
+        setCelebrities(list);
+      } catch (err) {
+        // ignore loading errors for optional dropdown
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [authHeaders]);
+
+  // Thumbnail upload handlers
+  const handleSelectThumbnail = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e: any) => {
+      const f = e.target.files ? e.target.files[0] : null;
+      if (f) handleUploadThumbnail(f);
+    };
+    input.click();
+  };
+
+  const handleDropThumbnail = (e: React.DragEvent) => {
+    e.preventDefault();
+    const f = e.dataTransfer.files?.[0];
+    if (f) handleUploadThumbnail(f);
+  };
+
+  const handleUploadThumbnail = async (file: File) => {
+    const validation = validateImageFile(file);
+    if (validation) { showToast('error', validation); return; }
+    setUploadingThumbnail(true);
+    try {
+      // upload to news/ folder
+      const url = await uploadImage(file, 'news');
+      // If there was an existing thumbnail, attempt to delete it
+      if (form.thumbnail) {
+        try { await deleteImage(form.thumbnail); } catch (err) { /* ignore */ }
+      }
+      setField('thumbnail', url);
+      showToast('success', 'Thumbnail uploaded');
+    } catch (err) {
+      showToast('error', 'Failed to upload thumbnail');
+    } finally {
+      setUploadingThumbnail(false);
+    }
+  };
+
+  const handleDeleteThumbnail = async () => {
+    if (!form.thumbnail) return;
+    try {
+      await deleteImage(form.thumbnail);
+    } catch (err) {
+      // ignore
+    }
+    setField('thumbnail', '');
+    showToast('success', 'Thumbnail removed');
+  };
+
   // ─── open add ────────────────────────────────────────────────────────────
   const openAdd = () => {
     setForm(EMPTY_FORM); setFormErrors({}); setFormApiError('');
     setFormTab('basic'); setPanelMode('add');
+    isSlugEditedRef.current = false;
     setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
@@ -160,12 +302,19 @@ export default function NewsManagementSection() {
         thumbnail:   d.thumbnail   || '',
         author:      d.author      || '',
         category:    d.category    || '',
-        celebrity:   d.celebrity   || '',
+        celebrity:   (function() {
+                        if (!d.celebrity) return '';
+                        if (typeof d.celebrity === 'string') return d.celebrity;
+                        if (d.celebrity._id) return String(d.celebrity._id);
+                        if (d.celebrity.id) return String(d.celebrity.id);
+                        return '';
+                      })(),
         tags:        d.tags        || [],
         publishDate: toDateInputValue(d.publishDate),
         featured:    d.featured    ?? false,
-        seo:         d.seo         || undefined,
+        seo: { ...EMPTY_SEO, ...(d.seo || {}) },
       });
+      isSlugEditedRef.current = true;
     } catch (err: any) {
       showToast('error', err.message || 'Failed to load article');
       setPanelMode(null);
@@ -186,8 +335,12 @@ export default function NewsManagementSection() {
   };
 
   // ─── payload ─────────────────────────────────────────────────────────────
+  const setSeoField = <K extends keyof INewsSEO>(k: K, v: INewsSEO[K]) =>
+    setForm((f) => ({ ...f, seo: { ...(f.seo || EMPTY_SEO), [k]: v } }));
+
   const buildPayload = () => ({
     title:       form.title.trim(),
+    slug:        form.slug?.trim() || undefined,
     content:     form.content.trim(),
     excerpt:     form.excerpt?.trim()     || undefined,
     thumbnail:   form.thumbnail?.trim()   || undefined,
@@ -197,6 +350,7 @@ export default function NewsManagementSection() {
     tags:        form.tags || [],
     publishDate: form.publishDate || undefined,
     featured:    form.featured,
+    seo:         form.seo || undefined,
   });
 
   // ─── create ──────────────────────────────────────────────────────────────
@@ -316,11 +470,24 @@ export default function NewsManagementSection() {
               Title <span className="text-yellow-400">*</span>
             </label>
             <input type="text" value={form.title}
-              onChange={(e) => setField('title', e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setField('title', v);
+                // auto-update slug unless user has edited it manually
+                if (!isSlugEditedRef.current) setField('slug', slugify(v));
+              }}
               placeholder="e.g. Sai Pallavi Replaces Pooja Hegde in Dhanush's D55"
               className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${errBorder('title')}`}
             />
             {formErrors.title && <p className="text-red-400 text-xs mt-1 font-montserrat">{formErrors.title}</p>}
+
+            <label className="block text-xs font-medium text-neutral-400 mt-4 mb-1.5 font-montserrat uppercase tracking-wider">Slug (auto-generated)</label>
+            <input type="text" value={form.slug || ''}
+              onChange={(e) => { setField('slug', e.target.value); isSlugEditedRef.current = true; }}
+              placeholder="auto-generated-from-title"
+              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+            />
+            <p className="text-xs text-neutral-500 mt-1">URL path segment — lowercase letters, numbers and hyphens.</p>
           </div>
 
           {/* Author */}
@@ -333,14 +500,19 @@ export default function NewsManagementSection() {
             />
           </div>
 
-          {/* Category */}
+          {/* Category (predefined dropdown) */}
           <div>
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Category</label>
-            <input type="text" value={form.category || ''}
+            <select
+              value={form.category || ''}
               onChange={(e) => setField('category', e.target.value)}
-              placeholder="e.g. Celebrity News, Tamil Cinema"
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
+            >
+              <option value="">Select category</option>
+              {NEWS_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </div>
 
           {/* Publish Date */}
@@ -354,27 +526,52 @@ export default function NewsManagementSection() {
 
           {/* Celebrity ID */}
           <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Celebrity ID (optional)</label>
-            <input type="text" value={form.celebrity || ''}
-              onChange={(e) => setField('celebrity', e.target.value)}
-              placeholder="MongoDB ObjectId or leave blank"
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Celebrity (optional)</label>
+            <select value={form.celebrity || ''}
+              onChange={(e) => setField('celebrity', e.target.value || '')}
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
+            >
+              <option value="">None</option>
+              {celebrities.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-neutral-500 mt-1">Optional — link this article to a celebrity profile.</p>
           </div>
 
-          {/* Thumbnail */}
+          {/* Thumbnail (upload) */}
           <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Thumbnail URL</label>
-            <div className="flex gap-3 items-start">
-              <input type="url" value={form.thumbnail || ''}
-                onChange={(e) => setField('thumbnail', e.target.value)}
-                placeholder="https://firebasestorage.googleapis.com/..."
-                className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-              />
-              {form.thumbnail && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={form.thumbnail} alt="" className="w-14 h-14 rounded-xl object-cover border border-white/10 shrink-0" />
-              )}
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Thumbnail</label>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setThumbnailDragActive(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setThumbnailDragActive(false); }}
+              onDrop={(e) => { setThumbnailDragActive(false); handleDropThumbnail(e); }}
+              className={`w-full p-4 rounded-xl transition-colors border-2 ${thumbnailDragActive ? 'border-yellow-400/60 bg-white/5' : 'border-white/10 bg-white/3'} flex items-center gap-4`}
+            >
+              <div className="flex-1">
+                <p className="text-sm text-neutral-300 mb-2">Drag & drop an image here or</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={handleSelectThumbnail}
+                    className="px-3 py-2 rounded-xl bg-yellow-500 text-black font-semibold text-sm">
+                    {uploadingThumbnail ? 'Uploading...' : 'Choose Image'}
+                  </button>
+                  {form.thumbnail && (
+                    <button type="button" onClick={handleDeleteThumbnail}
+                      className="px-3 py-2 rounded-xl bg-white/5 text-neutral-300 hover:bg-white/10 text-sm">
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-neutral-500 mt-2">Optional — upload from your computer. Max 5MB.</p>
+              </div>
+              <div className="w-20 h-20 rounded-xl overflow-hidden border border-white/10 flex items-center justify-center bg-white/5">
+                {form.thumbnail ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={form.thumbnail} alt="thumbnail" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-neutral-500 text-xs">Preview</div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -436,6 +633,295 @@ export default function NewsManagementSection() {
           </div>
         </div>
       );
+
+      // ── SEO ────────────────────────────────────────────────────────────
+      case 'seo': {
+        const seo = form.seo || EMPTY_SEO;
+        const inp = 'w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm';
+        const sel = inp + ' cursor-pointer';
+        const ta  = inp + ' resize-none';
+        const lbl = 'block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider';
+        const sec = 'text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2';
+        return (
+          <div className="space-y-7">
+
+            {/* ── Basic Meta ───────────────────────────── */}
+            <div className="space-y-4">
+              <h4 className={sec}>Basic Meta Tags</h4>
+              <div className="grid grid-cols-1 gap-4">
+
+                <div>
+                  <label className={lbl}>Meta Title <span className="text-yellow-400">*</span></label>
+                  <input type="text" maxLength={60} value={seo.metaTitle || ''}
+                    onChange={(e) => setSeoField('metaTitle', e.target.value)}
+                    placeholder="Breaking News: Celebrity Story | CelebrityPersona"
+                    className={inp} />
+                  <p className="text-neutral-500 text-xs mt-1 font-montserrat">{60 - (seo.metaTitle?.length || 0)} chars remaining (60 max)</p>
+                </div>
+
+                <div>
+                  <label className={lbl}>Meta Description <span className="text-yellow-400">*</span></label>
+                  <textarea rows={3} maxLength={160} value={seo.metaDescription || ''}
+                    onChange={(e) => setSeoField('metaDescription', e.target.value)}
+                    placeholder="Concise, compelling summary with main keyword. Shown in Google search results."
+                    className={ta} />
+                  <p className="text-neutral-500 text-xs mt-1 font-montserrat">{160 - (seo.metaDescription?.length || 0)} chars remaining (160 max)</p>
+                </div>
+
+                <div>
+                  <label className={lbl}>Focus Keyword <span className="text-yellow-400">*</span></label>
+                  <input type="text" value={seo.focusKeyword || ''}
+                    onChange={(e) => setSeoField('focusKeyword', e.target.value)}
+                    placeholder="e.g. Dhanush new movie 2026"
+                    className={inp} />
+                  <p className="text-neutral-500 text-xs mt-1 font-montserrat">Primary keyword to rank for in Google</p>
+                </div>
+
+                <div>
+                  <label className={lbl}>Additional Keywords</label>
+                  <textarea rows={4} value={(seo.metaKeywords || []).join('\n')}
+                    onChange={(e) => setSeoField('metaKeywords', e.target.value.split('\n').map((s) => s.trim()).filter(Boolean))}
+                    placeholder={"sai pallavi new movie\ntamil cinema news\nkollywood casting news 2026"}
+                    className={ta} />
+                  <p className="text-neutral-500 text-xs mt-1 font-montserrat">One keyword per line. Focus on long-tail keywords.</p>
+                </div>
+
+              </div>
+            </div>
+
+            {/* ── Article Schema ─────────────────────── */}
+            <div className="space-y-4">
+              <h4 className={sec}>Article Metadata</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div>
+                  <label className={lbl}>Schema Type</label>
+                  <select value={seo.schemaType || 'NewsArticle'}
+                    onChange={(e) => setSeoField('schemaType', e.target.value)}
+                    className={sel}>
+                    <option value="NewsArticle">NewsArticle</option>
+                    <option value="Article">Article</option>
+                    <option value="BlogPosting">BlogPosting</option>
+                    <option value="ReportageNewsArticle">ReportageNewsArticle</option>
+                  </select>
+                  <p className="text-neutral-500 text-xs mt-1 font-montserrat">Schema.org type for rich snippets</p>
+                </div>
+
+                <div>
+                  <label className={lbl}>Article Section</label>
+                  <input type="text" value={seo.section || ''}
+                    onChange={(e) => setSeoField('section', e.target.value)}
+                    placeholder="e.g. Tamil Cinema"
+                    className={inp} />
+                  <p className="text-neutral-500 text-xs mt-1 font-montserrat">Helps Google News categorise articles</p>
+                </div>
+
+                <div>
+                  <label className={lbl}>Author Name</label>
+                  <input type="text" value={seo.authorName || ''}
+                    onChange={(e) => setSeoField('authorName', e.target.value)}
+                    placeholder="e.g. Rabinarayan Pradhan"
+                    className={inp} />
+                </div>
+
+                <div>
+                  <label className={lbl}>Author URL</label>
+                  <input type="url" value={seo.authorUrl || ''}
+                    onChange={(e) => setSeoField('authorUrl', e.target.value)}
+                    placeholder="https://example.com/author/rabi"
+                    className={inp} />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className={lbl}>Related Topics</label>
+                  <textarea rows={3} value={(seo.relatedTopics || []).join('\n')}
+                    onChange={(e) => setSeoField('relatedTopics', e.target.value.split('\n').map((s) => s.trim()).filter(Boolean))}
+                    placeholder={"Sai Pallavi\nDhanush\nTamil cinema casting"}
+                    className={ta} />
+                  <p className="text-neutral-500 text-xs mt-1 font-montserrat">One topic per line. Used for semantic SEO connections.</p>
+                </div>
+
+              </div>
+            </div>
+
+            {/* ── Open Graph ───────────────────────────── */}
+            <div className="space-y-4">
+              <h4 className={sec}>Open Graph (Facebook / LinkedIn)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div>
+                  <label className={lbl}>OG Title</label>
+                  <input type="text" value={seo.ogTitle || ''}
+                    onChange={(e) => setSeoField('ogTitle', e.target.value)}
+                    placeholder="Title shown when shared on social media"
+                    className={inp} />
+                </div>
+
+                <div>
+                  <label className={lbl}>OG Type</label>
+                  <select value={seo.ogType || 'article'}
+                    onChange={(e) => setSeoField('ogType', e.target.value)}
+                    className={sel}>
+                    <option value="article">article</option>
+                    <option value="website">website</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className={lbl}>OG Description</label>
+                  <textarea rows={2} value={seo.ogDescription || ''}
+                    onChange={(e) => setSeoField('ogDescription', e.target.value)}
+                    placeholder="Compelling description for social media cards"
+                    className={ta} />
+                </div>
+
+                <div>
+                  <label className={lbl}>OG Site Name</label>
+                  <input type="text" value={seo.ogSiteName || ''}
+                    onChange={(e) => setSeoField('ogSiteName', e.target.value)}
+                    placeholder="CelebrityPersona"
+                    className={inp} />
+                </div>
+
+                <div>
+                  <label className={lbl}>OG Image URL</label>
+                  <input type="url" value={(seo.ogImages || [])[0] || ''}
+                    onChange={(e) => setSeoField('ogImages', e.target.value ? [e.target.value] : [])}
+                    placeholder="https://… (1200×630 recommended)"
+                    className={inp} />
+                  <p className="text-neutral-500 text-xs mt-1 font-montserrat">1200×630 px, &lt;1 MB</p>
+                </div>
+
+              </div>
+            </div>
+
+            {/* ── Twitter Cards ───────────────────────── */}
+            <div className="space-y-4">
+              <h4 className={sec}>Twitter / X Cards</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div>
+                  <label className={lbl}>Card Type</label>
+                  <select value={seo.twitterCard || 'summary_large_image'}
+                    onChange={(e) => setSeoField('twitterCard', e.target.value)}
+                    className={sel}>
+                    <option value="summary_large_image">Summary Large Image</option>
+                    <option value="summary">Summary</option>
+                    <option value="app">App</option>
+                    <option value="player">Player</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={lbl}>Twitter Title</label>
+                  <input type="text" value={seo.twitterTitle || ''}
+                    onChange={(e) => setSeoField('twitterTitle', e.target.value)}
+                    placeholder="Title for Twitter/X sharing"
+                    className={inp} />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className={lbl}>Twitter Description</label>
+                  <textarea rows={2} value={seo.twitterDescription || ''}
+                    onChange={(e) => setSeoField('twitterDescription', e.target.value)}
+                    placeholder="Description for Twitter/X cards"
+                    className={ta} />
+                </div>
+
+                <div>
+                  <label className={lbl}>Twitter Image URL</label>
+                  <input type="url" value={seo.twitterImage || ''}
+                    onChange={(e) => setSeoField('twitterImage', e.target.value)}
+                    placeholder="https://… (1200×675 recommended)"
+                    className={inp} />
+                  <p className="text-neutral-500 text-xs mt-1 font-montserrat">1200×675 px for large card</p>
+                </div>
+
+                <div>
+                  <label className={lbl}>Twitter @site handle</label>
+                  <input type="text" value={seo.twitterSite || ''}
+                    onChange={(e) => setSeoField('twitterSite', e.target.value)}
+                    placeholder="@CelebrityPersona"
+                    className={inp} />
+                </div>
+
+                <div>
+                  <label className={lbl}>Twitter @creator handle</label>
+                  <input type="text" value={seo.twitterCreator || ''}
+                    onChange={(e) => setSeoField('twitterCreator', e.target.value)}
+                    placeholder="@author_handle"
+                    className={inp} />
+                </div>
+
+              </div>
+            </div>
+
+            {/* ── Technical SEO ───────────────────────── */}
+            <div className="space-y-4">
+              <h4 className={sec}>Technical SEO</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div className="md:col-span-2">
+                  <label className={lbl}>Canonical URL</label>
+                  <input type="url" value={seo.canonicalUrl || ''}
+                    onChange={(e) => setSeoField('canonicalUrl', e.target.value)}
+                    placeholder="https://yoursite.com/celebrity-news/article-slug"
+                    className={inp} />
+                  <p className="text-neutral-500 text-xs mt-1 font-montserrat">Leave blank to auto-use the page URL. Prevents duplicate content.</p>
+                </div>
+
+                <div>
+                  <label className={lbl}>Robots Meta</label>
+                  <select value={seo.robots || 'index,follow'}
+                    onChange={(e) => setSeoField('robots', e.target.value)}
+                    className={sel}>
+                    <option value="index,follow">index, follow</option>
+                    <option value="index,nofollow">index, nofollow</option>
+                    <option value="noindex,follow">noindex, follow</option>
+                    <option value="noindex,nofollow">noindex, nofollow</option>
+                  </select>
+                  <p className="text-neutral-500 text-xs mt-1 font-montserrat">Control crawler indexing behaviour</p>
+                </div>
+
+                <div className="flex flex-col gap-3 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <button type="button" onClick={() => setSeoField('noindex', !seo.noindex)}
+                      className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${seo.noindex ? 'bg-red-500' : 'bg-white/10'}`}>
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${seo.noindex ? 'left-5' : 'left-0.5'}`} />
+                    </button>
+                    <span className="text-sm font-montserrat text-neutral-300">No-index this article</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <button type="button" onClick={() => setSeoField('nofollow', !seo.nofollow)}
+                      className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${seo.nofollow ? 'bg-red-500' : 'bg-white/10'}`}>
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${seo.nofollow ? 'left-5' : 'left-0.5'}`} />
+                    </button>
+                    <span className="text-sm font-montserrat text-neutral-300">No-follow links in article</span>
+                  </label>
+                </div>
+
+              </div>
+            </div>
+
+            {/* ── Structured Data ─────────────────────── */}
+            <div className="space-y-4">
+              <h4 className={sec}>Structured Data (JSON-LD)</h4>
+              <div>
+                <label className={lbl}>Custom JSON-LD</label>
+                <textarea rows={7} value={seo.structuredData || ''}
+                  onChange={(e) => setSeoField('structuredData', e.target.value)}
+                  placeholder={`{\n  "@context": "https://schema.org",\n  "@type": "NewsArticle",\n  "headline": "Article Headline",\n  "author": { "@type": "Person", "name": "Author Name" }\n}`}
+                  className={ta + ' font-mono'} />
+                <div className="flex items-start gap-2 mt-2">
+                  <Icon name="InformationCircleIcon" size={16} className="text-blue-400 mt-0.5 shrink-0" />
+                  <p className="text-neutral-500 text-xs font-montserrat">Optional — paste custom JSON-LD for rich snippets. Leave blank to auto-generate from article data.</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        );
+      }
 
       default: return null;
     }

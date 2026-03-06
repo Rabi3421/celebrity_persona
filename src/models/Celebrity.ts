@@ -103,6 +103,7 @@ export interface ICelebrity extends Document {
   shareCount?: number;
   searchRank?: number;
   trendingScore?: number;
+  likes: mongoose.Types.ObjectId[];
   isActive: boolean;
   isFeatured?: boolean;
   isVerified?: boolean;
@@ -331,6 +332,10 @@ const celebritySchema = new Schema<ICelebrity>(
       type: Number,
       default: 0
     },
+    likes: {
+      type: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+      default: [],
+    },
     isActive: {
       type: Boolean,
       default: true
@@ -373,14 +378,13 @@ const celebritySchema = new Schema<ICelebrity>(
   }
 );
 
-// Index for search functionality
-celebritySchema.index({ 
-  name: 'text', 
-  introduction: 'text', 
-  career: 'text',
-  tags: 'text',
-  categories: 'text'
-});
+// Index for search functionality.
+// language_override points to a field that doesn't exist in the schema so
+// MongoDB never tries to use the `language` content field as a stemmer name.
+celebritySchema.index(
+  { name: 'text', introduction: 'text', career: 'text', tags: 'text', categories: 'text' },
+  { default_language: 'english', language_override: '_textLanguage' }
+);
 
 // Compound indexes for performance
 celebritySchema.index({ status: 1, isActive: 1 });

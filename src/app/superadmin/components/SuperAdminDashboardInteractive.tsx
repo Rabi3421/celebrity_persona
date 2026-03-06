@@ -15,21 +15,25 @@ import ReviewManagementSection from './ReviewManagementSection';
 import RoleManagementSection from './RoleManagementSection';
 import SuperAdminSettingsSection from './SuperAdminSettingsSection';
 import SystemControlsSection from './SystemControlsSection';
+import UserOutfitApprovalsSection from './UserOutfitApprovalsSection';
+import ApiKeyManagementSection from './ApiKeyManagementSection';
 
-type SectionType = 'overview' | 'roles' | 'celebrities' | 'outfits' | 'news' | 'movies' | 'reviews' | 'data' | 'platform' | 'system' | 'settings';
+type SectionType = 'overview' | 'roles' | 'celebrities' | 'outfits' | 'user-outfit-approvals' | 'news' | 'movies' | 'reviews' | 'data' | 'platform' | 'system' | 'settings' | 'api-keys';
 
 const menuItems: { id: SectionType; label: string; icon: string; desc: string }[] = [
   { id: 'overview',  label: 'Overview',           icon: 'Squares2X2Icon',  desc: 'System at a glance'             },
   { id: 'roles',       label: 'Role Management',    icon: 'KeyIcon',         desc: 'Manage roles & permissions'     },
   { id: 'celebrities', label: 'Celebrity Profiles', icon: 'StarIcon',        desc: 'Manage celebrity profiles'       },
-  { id: 'outfits',     label: 'Celebrity Outfits', icon: 'SparklesIcon',    desc: 'Manage celebrity outfits'        },
+  { id: 'outfits',             label: 'Celebrity Outfits',  icon: 'SparklesIcon',      desc: 'Manage celebrity outfits'                  },
+  { id: 'user-outfit-approvals', label: 'Outfit Approvals',   icon: 'CheckBadgeIcon',    desc: 'Review & approve user-submitted outfits'   },
   { id: 'news',        label: 'Celebrity News',    icon: 'NewspaperIcon',   desc: 'Manage news articles'            },
   { id: 'movies',      label: 'Upcoming Movies',   icon: 'FilmIcon',        desc: 'Manage movies & releases'        },
   { id: 'reviews',     label: 'Movie Reviews',     icon: 'DocumentTextIcon', desc: 'Manage movie reviews'           },
-  { id: 'data',        label: 'All Data Access',    icon: 'CircleStackIcon', desc: 'Full database access'           },
-  { id: 'platform',  label: 'Platform Analytics', icon: 'PresentationChartLineIcon', desc: 'Deep platform metrics' },
-  { id: 'system',    label: 'System Controls',    icon: 'CpuChipIcon',     desc: 'Server & system management'     },
-  { id: 'settings',  label: 'SA Settings',        icon: 'AdjustmentsHorizontalIcon', desc: 'Super admin configuration' },
+  { id: 'api-keys',    label: 'API Key Tracker',   icon: 'KeyIcon',          desc: 'Monitor user API usage & payments' },
+  // { id: 'data',        label: 'All Data Access',    icon: 'CircleStackIcon', desc: 'Full database access'           },
+  // { id: 'platform',  label: 'Platform Analytics', icon: 'PresentationChartLineIcon', desc: 'Deep platform metrics' },
+  // { id: 'system',    label: 'System Controls',    icon: 'CpuChipIcon',     desc: 'Server & system management'     },
+  // { id: 'settings',  label: 'SA Settings',        icon: 'AdjustmentsHorizontalIcon', desc: 'Super admin configuration' },
 ];
 
 const stats = [
@@ -63,10 +67,12 @@ export default function SuperAdminDashboardInteractive() {
       case 'overview':  return <OverviewSection />;
       case 'roles':       return <RoleManagementSection />;
       case 'celebrities': return <CelebrityManagementSection />;
-      case 'outfits':     return <OutfitManagementSection />;
+      case 'outfits':               return <OutfitManagementSection />;
+      case 'user-outfit-approvals':   return <UserOutfitApprovalsSection />;
       case 'news':        return <NewsManagementSection />;
       case 'movies':      return <MovieManagementSection />;
       case 'reviews':     return <ReviewManagementSection />;
+      case 'api-keys':   return <ApiKeyManagementSection />;
       case 'data':        return <AllDataAccessSection />;
       case 'platform':  return <PlatformAnalyticsSection />;
       case 'system':    return <SystemControlsSection />;
@@ -81,7 +87,7 @@ export default function SuperAdminDashboardInteractive() {
       <aside className={`fixed top-0 left-0 bottom-0 z-40 flex flex-col glass-card border-r border-white/10 transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-64'}`}>
 
         {/* Brand */}
-        <div className={`flex items-center gap-3 px-5 py-5 border-b border-white/10 ${collapsed ? 'justify-center px-0' : ''}`}>
+        <div className={`flex items-center gap-3 px-5 py-9 border-b border-white/10 ${collapsed ? 'justify-center px-0' : ''}`}>
           <Link href="/homepage" className="flex items-center gap-2 shrink-0">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center shrink-0">
               <Icon name="StarIcon" size={18} className="text-black" />
@@ -89,15 +95,6 @@ export default function SuperAdminDashboardInteractive() {
             {!collapsed && <span className="font-playfair text-lg font-bold text-white">CelebrityPersona</span>}
           </Link>
         </div>
-
-        {/* Super Admin user card removed from sidebar; name/email displayed in header */}
-        {collapsed && (
-          <div className="flex justify-center mt-4">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center">
-              <Icon name="StarIcon" size={16} className="text-black" />
-            </div>
-          </div>
-        )}
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
