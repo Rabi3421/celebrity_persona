@@ -20,6 +20,16 @@ interface CelebrityMovie {
   description: string;
 }
 
+interface CelebrityAward {
+  _id?: string;
+  title: string;
+  category: string;
+  year: string;
+  organization: string;
+  work: string;
+  description: string;
+}
+
 interface CelebrityRow {
   id: string;
   name: string;
@@ -71,6 +81,7 @@ interface CelebrityFull extends CelebrityRow {
   trivia?: string[];
   works?: string[];
   movies?: CelebrityMovie[];
+  awards?: CelebrityAward[];
   quotes?: string[];
   tags?: string[];
   categories?: string[];
@@ -84,6 +95,9 @@ interface CelebrityFull extends CelebrityRow {
     facebook?: string;
     youtube?: string;
     tiktok?: string;
+    threads?: string;
+    imdb?: string;
+    wikipedia?: string;
     website?: string;
   };
   seo?: {
@@ -106,7 +120,7 @@ interface CelebrityFull extends CelebrityRow {
   };
 }
 
-type FormTab = 'basic' | 'intro' | 'earlyLife' | 'career' | 'personalLife' | 'achievements' | 'controversies' | 'social' | 'movies' | 'meta' | 'images';
+type FormTab = 'basic' | 'biography' | 'social' | 'movies' | 'awards' | 'meta' | 'images';
 type Toast   = { type: 'success' | 'error'; message: string } | null;
 type PanelMode = 'add' | 'edit' | null;
 
@@ -118,11 +132,11 @@ const EMPTY_FORM: CelebrityFull = {
   netWorth: '', introduction: '', earlyLife: '', career: '', personalLife: '',
   netWorthAmount: '', netWorthUnit: 'USD',
   achievements: [], controversies: [], achievementsHtml: '', controversiesHtml: '',
-  philanthropy: [], trivia: [], works: [], movies: [],
+  philanthropy: [], trivia: [], works: [], movies: [], awards: [],
   quotes: [], tags: [], categories: [], language: 'en', profileImage: '',
   coverImage: '', galleryImages: [],
   status: 'draft', contentQuality: 'draft', isActive: true, isFeatured: false, isVerified: false,
-  socialMedia: { instagram: '', twitter: '', facebook: '', youtube: '', tiktok: '', website: '' },
+  socialMedia: { instagram: '', twitter: '', facebook: '', youtube: '', tiktok: '', threads: '', imdb: '', wikipedia: '', website: '' },
   seo: {
     metaTitle: '', metaDescription: '', focusKeyword: '', keywords: [],
     canonicalUrl: '', ogTitle: '', ogDescription: '', ogImage: '',
@@ -140,17 +154,13 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const TABS: { key: FormTab; label: string; icon: string }[] = [
-  { key: 'basic',          label: 'Basic',         icon: 'IdentificationIcon'        },
-  { key: 'intro',          label: 'Intro',         icon: 'DocumentTextIcon'          },
-  { key: 'earlyLife',      label: 'Early Life',    icon: 'BookOpenIcon'              },
-  { key: 'career',         label: 'Career',        icon: 'BriefcaseIcon'             },
-  { key: 'personalLife',   label: 'Personal',      icon: 'UserCircleIcon'            },
-  { key: 'achievements',   label: 'Achievements',  icon: 'SparklesIcon'              },
-  { key: 'controversies',  label: 'Controversies', icon: 'ExclamationTriangleIcon'   },
-  { key: 'social',         label: 'Social',        icon: 'GlobeAltIcon'              },
-  { key: 'movies',         label: 'Movies',        icon: 'FilmIcon'                  },
-  { key: 'meta',           label: 'Meta',          icon: 'TagIcon'                   },
-  { key: 'images',         label: 'Images',        icon: 'PhotoIcon'                 },
+  { key: 'basic',      label: 'Basic',     icon: 'IdentificationIcon' },
+  { key: 'biography',  label: 'Biography', icon: 'BookOpenIcon'       },
+  { key: 'social',     label: 'Social',    icon: 'GlobeAltIcon'       },
+  { key: 'movies',     label: 'Movies',    icon: 'FilmIcon'           },
+  { key: 'awards',     label: 'Awards',    icon: 'TrophyIcon'         },
+  { key: 'meta',       label: 'Meta',      icon: 'TagIcon'            },
+  { key: 'images',     label: 'Images',    icon: 'PhotoIcon'          },
 ];
 
 const PAGE_SIZES = [10, 20, 50];
@@ -643,12 +653,17 @@ export default function CelebrityManagementSection() {
         isActive:         d.isActive         ?? true,
         isFeatured:       d.isFeatured       ?? false,
         isVerified:       d.isVerified       ?? false,
+        movies:    d.movies    || [],
+        awards:    d.awards    || [],
         socialMedia: {
           instagram: d.socialMedia?.instagram || '',
           twitter:   d.socialMedia?.twitter   || '',
           facebook:  d.socialMedia?.facebook  || '',
           youtube:   d.socialMedia?.youtube   || '',
           tiktok:    d.socialMedia?.tiktok    || '',
+          threads:   d.socialMedia?.threads   || '',
+          imdb:      d.socialMedia?.imdb      || '',
+          wikipedia: d.socialMedia?.wikipedia || '',
           website:   d.socialMedia?.website   || '',
         },
         seo: {
@@ -724,6 +739,7 @@ export default function CelebrityManagementSection() {
     trivia:           form.trivia                   || [],
     works:            form.works                    || [],
     movies:           form.movies                   || [],
+    awards:           form.awards                   || [],
     quotes:           form.quotes                   || [],
     tags:             form.tags                     || [],
     categories:       form.categories               || [],
@@ -1140,56 +1156,54 @@ export default function CelebrityManagementSection() {
       
 
       // ── INTRO ─────────────────────────────────────────────────────────
-      case 'intro': return (
-        <div className="space-y-4">
-          <RichTextEditor label="Introduction" value={form.introduction || ''} onChange={(v) => setField('introduction', v)} placeholder="A brief introduction about the celebrity…" minHeight={220} />
-        </div>
-      );
+      // ── BIOGRAPHY (Intro · Early Life · Career · Personal · Achievements · Controversies) ──
+      case 'biography': return (
+        <div className="space-y-8">
+          {/* Introduction */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Introduction</h3>
+            <RichTextEditor label="" value={form.introduction || ''} onChange={(v) => setField('introduction', v)} placeholder="A brief introduction about the celebrity…" minHeight={200} />
+          </div>
 
-      // ── EARLY LIFE ────────────────────────────────────────────────────
-      case 'earlyLife': return (
-        <div className="space-y-4">
-          <RichTextEditor label="Early Life" value={form.earlyLife || ''} onChange={(v) => setField('earlyLife', v)} placeholder="Childhood, family background, early years…" minHeight={260} />
-        </div>
-      );
+          <div className="border-t border-white/8" />
 
-      // ── CAREER ───────────────────────────────────────────────────────
-      case 'career': return (
-        <div className="space-y-4">
-          <RichTextEditor label="Career" value={form.career || ''} onChange={(v) => setField('career', v)} placeholder="Career highlights, milestones, achievements…" minHeight={260} />
-        </div>
-      );
+          {/* Early Life */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Early Life</h3>
+            <RichTextEditor label="" value={form.earlyLife || ''} onChange={(v) => setField('earlyLife', v)} placeholder="Childhood, family background, early years…" minHeight={200} />
+          </div>
 
-      // ── PERSONAL LIFE ─────────────────────────────────────────────────
-      case 'personalLife': return (
-        <div className="space-y-4">
-          <RichTextEditor label="Personal Life" value={form.personalLife || ''} onChange={(v) => setField('personalLife', v)} placeholder="Relationships, hobbies, personal interests…" minHeight={220} />
-        </div>
-      );
+          <div className="border-t border-white/8" />
 
-      // ── ACHIEVEMENTS ─────────────────────────────────────────────────
-      case 'achievements': return (
-        <div className="space-y-4">
-          <RichTextEditor
-            label="Achievements"
-            value={form.achievementsHtml || ''}
-            onChange={(v) => setField('achievementsHtml', v)}
-            placeholder="List awards, honors, milestones, records…"
-            minHeight={280}
-          />
-        </div>
-      );
+          {/* Career */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Career</h3>
+            <RichTextEditor label="" value={form.career || ''} onChange={(v) => setField('career', v)} placeholder="Career highlights, milestones, achievements…" minHeight={200} />
+          </div>
 
-      // ── CONTROVERSIES ────────────────────────────────────────────────
-      case 'controversies': return (
-        <div className="space-y-4">
-          <RichTextEditor
-            label="Controversies"
-            value={form.controversiesHtml || ''}
-            onChange={(v) => setField('controversiesHtml', v)}
-            placeholder="Describe controversies, legal issues, public disputes…"
-            minHeight={280}
-          />
+          <div className="border-t border-white/8" />
+
+          {/* Personal Life */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Personal Life</h3>
+            <RichTextEditor label="" value={form.personalLife || ''} onChange={(v) => setField('personalLife', v)} placeholder="Relationships, hobbies, personal interests…" minHeight={200} />
+          </div>
+
+          <div className="border-t border-white/8" />
+
+          {/* Achievements */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Achievements</h3>
+            <RichTextEditor label="" value={form.achievementsHtml || ''} onChange={(v) => setField('achievementsHtml', v)} placeholder="List awards, honors, milestones, records…" minHeight={200} />
+          </div>
+
+          <div className="border-t border-white/8" />
+
+          {/* Controversies */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Controversies</h3>
+            <RichTextEditor label="" value={form.controversiesHtml || ''} onChange={(v) => setField('controversiesHtml', v)} placeholder="Describe controversies, legal issues, public disputes…" minHeight={200} />
+          </div>
         </div>
       );
 
@@ -1582,26 +1596,249 @@ export default function CelebrityManagementSection() {
         );
       }
 
+      // ── AWARDS ───────────────────────────────────────────────────────
+      case 'awards': {
+        const awards = form.awards || [];
+        const EMPTY_AWARD: CelebrityAward = { title: '', category: '', year: '', organization: '', work: '', description: '' };
+
+        const awardDraft: CelebrityAward = (form as any).__awardDraft ?? { ...EMPTY_AWARD };
+        const awardEditIndex = typeof (form as any).__awardEditIndex === 'number' ? (form as any).__awardEditIndex : null;
+        const setAwardDraft = (patch: Partial<CelebrityAward>) =>
+          setForm((f) => ({ ...f, __awardDraft: { ...((f as any).__awardDraft ?? EMPTY_AWARD), ...patch } }));
+        const clearAwardDraft = () =>
+          setForm((f) => {
+            const next = { ...f };
+            delete (next as any).__awardDraft;
+            delete (next as any).__awardEditIndex;
+            return next;
+          });
+
+        const commitAward = () => {
+          if (!awardDraft.title.trim()) return;
+          const nextAward = {
+            ...(awardEditIndex !== null ? awards[awardEditIndex] : {}),
+            title:        awardDraft.title.trim(),
+            category:     awardDraft.category.trim(),
+            year:         awardDraft.year.trim(),
+            organization: awardDraft.organization.trim(),
+            work:         awardDraft.work.trim(),
+            description:  awardDraft.description.trim(),
+          };
+          setField(
+            'awards',
+            awardEditIndex !== null
+              ? awards.map((a, idx) => (idx === awardEditIndex ? nextAward : a))
+              : [...awards, nextAward]
+          );
+          clearAwardDraft();
+        };
+
+        const editAward = (i: number) =>
+          setForm((f) => ({ ...f, __awardDraft: { ...awards[i] }, __awardEditIndex: i }));
+
+        const removeAward = (i: number) => {
+          setField('awards', awards.filter((_, idx) => idx !== i));
+          if (awardEditIndex === i) clearAwardDraft();
+          if (awardEditIndex !== null && awardEditIndex > i) {
+            setForm((f) => ({ ...f, __awardEditIndex: awardEditIndex - 1 }));
+          }
+        };
+
+        const inputCls = 'w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all';
+        const labelCls = 'block text-[10px] font-medium text-neutral-500 mb-1.5 font-montserrat uppercase tracking-wider';
+
+        return (
+          <div className="space-y-6">
+
+            {/* ── Add award form ─────────────────────────────── */}
+            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold text-yellow-400 font-montserrat uppercase tracking-wider flex items-center gap-2">
+                  <Icon name="TrophyIcon" size={13} /> {awardEditIndex !== null ? 'Edit Award' : 'Add an Award'}
+                </p>
+                {awardEditIndex !== null && (
+                  <span className="text-[11px] text-neutral-400 font-montserrat">
+                    Editing item #{awardEditIndex + 1}
+                  </span>
+                )}
+              </div>
+
+              {/* Title + Year */}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Title *</label>
+                  <input type="text" value={awardDraft.title} onChange={(e) => setAwardDraft({ title: e.target.value })}
+                    placeholder="e.g. SIIMA Awards" className={inputCls} />
+                </div>
+                <div className="w-full sm:w-24 shrink-0">
+                  <label className={labelCls}>Year</label>
+                  <input type="text" value={awardDraft.year}
+                    onChange={(e) => setAwardDraft({ year: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
+                    placeholder="2017" maxLength={4} className={inputCls} />
+                </div>
+              </div>
+
+              {/* Category + Organization */}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Category</label>
+                  <input type="text" value={awardDraft.category} onChange={(e) => setAwardDraft({ category: e.target.value })}
+                    placeholder="e.g. Best Female Debut (Telugu) – Nominee" className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Organization</label>
+                  <input type="text" value={awardDraft.organization} onChange={(e) => setAwardDraft({ organization: e.target.value })}
+                    placeholder="e.g. South Indian International Movie Awards" className={inputCls} />
+                </div>
+              </div>
+
+              {/* Work */}
+              <div>
+                <label className={labelCls}>Work / Project</label>
+                <input type="text" value={awardDraft.work} onChange={(e) => setAwardDraft({ work: e.target.value })}
+                  placeholder="e.g. Krishna Gaadi Veera Prema Gaadha" className={inputCls} />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className={labelCls}>Description</label>
+                <textarea rows={2} value={awardDraft.description} onChange={(e) => setAwardDraft({ description: e.target.value })}
+                  placeholder="e.g. Mehreen received a nomination for her refreshing and expressive debut…"
+                  className={`${inputCls} resize-none`} />
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button type="button" onClick={commitAward}
+                  disabled={!awardDraft.title.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-yellow-500 text-black text-xs font-semibold font-montserrat hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                  <Icon name={awardEditIndex !== null ? 'PencilSquareIcon' : 'PlusIcon'} size={13} />
+                  {awardEditIndex !== null ? 'Save Changes' : 'Add to List'}
+                </button>
+                {(awardDraft.title || awardDraft.category || awardDraft.year || awardDraft.organization || awardDraft.work || awardDraft.description) && (
+                  <button type="button" onClick={clearAwardDraft}
+                    className="px-4 py-2 rounded-xl text-xs text-neutral-400 hover:text-white font-montserrat transition-all">
+                    {awardEditIndex !== null ? 'Cancel Edit' : 'Clear'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ── Awards list ────────────────────────────────── */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1 h-4 rounded-full bg-yellow-400 inline-block" />
+                <p className="text-xs font-semibold text-white font-montserrat uppercase tracking-wider">Awards &amp; Nominations</p>
+                <span className="text-xs text-neutral-500 font-montserrat">({awards.length} entr{awards.length !== 1 ? 'ies' : 'y'})</span>
+              </div>
+
+              {awards.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-10 rounded-2xl border border-dashed border-white/8 text-center">
+                  <Icon name="TrophyIcon" size={24} className="text-neutral-700" />
+                  <p className="text-sm text-neutral-600 font-montserrat">No awards added yet</p>
+                  <p className="text-xs text-neutral-700 font-montserrat">Fill in the form above and click &ldquo;Add to List&rdquo;</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {awards.map((award, i) => (
+                    <div key={i}
+                      className={`flex flex-col gap-3 px-4 py-3 rounded-xl border bg-white/3 transition-colors sm:flex-row sm:items-start ${
+                        awardEditIndex === i ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-white/6 hover:border-white/12'
+                      } group`}>
+                      {/* Year pill */}
+                      <span className="shrink-0 mt-0.5 text-xs font-bold text-yellow-400 font-montserrat w-10 text-left sm:text-center">
+                        {award.year || '—'}
+                      </span>
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-white font-montserrat truncate">{award.title}</span>
+                          {award.category && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-montserrat shrink-0">
+                              {award.category}
+                            </span>
+                          )}
+                        </div>
+                        {award.organization && (
+                          <p className="text-xs text-neutral-500 font-montserrat mt-0.5">{award.organization}</p>
+                        )}
+                        {award.work && (
+                          <p className="text-xs text-neutral-600 font-montserrat mt-0.5">For: {award.work}</p>
+                        )}
+                        {award.description && (
+                          <p className="text-xs text-neutral-600 font-montserrat mt-0.5 line-clamp-1">{award.description}</p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
+                        <button type="button" onClick={() => editAward(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-yellow-500/10 hover:text-yellow-400 transition-all"
+                          title="Edit">
+                          <Icon name="PencilSquareIcon" size={13} />
+                        </button>
+                        <button type="button" onClick={() => removeAward(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-red-500/15 hover:text-red-400 transition-all"
+                          title="Remove">
+                          <Icon name="TrashIcon" size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
       // ── SOCIAL ────────────────────────────────────────────────────────
       case 'social': return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {([
-            { key: 'instagram' as const, label: 'Instagram', placeholder: 'https://instagram.com/...' },
-            { key: 'twitter'   as const, label: 'Twitter/X', placeholder: 'https://twitter.com/...'  },
-            { key: 'facebook'  as const, label: 'Facebook',  placeholder: 'https://facebook.com/...' },
-            { key: 'youtube'   as const, label: 'YouTube',   placeholder: 'https://youtube.com/...'  },
-            { key: 'tiktok'    as const, label: 'TikTok',    placeholder: 'https://tiktok.com/@...'  },
-            { key: 'website'   as const, label: 'Website',   placeholder: 'https://example.com'      },
-          ]).map(({ key, label, placeholder }) => (
-            <LabeledInput
-              key={key}
-              label={label}
-              value={form.socialMedia?.[key] || ''}
-              onChange={(v) => setField('socialMedia', { ...form.socialMedia, [key]: v })}
-              placeholder={placeholder}
-              type="url"
-            />
-          ))}
+        <div className="space-y-6">
+          {/* Social Platforms */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Social Platforms</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {([
+                { key: 'instagram' as const, label: 'Instagram',  placeholder: 'https://instagram.com/...'   },
+                { key: 'twitter'   as const, label: 'Twitter / X', placeholder: 'https://twitter.com/...'    },
+                { key: 'facebook'  as const, label: 'Facebook',   placeholder: 'https://facebook.com/...'   },
+                { key: 'youtube'   as const, label: 'YouTube',    placeholder: 'https://youtube.com/...'    },
+                { key: 'tiktok'    as const, label: 'TikTok',     placeholder: 'https://tiktok.com/@...'    },
+                { key: 'threads'   as const, label: 'Threads',    placeholder: 'https://threads.net/@...'   },
+              ]).map(({ key, label, placeholder }) => (
+                <LabeledInput
+                  key={key}
+                  label={label}
+                  value={form.socialMedia?.[key] || ''}
+                  onChange={(v) => setField('socialMedia', { ...form.socialMedia, [key]: v })}
+                  placeholder={placeholder}
+                  type="url"
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-white/8" />
+
+          {/* External Profiles */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">External Profiles</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {([
+                { key: 'imdb'      as const, label: 'IMDb Profile',   placeholder: 'https://www.imdb.com/name/...' },
+                { key: 'wikipedia' as const, label: 'Wikipedia Page', placeholder: 'https://en.wikipedia.org/wiki/...' },
+                { key: 'website'   as const, label: 'Official Website', placeholder: 'https://example.com'          },
+              ]).map(({ key, label, placeholder }) => (
+                <LabeledInput
+                  key={key}
+                  label={label}
+                  value={form.socialMedia?.[key] || ''}
+                  onChange={(v) => setField('socialMedia', { ...form.socialMedia, [key]: v })}
+                  placeholder={placeholder}
+                  type="url"
+                />
+              ))}
+            </div>
+          </div>
         </div>
       );
 

@@ -9,7 +9,7 @@ const ALLOWED_FIELDS = new Set([
   'occupation', 'yearsActive', 'height', 'weight', 'bodyMeasurements', 'eyeColor',
   'hairColor', 'spouse', 'children', 'parents', 'siblings', 'relatives', 'education',
   'netWorth', 'introduction', 'earlyLife', 'career', 'personalLife', 'achievements',
-  'controversies', 'philanthropy', 'trivia', 'works', 'movies', 'quotes',
+  'controversies', 'philanthropy', 'trivia', 'works', 'movies', 'awards', 'quotes',
   'relatedCelebrities', 'newsArticles', 'socialMedia', 'seo', 'popularity',
   'popularityScore', 'isActive', 'isFeatured', 'isVerified', 'contentQuality',
   'tags', 'categories', 'language', 'profileImage', 'coverImage', 'galleryImages',

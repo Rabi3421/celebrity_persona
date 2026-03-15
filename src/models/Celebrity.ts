@@ -10,6 +10,16 @@ export interface IMovie extends Document {
   _id?: string;
 }
 
+export interface IAward extends Document {
+  title: string;
+  category: string;
+  year: string;
+  organization: string;
+  work: string;
+  description: string;
+  _id?: string;
+}
+
 export interface ISEO extends Document {
   metaTitle?: string;
   metaDescription?: string;
@@ -85,6 +95,7 @@ export interface ICelebrity extends Document {
   trivia: string[];
   works: string[];
   movies: IMovie[];
+  awards: IAward[];
   quotes: string[];
   relatedCelebrities: string[];
   newsArticles: string[];
@@ -94,6 +105,9 @@ export interface ICelebrity extends Document {
     facebook?: string;
     youtube?: string;
     tiktok?: string;
+    threads?: string;
+    imdb?: string;
+    wikipedia?: string;
     website?: string;
   };
   seo: ISEO;
@@ -152,6 +166,15 @@ const movieSchema = new Schema<IMovie>({
     required: true,
     trim: true
   }
+}, { _id: true });
+
+const awardSchema = new Schema<IAward>({
+  title:        { type: String, required: true, trim: true },
+  category:     { type: String, trim: true },
+  year:         { type: String, trim: true },
+  organization: { type: String, trim: true },
+  work:         { type: String, trim: true },
+  description:  { type: String, trim: true },
 }, { _id: true });
 
 const seoSchema = new Schema<ISEO>({
@@ -293,6 +316,7 @@ const celebritySchema = new Schema<ICelebrity>(
     trivia: [String],
     works: [String],
     movies: [movieSchema],
+    awards: [awardSchema],
     quotes: [String],
     relatedCelebrities: [String],
     newsArticles: [String],
@@ -302,6 +326,9 @@ const celebritySchema = new Schema<ICelebrity>(
       facebook: String,
       youtube: String,
       tiktok: String,
+      threads: String,
+      imdb: String,
+      wikipedia: String,
       website: String
     },
     seo: {
