@@ -388,7 +388,7 @@ celebritySchema.index(
 
 // Compound indexes for performance
 celebritySchema.index({ status: 1, isActive: 1 });
-celebritySchema.index({ slug: 1 });
+// Note: slug index is already created by `unique: true` on the schema field.
 celebritySchema.index({ viewCount: -1 });
 celebritySchema.index({ popularityScore: -1 });
 

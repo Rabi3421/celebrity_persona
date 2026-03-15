@@ -101,12 +101,26 @@ function SectionHeading({ children, icon }: { children: React.ReactNode; icon?: 
   );
 }
 
-function InfoRow({ label, value }: { label: string; value?: string | number }) {
+function InfoRow({ label, value, highlight }: { label: string; value?: string | number; highlight?: boolean }) {
   if (!value) return null;
   return (
-    <div className="flex justify-between gap-4 py-3 border-b border-white/5 last:border-0">
-      <span className="text-xs text-neutral-500 uppercase tracking-wider flex-shrink-0 pt-0.5">{label}</span>
-      <span className="text-sm text-neutral-200 text-right">{value}</span>
+    <div className="flex justify-between gap-4 py-2.5 border-b border-white/5 last:border-0">
+      <span className="text-[11px] text-neutral-500 uppercase tracking-wider flex-shrink-0 pt-0.5">{label}</span>
+      <span className={`text-sm font-medium text-right ${highlight ? 'text-primary' : 'text-neutral-200'}`}>{value}</span>
+    </div>
+  );
+}
+
+function StatBadge({ label, value, icon }: { label: string; value: string; icon: string }) {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/8 transition-colors">
+      <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
+        <Icon name={icon as never} size={15} className="text-primary" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] text-neutral-500 uppercase tracking-wider">{label}</p>
+        <p className="text-sm font-semibold text-white truncate">{value}</p>
+      </div>
     </div>
   );
 }
@@ -242,7 +256,8 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
   const inlineImg1  = galleryOnly[0] || null;  // floated beside intro
   const inlineImg2  = galleryOnly[1] || null;  // floated beside early life
   const inlineImg3  = galleryOnly[2] || null;  // floated beside personalLife
-  const stripImgs   = galleryOnly.slice(3);    // horizontal strip between trivia & filmography
+  const inlineImg4  = galleryOnly[3] || null;  // floated beside career
+  const stripImgs   = galleryOnly.slice(4);    // horizontal strip between trivia & filmography
 
   return (
     <article className="pt-20">
@@ -406,44 +421,8 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
         </div>
       </div>
 
-      {/* ── Quick-Stats Strip ─────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-6 md:px-16">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 -mt-5 relative z-10">
-          {c.netWorth && (
-            <div className="glass-card rounded-xl px-4 py-3 text-center backdrop-blur-md">
-              <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Net Worth</p>
-              <p className="text-sm font-semibold text-primary truncate">{c.netWorth}</p>
-            </div>
-          )}
-          {c.yearsActive && (
-            <div className="glass-card rounded-xl px-4 py-3 text-center backdrop-blur-md">
-              <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Years Active</p>
-              <p className="text-sm font-semibold text-white truncate">{c.yearsActive}</p>
-            </div>
-          )}
-          {c.height && (
-            <div className="glass-card rounded-xl px-4 py-3 text-center backdrop-blur-md">
-              <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Height</p>
-              <p className="text-sm font-semibold text-white truncate">{c.height}</p>
-            </div>
-          )}
-          {c.eyeColor && (
-            <div className="glass-card rounded-xl px-4 py-3 text-center backdrop-blur-md">
-              <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Eye Color</p>
-              <p className="text-sm font-semibold text-white truncate">{c.eyeColor}</p>
-            </div>
-          )}
-          {hasFilms && (
-            <div className="glass-card rounded-xl px-4 py-3 text-center backdrop-blur-md">
-              <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Films</p>
-              <p className="text-sm font-semibold text-white">{c.movies!.length} films</p>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* ── Main Content ──────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-6 md:px-16 pb-32 mt-14 space-y-20">
+      <div className="max-w-7xl mx-auto px-6 md:px-16 pb-32 mt-10 space-y-20">
 
         {/* Introduction + Personal Info sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -453,23 +432,27 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
             {intro && (
               <section>
                 <SectionHeading>Introduction</SectionHeading>
-                {/* Inline image 1 — floated right beside intro text */}
-                {inlineImg1 && (
-                  <button
-                    onClick={() => setLightboxImg(inlineImg1)}
-                    className="float-right ml-6 mb-4 w-40 md:w-56 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group flex-shrink-0"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={inlineImg1}
-                      alt={c.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                )}
-                <p className="text-neutral-300 leading-relaxed text-lg whitespace-pre-line">{intro}</p>
-                <div className="clear-both" />
+                <div>
+                  {inlineImg1 && (
+                    <button
+                      onClick={() => setLightboxImg(inlineImg1)}
+                      className="float-right ml-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
+                      style={{ aspectRatio: '3/4' }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={inlineImg1}
+                        alt={c.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+                        <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">View Photo</span>
+                      </div>
+                    </button>
+                  )}
+                  <p className="text-neutral-300 leading-relaxed text-lg whitespace-pre-line">{intro}</p>
+                  <div className="clear-both" />
+                </div>
               </section>
             )}
 
@@ -502,20 +485,37 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
           </div>
 
           {/* Right — personal info sidebar */}
-          <aside className="space-y-6">
-            <div className="glass-card rounded-2xl p-6 border border-white/5">
-              <h3 className="font-playfair text-lg font-bold text-white mb-1">Personal Info</h3>
-              <div className="mt-2">
+          <aside className="space-y-5">
+            {/* Quick Stats */}
+            {(c.netWorth || c.yearsActive || c.height || c.eyeColor || hasFilms) && (
+              <div className="glass-card rounded-2xl p-5 border border-white/5">
+                <h3 className="font-playfair text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="w-1 h-5 rounded-full bg-primary inline-block" />
+                  Quick Stats
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {c.netWorth && <StatBadge label="Net Worth" value={c.netWorth} icon="CurrencyRupeeIcon" />}
+                  {c.yearsActive && <StatBadge label="Years Active" value={c.yearsActive} icon="CalendarDaysIcon" />}
+                  {c.height && <StatBadge label="Height" value={c.height} icon="ArrowsUpDownIcon" />}
+                  {c.eyeColor && <StatBadge label="Eye Color" value={c.eyeColor} icon="EyeIcon" />}
+                  {hasFilms && <StatBadge label="Films" value={`${c.movies!.length} films`} icon="FilmIcon" />}
+                  {c.weight && <StatBadge label="Weight" value={c.weight} icon="ScaleIcon" />}
+                </div>
+              </div>
+            )}
+
+            {/* Personal Info */}
+            <div className="glass-card rounded-2xl p-5 border border-white/5">
+              <h3 className="font-playfair text-lg font-bold text-white mb-1 flex items-center gap-2">
+                <span className="w-1 h-5 rounded-full bg-primary inline-block" />
+                Personal Info
+              </h3>
+              <div className="mt-3">
                 <InfoRow label="Born"         value={c.born} />
                 <InfoRow label="Birthplace"   value={c.birthPlace} />
                 <InfoRow label="Nationality"  value={c.nationality} />
-                <InfoRow label="Height"       value={c.height} />
-                <InfoRow label="Weight"       value={c.weight} />
-                <InfoRow label="Eye Color"    value={c.eyeColor} />
                 <InfoRow label="Hair Color"   value={c.hairColor} />
                 <InfoRow label="Spouse"       value={c.spouse} />
-                <InfoRow label="Net Worth"    value={c.netWorth} />
-                <InfoRow label="Years Active" value={c.yearsActive} />
               </div>
             </div>
 
@@ -576,52 +576,81 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
             {earlyLife && (
               <section>
                 <SectionHeading>Early Life</SectionHeading>
-                {/* Inline image 2 — floated right beside early life text */}
-                {inlineImg2 && (
-                  <button
-                    onClick={() => setLightboxImg(inlineImg2)}
-                    className="float-right ml-6 mb-4 w-40 md:w-56 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group flex-shrink-0"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={inlineImg2}
-                      alt={c.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                )}
-                <p className="text-neutral-300 leading-relaxed text-base whitespace-pre-line max-w-4xl">{earlyLife}</p>
-                <div className="clear-both" />
+                <div>
+                  {inlineImg2 && (
+                    <button
+                      onClick={() => setLightboxImg(inlineImg2)}
+                      className="float-right ml-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
+                      style={{ aspectRatio: '3/4' }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={inlineImg2}
+                        alt={c.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+                        <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">View Photo</span>
+                      </div>
+                    </button>
+                  )}
+                  <p className="text-neutral-300 leading-relaxed text-lg whitespace-pre-line">{earlyLife}</p>
+                  <div className="clear-both" />
+                </div>
               </section>
             )}
 
             {career && (
               <section>
                 <SectionHeading>Career</SectionHeading>
-                <p className="text-neutral-300 leading-relaxed text-base whitespace-pre-line max-w-4xl">{career}</p>
+                <div>
+                  {inlineImg4 && (
+                    <button
+                      onClick={() => setLightboxImg(inlineImg4)}
+                      className="float-left mr-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
+                      style={{ aspectRatio: '3/4' }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={inlineImg4}
+                        alt={c.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+                        <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">View Photo</span>
+                      </div>
+                    </button>
+                  )}
+                  <p className="text-neutral-300 leading-relaxed text-lg whitespace-pre-line">{career}</p>
+                  <div className="clear-both" />
+                </div>
               </section>
             )}
 
             {personalLife && (
               <section>
                 <SectionHeading>Personal Life</SectionHeading>
-                {/* Inline image 3 — floated left beside personal life */}
-                {inlineImg3 && (
-                  <button
-                    onClick={() => setLightboxImg(inlineImg3)}
-                    className="float-left mr-6 mb-4 w-40 md:w-64 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={inlineImg3}
-                      alt={c.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  </button>
-                )}
-                <p className="text-neutral-300 leading-relaxed text-base whitespace-pre-line max-w-4xl">{personalLife}</p>
-                <div className="clear-both" />
+                <div>
+                  {inlineImg3 && (
+                    <button
+                      onClick={() => setLightboxImg(inlineImg3)}
+                      className="float-right ml-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
+                      style={{ aspectRatio: '3/4' }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={inlineImg3}
+                        alt={c.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+                        <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">View Photo</span>
+                      </div>
+                    </button>
+                  )}
+                  <p className="text-neutral-300 leading-relaxed text-lg whitespace-pre-line">{personalLife}</p>
+                  <div className="clear-both" />
+                </div>
               </section>
             )}
           </div>
@@ -650,7 +679,8 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
                 <button
                   key={i}
                   onClick={() => setLightboxImg(img)}
-                  className="flex-shrink-0 w-52 h-36 md:w-72 md:h-48 rounded-2xl overflow-hidden group border border-white/5 hover:border-primary/40 transition-all shadow-lg"
+                  className="flex-shrink-0 w-56 md:w-72 rounded-2xl overflow-hidden group border border-white/5 hover:border-primary/40 transition-all shadow-lg relative"
+                  style={{ aspectRatio: '4/5' }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -658,6 +688,12 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
                     alt={`${c.name} — photo`}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-4">
+                    <span className="text-white text-xs font-medium bg-black/50 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                      <Icon name="ArrowsPointingOutIcon" size={12} />
+                      Expand
+                    </span>
+                  </div>
                 </button>
               ))}
             </div>
@@ -721,11 +757,22 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
         {/* ── Controversies ─────────────────────────────────────────────── */}
         {hasControversy && (
           <section>
-            <SectionHeading>Controversies</SectionHeading>
+            <SectionHeading icon="ExclamationTriangleIcon">Controversies</SectionHeading>
             <div className="space-y-4 max-w-4xl">
               {c.controversies!.map((con, i) => (
-                <div key={i} className="glass-card rounded-xl p-5 border-l-2 border-amber-500/50 border border-white/5">
-                  <p className="text-neutral-300 leading-relaxed">{stripHtml(con)}</p>
+                <div key={i} className="relative rounded-2xl overflow-hidden border border-amber-500/20 bg-amber-950/10 hover:border-amber-500/40 transition-colors group">
+                  {/* Left accent bar */}
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-amber-400 to-amber-600 rounded-l-2xl" />
+                  <div className="pl-6 pr-5 py-5 flex gap-4">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+                        <span className="text-amber-400 font-bold text-sm">{i + 1}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-neutral-300 leading-relaxed text-sm md:text-base">{stripHtml(con)}</p>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

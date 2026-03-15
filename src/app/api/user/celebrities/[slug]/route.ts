@@ -9,7 +9,7 @@ function isAuthorized(req: NextRequest): boolean {
 // GET /api/user/celebrities/[slug]
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   if (!isAuthorized(request)) {
     return NextResponse.json(
@@ -21,7 +21,8 @@ export async function GET(
   try {
     await dbConnect();
 
-    const slug = params.slug?.toLowerCase().trim();
+    const { slug: rawSlug } = await params;
+    const slug = rawSlug?.toLowerCase().trim();
     if (!slug) {
       return NextResponse.json({ success: false, message: 'Missing slug' }, { status: 400 });
     }

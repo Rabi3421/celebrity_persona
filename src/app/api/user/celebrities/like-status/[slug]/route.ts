@@ -9,11 +9,12 @@ import mongoose from 'mongoose';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   await dbConnect();
 
-  const slug = params.slug?.toLowerCase().trim();
+  const { slug: rawSlug } = await params;
+  const slug = rawSlug?.toLowerCase().trim();
   if (!slug) {
     return NextResponse.json({ success: false, message: 'Missing slug' }, { status: 400 });
   }

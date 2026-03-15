@@ -10,6 +10,16 @@ import { uploadImage, deleteImage } from '@/lib/imageUpload';
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
+interface CelebrityMovie {
+  _id?: string;
+  name: string;
+  role: string;
+  year: string;
+  director: string;
+  genre: string;
+  description: string;
+}
+
 interface CelebrityRow {
   id: string;
   name: string;
@@ -60,6 +70,7 @@ interface CelebrityFull extends CelebrityRow {
   philanthropy?: string[];
   trivia?: string[];
   works?: string[];
+  movies?: CelebrityMovie[];
   quotes?: string[];
   tags?: string[];
   categories?: string[];
@@ -95,7 +106,7 @@ interface CelebrityFull extends CelebrityRow {
   };
 }
 
-type FormTab = 'basic' | 'intro' | 'earlyLife' | 'career' | 'personalLife' | 'achievements' | 'controversies' | 'social' | 'meta' | 'images';
+type FormTab = 'basic' | 'intro' | 'earlyLife' | 'career' | 'personalLife' | 'achievements' | 'controversies' | 'social' | 'movies' | 'meta' | 'images';
 type Toast   = { type: 'success' | 'error'; message: string } | null;
 type PanelMode = 'add' | 'edit' | null;
 
@@ -107,7 +118,7 @@ const EMPTY_FORM: CelebrityFull = {
   netWorth: '', introduction: '', earlyLife: '', career: '', personalLife: '',
   netWorthAmount: '', netWorthUnit: 'USD',
   achievements: [], controversies: [], achievementsHtml: '', controversiesHtml: '',
-  philanthropy: [], trivia: [], works: [],
+  philanthropy: [], trivia: [], works: [], movies: [],
   quotes: [], tags: [], categories: [], language: 'en', profileImage: '',
   coverImage: '', galleryImages: [],
   status: 'draft', contentQuality: 'draft', isActive: true, isFeatured: false, isVerified: false,
@@ -137,6 +148,7 @@ const TABS: { key: FormTab; label: string; icon: string }[] = [
   { key: 'achievements',   label: 'Achievements',  icon: 'SparklesIcon'              },
   { key: 'controversies',  label: 'Controversies', icon: 'ExclamationTriangleIcon'   },
   { key: 'social',         label: 'Social',        icon: 'GlobeAltIcon'              },
+  { key: 'movies',         label: 'Movies',        icon: 'FilmIcon'                  },
   { key: 'meta',           label: 'Meta',          icon: 'TagIcon'                   },
   { key: 'images',         label: 'Images',        icon: 'PhotoIcon'                 },
 ];
@@ -212,14 +224,14 @@ const parseNetWorth = (raw?: string) => {
 function LabeledInput({ label, value, onChange, placeholder, type = 'text', hint }:
   { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; hint?: string }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+        className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
       />
       {hint && <p className="text-neutral-600 text-xs mt-1 font-montserrat">{hint}</p>}
     </div>
@@ -255,13 +267,13 @@ function HeightInput({ label, value, onChange, placeholder }:
     onChange(out);
   }, [unit, cm, feet, inch]);
 
-  const inputClass = "w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
+  const inputClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
 
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
-      <div className="grid grid-cols-3 gap-2 items-center">
-        <select value={unit} onChange={(e) => setUnit(e.target.value as any)} className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
+        <select value={unit} onChange={(e) => setUnit(e.target.value as any)} className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
           <option value="cm" style={{ color: '#111' }}>cm</option>
           <option value="in" style={{ color: '#111' }}>in</option>
           <option value="ft" style={{ color: '#111' }}>ft + in</option>
@@ -272,7 +284,7 @@ function HeightInput({ label, value, onChange, placeholder }:
             <input type="number" value={inch} onChange={(e) => setInch(e.target.value.replace(/[^0-9]/g, ''))} placeholder="in" className={`${inputClass} col-span-1`} />
           </>
         ) : (
-          <input type="text" value={unit === 'cm' ? cm : inch} onChange={(e) => unit === 'cm' ? setCm(e.target.value.replace(/[^0-9.]/g, '')) : setInch(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={placeholder} className={`${inputClass} col-span-2`} />
+          <input type="text" value={unit === 'cm' ? cm : inch} onChange={(e) => unit === 'cm' ? setCm(e.target.value.replace(/[^0-9.]/g, '')) : setInch(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={placeholder} className={`${inputClass} sm:col-span-2`} />
         )}
       </div>
     </div>
@@ -296,17 +308,17 @@ function WeightInput({ label, value, onChange, placeholder }:
 
   useEffect(() => { onChange(val ? `${val} ${unit}` : ''); }, [unit, val]);
 
-  const inputClass = "w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
+  const inputClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
 
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
-      <div className="grid grid-cols-3 gap-2 items-center">
-        <select value={unit} onChange={(e) => setUnit(e.target.value as any)} className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
+        <select value={unit} onChange={(e) => setUnit(e.target.value as any)} className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
           <option value="kg" style={{ color: '#111' }}>kg</option>
           <option value="lb" style={{ color: '#111' }}>lb</option>
         </select>
-        <input type="text" value={val} onChange={(e) => setVal(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={placeholder} className={`${inputClass} col-span-2`} />
+        <input type="text" value={val} onChange={(e) => setVal(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={placeholder} className={`${inputClass} sm:col-span-2`} />
       </div>
     </div>
   );
@@ -361,29 +373,29 @@ function BodyMeasurementsInput({ label, value, onChange }:
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gender, chest, waist, hips, bust]);
 
-  const inputClass = "w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
+  const inputClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
 
   function finalizeGender(g: 'Boy'|'Girl') { return g === 'Boy' ? 'BoyMeasurements' : 'GirlMeasurements'; }
 
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
-      <div className="grid grid-cols-3 gap-2 items-center mb-2">
-        <select value={gender} onChange={(e) => setGender(e.target.value as any)} className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center mb-2">
+        <select value={gender} onChange={(e) => setGender(e.target.value as any)} className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
           <option value="Boy" style={{ color: '#111' }}>Boy</option>
           <option value="Girl" style={{ color: '#111' }}>Girl</option>
         </select>
-        <div className="col-span-2 text-neutral-500 text-xs">Choose athlete gender to show measurement fields</div>
+        <div className="sm:col-span-2 text-neutral-500 text-xs">Choose athlete gender to show measurement fields</div>
       </div>
 
       {gender === 'Boy' ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
           <input className={inputClass} placeholder="Chest (cm)" value={chest} onChange={(e) => setChest(e.target.value.replace(/[^0-9.]/g, ''))} />
           <input className={inputClass} placeholder="Waist (cm)" value={waist} onChange={(e) => setWaist(e.target.value.replace(/[^0-9.]/g, ''))} />
           <input className={inputClass} placeholder="Hips (cm)" value={hips} onChange={(e) => setHips(e.target.value.replace(/[^0-9.]/g, ''))} />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
           <input className={inputClass} placeholder="Bust (cm)" value={bust} onChange={(e) => setBust(e.target.value.replace(/[^0-9.]/g, ''))} />
           <input className={inputClass} placeholder="Waist (cm)" value={waist} onChange={(e) => setWaist(e.target.value.replace(/[^0-9.]/g, ''))} />
           <input className={inputClass} placeholder="Hips (cm)" value={hips} onChange={(e) => setHips(e.target.value.replace(/[^0-9.]/g, ''))} />
@@ -397,14 +409,14 @@ function BodyMeasurementsInput({ label, value, onChange }:
 function LabeledTextarea({ label, value, onChange, placeholder, rows = 4 }:
   { label: string; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
         placeholder={placeholder}
-        className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+        className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
       />
     </div>
   );
@@ -413,14 +425,14 @@ function LabeledTextarea({ label, value, onChange, placeholder, rows = 4 }:
 function LabeledMultiline({ label, value, onChange, placeholder }:
   { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={3}
         placeholder={placeholder}
-        className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+        className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
       />
     </div>
   );
@@ -618,6 +630,7 @@ export default function CelebrityManagementSection() {
         philanthropy:     d.philanthropy     || [],
         trivia:           d.trivia           || [],
         works:            d.works            || [],
+        movies:           d.movies           || [],
         quotes:           d.quotes           || [],
         tags:             d.tags             || [],
         categories:       d.categories       || [],
@@ -710,6 +723,7 @@ export default function CelebrityManagementSection() {
     philanthropy:     form.philanthropy             || [],
     trivia:           form.trivia                   || [],
     works:            form.works                    || [],
+    movies:           form.movies                   || [],
     quotes:           form.quotes                   || [],
     tags:             form.tags                     || [],
     categories:       form.categories               || [],
@@ -897,7 +911,7 @@ export default function CelebrityManagementSection() {
     switch (formTab) {
       // ── BASIC ──────────────────────────────────────────────────────────
       case 'basic': return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 [&>*]:min-w-0">
           <div>
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Full Name *</label>
             <input
@@ -925,7 +939,7 @@ export default function CelebrityManagementSection() {
           <LabeledInput label="Nationality"     value={form.nationality  || ''} onChange={(v) => setField('nationality', v)}  placeholder="e.g. American" />
           <div>
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Years Active</label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-center">
               <div>
                 <label className="block text-[10px] text-neutral-500 mb-1">From</label>
                 <input
@@ -1012,13 +1026,13 @@ export default function CelebrityManagementSection() {
             <BodyMeasurementsInput label="Body Measurements" value={form.bodyMeasurements || ''} onChange={(v) => setField('bodyMeasurements', v)} />
           </div>
 
-          <div className="md:col-start-2 space-y-2">
+          <div className="xl:col-start-2 space-y-2 min-w-0">
             <LabeledInput label="Eye Color" value={form.eyeColor || ''} onChange={(v) => setField('eyeColor', v)} placeholder="e.g. Brown" />
             <LabeledInput label="Hair Color" value={form.hairColor || ''} onChange={(v) => setField('hairColor', v)} placeholder="e.g. Black" />
 
             <div>
               <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Net Worth</label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <input
                   type="text"
                   inputMode="decimal"
@@ -1029,7 +1043,7 @@ export default function CelebrityManagementSection() {
                     setField('netWorth', computeNetWorthString(v, form.netWorthUnit));
                   }}
                   placeholder="e.g. 800"
-                  className="w-full col-span-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  className="w-full min-w-0 box-border sm:col-span-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
                 />
                 <select
                   value={form.netWorthUnit || 'USD'}
@@ -1038,7 +1052,7 @@ export default function CelebrityManagementSection() {
                     setField('netWorthUnit', v);
                     setField('netWorth', computeNetWorthString(form.netWorthAmount, v));
                   }}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all cursor-pointer"
+                  className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all cursor-pointer"
                 >
                   <option value="USD" style={{ background: '#2b1433', color: '#fff' }}>USD</option>
                   <option value="INR" style={{ background: '#2b1433', color: '#fff' }}>INR</option>
@@ -1084,7 +1098,7 @@ export default function CelebrityManagementSection() {
 
           <div className="md:col-span-2 space-y-3">
             <label className="block text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">Status & Quality</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-neutral-600 mb-1 font-montserrat">Publish Status</label>
                 <select
@@ -1362,6 +1376,207 @@ export default function CelebrityManagementSection() {
               )}
               <input ref={galleryInputRef} type="file" accept="image/*" multiple className="hidden"
                 onChange={(e) => e.target.files && e.target.files.length > 0 && handleGalleryUpload(e.target.files)} />
+            </div>
+          </div>
+        );
+      }
+
+      // ── MOVIES ────────────────────────────────────────────────────────
+      case 'movies': {
+        const movies = form.movies || [];
+        const EMPTY_MOVIE: CelebrityMovie = { name: '', role: '', year: '', director: '', genre: '', description: '' };
+
+        // Keep draft/edit state inside the main form object so it persists while editing.
+        const draft: CelebrityMovie = (form as any).__movieDraft ?? { ...EMPTY_MOVIE };
+        const editIndex = typeof (form as any).__movieEditIndex === 'number' ? (form as any).__movieEditIndex : null;
+        const setDraft = (patch: Partial<CelebrityMovie>) =>
+          setForm((f) => ({ ...f, __movieDraft: { ...((f as any).__movieDraft ?? EMPTY_MOVIE), ...patch } }));
+        const clearDraft = () =>
+          setForm((f) => {
+            const next = { ...f };
+            delete (next as any).__movieDraft;
+            delete (next as any).__movieEditIndex;
+            return next;
+          });
+
+        const commitMovie = () => {
+          if (!draft.name.trim()) return;
+          const nextMovie = {
+            ...(editIndex !== null ? movies[editIndex] : {}),
+            name: draft.name.trim(),
+            role: draft.role.trim(),
+            year: draft.year.trim(),
+            director: draft.director.trim(),
+            genre: draft.genre.trim(),
+            description: draft.description.trim(),
+          };
+          setField(
+            'movies',
+            editIndex !== null
+              ? movies.map((movie, index) => (index === editIndex ? nextMovie : movie))
+              : [...movies, nextMovie]
+          );
+          clearDraft();
+        };
+
+        const editMovie = (i: number) =>
+          setForm((f) => ({ ...f, __movieDraft: { ...movies[i] }, __movieEditIndex: i }));
+
+        const removeMovie = (i: number) => {
+          setField('movies', movies.filter((_, idx) => idx !== i));
+          if (editIndex === i) clearDraft();
+          if (editIndex !== null && editIndex > i) {
+            setForm((f) => ({ ...f, __movieEditIndex: editIndex - 1 }));
+          }
+        };
+
+        const inputCls = 'w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all';
+        const labelCls = 'block text-[10px] font-medium text-neutral-500 mb-1.5 font-montserrat uppercase tracking-wider';
+
+        return (
+          <div className="space-y-6">
+
+            {/* ── Add movie form ─────────────────────────────────── */}
+            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold text-yellow-400 font-montserrat uppercase tracking-wider flex items-center gap-2">
+                  <Icon name="FilmIcon" size={13} /> {editIndex !== null ? 'Edit Movie' : 'Add a Movie'}
+                </p>
+                {editIndex !== null && (
+                  <span className="text-[11px] text-neutral-400 font-montserrat">
+                    Editing item #{editIndex + 1}
+                  </span>
+                )}
+              </div>
+
+              {/* Name + Year on one row */}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Movie Name *</label>
+                  <input type="text" value={draft.name} onChange={(e) => setDraft({ name: e.target.value })}
+                    placeholder="e.g. Vicky Donor" className={inputCls} />
+                </div>
+                <div className="w-full sm:w-24 shrink-0">
+                  <label className={labelCls}>Year</label>
+                  <input type="text" value={draft.year}
+                    onChange={(e) => setDraft({ year: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
+                    placeholder="2012" maxLength={4} className={inputCls} />
+                </div>
+              </div>
+
+              {/* Role + Director */}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Role</label>
+                  <input type="text" value={draft.role} onChange={(e) => setDraft({ role: e.target.value })}
+                    placeholder="e.g. Lead Actor" className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Director</label>
+                  <input type="text" value={draft.director} onChange={(e) => setDraft({ director: e.target.value })}
+                    placeholder="e.g. Shoojit Sircar" className={inputCls} />
+                </div>
+              </div>
+
+              {/* Genre */}
+              <div>
+                <label className={labelCls}>Genre</label>
+                <input type="text" value={draft.genre} onChange={(e) => setDraft({ genre: e.target.value })}
+                  placeholder="e.g. Romantic Comedy, Drama" className={inputCls} />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className={labelCls}>Description</label>
+                <textarea rows={2} value={draft.description} onChange={(e) => setDraft({ description: e.target.value })}
+                  placeholder="e.g. Ayushmann Khurrana made his Bollywood debut as Vicky Arora, a carefree…"
+                  className={`${inputCls} resize-none`} />
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button type="button" onClick={commitMovie}
+                  disabled={!draft.name.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-yellow-500 text-black text-xs font-semibold font-montserrat hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                  <Icon name={editIndex !== null ? 'PencilSquareIcon' : 'PlusIcon'} size={13} /> {editIndex !== null ? 'Save Changes' : 'Add to List'}
+                </button>
+                {(draft.name || draft.role || draft.year || draft.director || draft.genre || draft.description) && (
+                  <button type="button" onClick={clearDraft}
+                    className="px-4 py-2 rounded-xl text-xs text-neutral-400 hover:text-white font-montserrat transition-all">
+                    {editIndex !== null ? 'Cancel Edit' : 'Clear'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ── Added movies list ──────────────────────────────── */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1 h-4 rounded-full bg-primary inline-block" />
+                <p className="text-xs font-semibold text-white font-montserrat uppercase tracking-wider">
+                  Filmography
+                </p>
+                <span className="text-xs text-neutral-500 font-montserrat">
+                  ({movies.length} film{movies.length !== 1 ? 's' : ''})
+                </span>
+              </div>
+
+              {movies.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-10 rounded-2xl border border-dashed border-white/8 text-center">
+                  <Icon name="FilmIcon" size={24} className="text-neutral-700" />
+                  <p className="text-sm text-neutral-600 font-montserrat">No movies added yet</p>
+                  <p className="text-xs text-neutral-700 font-montserrat">Fill in the form above and click &ldquo;Add to List&rdquo;</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {movies.map((movie, i) => (
+                    <div key={i}
+                      className={`flex flex-col gap-3 px-4 py-3 rounded-xl border bg-white/3 transition-colors sm:flex-row sm:items-start ${editIndex === i ? 'border-primary/40 bg-primary/5' : 'border-white/6 hover:border-white/12'} group`}>
+                      {/* Year pill */}
+                      <span className="shrink-0 mt-0.5 text-xs font-bold text-primary font-montserrat w-10 text-left sm:text-center">
+                        {movie.year || '—'}
+                      </span>
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-white font-montserrat truncate">{movie.name}</span>
+                          {movie.role && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-montserrat shrink-0">
+                              {movie.role}
+                            </span>
+                          )}
+                          {movie.genre && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-neutral-400 font-montserrat shrink-0">
+                              {movie.genre}
+                            </span>
+                          )}
+                        </div>
+                        {movie.director && (
+                          <p className="text-xs text-neutral-500 font-montserrat mt-0.5">Dir. {movie.director}</p>
+                        )}
+                        {movie.description && (
+                          <p className="text-xs text-neutral-600 font-montserrat mt-0.5 line-clamp-1">{movie.description}</p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
+                        <button
+                          type="button"
+                          onClick={() => editMovie(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-primary/10 hover:text-primary transition-all"
+                          title="Edit"
+                        >
+                          <Icon name="PencilSquareIcon" size={13} />
+                        </button>
+                        <button type="button" onClick={() => removeMovie(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-red-500/15 hover:text-red-400 transition-all"
+                          title="Remove">
+                          <Icon name="TrashIcon" size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         );
@@ -1792,8 +2007,8 @@ export default function CelebrityManagementSection() {
       </div>}
 
       {/* Controls */}
-      <div className="glass-card rounded-2xl p-5">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div className="glass-card rounded-2xl p-4 sm:p-5">
+        <div className="flex flex-col xl:flex-row gap-3">
           <div className="flex-1 relative">
             <Icon name="MagnifyingGlassIcon" size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500" />
             <input
@@ -1807,7 +2022,7 @@ export default function CelebrityManagementSection() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
+            className="w-full xl:w-auto min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
           >
             <option value="">All Statuses</option>
             <option value="published">Published</option>
@@ -1817,7 +2032,7 @@ export default function CelebrityManagementSection() {
           <select
             value={limit}
             onChange={(e) => fetchList(1, Number(e.target.value))}
-            className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
+            className="w-full xl:w-auto min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
           >
             {PAGE_SIZES.map((s) => <option key={s} value={s}>{s} / page</option>)}
           </select>
@@ -1825,14 +2040,14 @@ export default function CelebrityManagementSection() {
             onClick={() => fetchList(page)}
             disabled={loading}
             title="Refresh"
-            className="px-3 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-40"
+            className="w-full sm:w-auto px-3 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-40"
           >
             <Icon name="ArrowPathIcon" size={16} className={loading ? 'animate-spin' : ''} />
           </button>
           {panelMode === 'add' ? (
             <button
               onClick={closePanel}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 font-semibold font-montserrat text-sm hover:bg-white/20 transition-all"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 font-semibold font-montserrat text-sm hover:bg-white/20 transition-all"
             >
               <Icon name="ChevronLeftIcon" size={16} />
               Back to List
@@ -1840,7 +2055,7 @@ export default function CelebrityManagementSection() {
           ) : (
             <button
               onClick={openAdd}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all"
             >
               <Icon name="PlusIcon" size={16} />
               Add Celebrity
@@ -1862,21 +2077,21 @@ export default function CelebrityManagementSection() {
       {panelMode && (
         <div ref={panelRef} className="glass-card rounded-2xl border border-yellow-500/20 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6 border-b border-white/10">
+            <div className="flex min-w-0 items-center gap-3">
               <div className="p-2.5 rounded-xl bg-yellow-500/10">
                 <Icon name={panelMode === 'add' ? 'UserPlusIcon' : 'PencilSquareIcon'} size={20} className="text-yellow-400" />
               </div>
-              <div>
-                <h3 className="font-playfair text-lg font-bold text-white">
+              <div className="min-w-0">
+                <h3 className="font-playfair text-base sm:text-lg font-bold text-white truncate">
                   {panelMode === 'add' ? 'Add New Celebrity' : `Editing — ${form.name || '...'}`}
                 </h3>
-                <p className="text-neutral-500 text-xs font-montserrat">
+                <p className="text-neutral-500 text-xs font-montserrat leading-relaxed">
                   {panelMode === 'add' ? 'Fill in details across tabs — only Name and Slug are required' : 'Update celebrity profile details'}
                 </p>
               </div>
             </div>
-            <button onClick={closePanel} className="p-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all">
+            <button onClick={closePanel} className="self-end sm:self-auto p-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all">
               <Icon name="XMarkIcon" size={18} />
             </button>
           </div>
@@ -1889,13 +2104,13 @@ export default function CelebrityManagementSection() {
           ) : (
             <form onSubmit={panelMode === 'add' ? handleCreate : handleUpdate}>
               {/* Tab bar */}
-              <div className="flex gap-1 px-6 pt-5 pb-1 overflow-x-auto border-b border-white/10">
+              <div className="flex gap-1 px-3 pt-4 pb-1 sm:px-6 overflow-x-auto border-b border-white/10">
                 {TABS.map((t) => (
                   <button
                     key={t.key}
                     type="button"
                     onClick={() => setFormTab(t.key)}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-sm font-medium font-montserrat whitespace-nowrap transition-all ${
+                    className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-t-xl text-xs sm:text-sm font-medium font-montserrat whitespace-nowrap transition-all ${
                       formTab === t.key
                         ? 'bg-yellow-500 text-black'
                         : 'text-neutral-400 hover:text-white hover:bg-white/10'
@@ -1908,7 +2123,7 @@ export default function CelebrityManagementSection() {
               </div>
 
               {/* Tab content */}
-              <div className="px-6 py-5 min-h-[360px]">
+              <div className="px-3 py-4 sm:px-6 sm:py-5 min-h-[360px] overflow-x-hidden">
                 {formApiError && (
                   <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
                     <p className="text-red-400 text-sm font-montserrat text-center">{formApiError}</p>
@@ -1918,20 +2133,20 @@ export default function CelebrityManagementSection() {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-white/10 bg-white/2">
+              <div className="flex flex-col gap-3 px-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 border-t border-white/10 bg-white/2">
                 <p className="text-neutral-600 text-xs font-montserrat">* Name and Slug are required</p>
-                <div className="flex gap-3">
+                <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
                   <button
                     type="button"
                     onClick={closePanel}
-                    className="px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={formLoading}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {formLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
                     {formLoading
