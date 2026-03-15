@@ -1032,13 +1032,13 @@ export default function NewsManagementSection() {
       {panelMode && (
         <div ref={panelRef} className="glass-card rounded-2xl border border-yellow-500/20 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-yellow-500/10">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-4 border-b border-white/10">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="p-2.5 rounded-xl bg-yellow-500/10 shrink-0">
                 <Icon name={panelMode === 'add' ? 'PlusCircleIcon' : 'PencilSquareIcon'} size={20} className="text-yellow-400" />
               </div>
-              <div>
-                <h3 className="font-playfair text-lg font-bold text-white">
+              <div className="min-w-0">
+                <h3 className="font-playfair text-base sm:text-lg font-bold text-white truncate">
                   {panelMode === 'add' ? 'Add News Article' : `Editing — ${form.title || '...'}`}
                 </h3>
                 <p className="text-neutral-500 text-xs font-montserrat">
@@ -1046,7 +1046,7 @@ export default function NewsManagementSection() {
                 </p>
               </div>
             </div>
-            <button onClick={closePanel} className="p-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all">
+            <button onClick={closePanel} className="p-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all self-end sm:self-auto">
               <Icon name="XMarkIcon" size={18} />
             </button>
           </div>
@@ -1083,16 +1083,16 @@ export default function NewsManagementSection() {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-white/10">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-4 border-t border-white/10">
                 <p className="text-neutral-600 text-xs font-montserrat">* Required fields</p>
-                <div className="flex gap-3">
+                <div className="flex gap-3 sm:ml-auto">
                   <button type="button" onClick={closePanel}
-                    className="px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
+                    className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
                   >
                     Cancel
                   </button>
                   <button type="submit" disabled={formLoading}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {formLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
                     {formLoading
@@ -1109,8 +1109,8 @@ export default function NewsManagementSection() {
       {/* Table */}
       {panelMode !== 'add' && (
         <div className="glass-card rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-playfair text-xl font-bold text-white">Celebrity News</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-5">
+            <h3 className="font-playfair text-xl font-bold text-white flex-1">Celebrity News</h3>
             {!loading && (
               <span className="text-neutral-400 text-sm font-montserrat">
                 {total > 0 ? `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total}` : '0 results'}
@@ -1122,9 +1122,12 @@ export default function NewsManagementSection() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/10">
-                  {['Article', 'Author', 'Category', 'Published', 'Featured', 'Actions'].map((h) => (
-                    <th key={h} className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">{h}</th>
-                  ))}
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Article</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden md:table-cell">Author</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Category</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden lg:table-cell">Published</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Featured</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1158,22 +1161,22 @@ export default function NewsManagementSection() {
                           </div>
                         </td>
                         {/* Author */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden md:table-cell">
                           <p className="text-neutral-300 text-sm font-montserrat">{n.author || '—'}</p>
                         </td>
                         {/* Category */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden sm:table-cell">
                           {n.category
                             ? <span className="px-2 py-0.5 rounded-lg bg-blue-500/10 text-blue-400 text-xs font-montserrat">{n.category}</span>
                             : <span className="text-neutral-600 text-xs font-montserrat">—</span>
                           }
                         </td>
                         {/* Published */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden lg:table-cell">
                           <p className="text-neutral-400 text-xs font-montserrat">{formatDate(n.publishDate || n.createdAt)}</p>
                         </td>
                         {/* Featured */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden sm:table-cell">
                           <button onClick={() => handleToggleFeatured(n)} title={n.featured ? 'Unfeature' : 'Feature'}
                             className={`w-10 h-5 rounded-full transition-all relative ${n.featured ? 'bg-yellow-500' : 'bg-white/10'}`}
                           >

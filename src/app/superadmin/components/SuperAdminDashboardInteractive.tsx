@@ -50,6 +50,7 @@ const stats = [
 export default function SuperAdminDashboardInteractive() {
   const [activeSection, setActiveSection] = useState<SectionType>('overview');
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -83,17 +84,40 @@ export default function SuperAdminDashboardInteractive() {
   return (
     <div className="flex min-h-screen bg-background">
 
+      {/* ── Mobile overlay backdrop ──────────────────────────────────────── */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm xl:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      <aside className={`fixed top-0 left-0 bottom-0 z-40 flex flex-col glass-card border-r border-white/10 transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-64'}`}>
+      {/* On mobile: slides in from left as drawer (translate-x-0 when open, -translate-x-full when closed)
+          On lg+: always visible, collapses to icon-only */}
+      <aside className={`
+        fixed top-0 left-0 bottom-0 z-40 flex flex-col glass-card border-r border-white/10 transition-all duration-300
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        xl:translate-x-0
+        ${collapsed ? 'xl:w-[72px]' : 'xl:w-64'}
+        w-64
+      `}>
 
         {/* Brand */}
-        <div className={`flex items-center gap-3 px-5 py-9 border-b border-white/10 ${collapsed ? 'justify-center px-0' : ''}`}>
-          <Link href="/homepage" className="flex items-center gap-2 shrink-0">
+        <div className={`flex items-center gap-3 px-5 py-9 border-b border-white/10 ${collapsed ? 'xl:justify-center xl:px-0' : ''}`}>
+          <Link href="/homepage" className="flex items-center gap-2 shrink-0" onClick={() => setMobileOpen(false)}>
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center shrink-0">
               <Icon name="StarIcon" size={18} className="text-black" />
             </div>
-            {!collapsed && <span className="font-playfair text-lg font-bold text-white">CelebrityPersona</span>}
+            <span className={`font-playfair text-lg font-bold text-white ${collapsed ? 'xl:hidden' : ''}`}>CelebrityPersona</span>
           </Link>
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="ml-auto p-1 rounded-lg text-neutral-400 hover:text-white xl:hidden"
+          >
+            <Icon name="XMarkIcon" size={20} />
+          </button>
         </div>
 
         {/* Nav */}
@@ -101,16 +125,16 @@ export default function SuperAdminDashboardInteractive() {
           {menuItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveSection(item.id)}
+              onClick={() => { setActiveSection(item.id); setMobileOpen(false); }}
               title={collapsed ? item.label : undefined}
               className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition-all ${
                 activeSection === item.id
                   ? 'bg-yellow-500 text-black font-semibold'
                   : 'text-neutral-400 hover:text-white hover:bg-white/5'
-              } ${collapsed ? 'justify-center' : ''}`}
+              } ${collapsed ? 'xl:justify-center' : ''}`}
             >
               <Icon name={item.icon as any} size={20} className="shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              <span className={collapsed ? 'xl:hidden' : ''}>{item.label}</span>
             </button>
           ))}
         </nav>
@@ -118,59 +142,66 @@ export default function SuperAdminDashboardInteractive() {
         {/* Bottom actions */}
         <div className="px-3 py-4 border-t border-white/10 space-y-1">
           <Link href="/homepage"
-            className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-neutral-400 hover:text-white hover:bg-white/5 transition-all ${collapsed ? 'justify-center' : ''}`}
+            className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-neutral-400 hover:text-white hover:bg-white/5 transition-all ${collapsed ? 'xl:justify-center' : ''}`}
             title={collapsed ? 'Home' : undefined}
+            onClick={() => setMobileOpen(false)}
           >
             <Icon name="HomeIcon" size={20} className="shrink-0" />
-            {!collapsed && <span>Home</span>}
+            <span className={collapsed ? 'xl:hidden' : ''}>Home</span>
           </Link>
           <button
             onClick={handleLogout}
             disabled={logoutLoading}
             title={collapsed ? 'Sign Out' : undefined}
-            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all disabled:opacity-50 ${collapsed ? 'justify-center' : ''}`}
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all disabled:opacity-50 ${collapsed ? 'xl:justify-center' : ''}`}
           >
             <Icon name="ArrowRightOnRectangleIcon" size={20} className="shrink-0" />
-            {!collapsed && <span>{logoutLoading ? 'Signing out...' : 'Sign Out'}</span>}
+            <span className={collapsed ? 'xl:hidden' : ''}>{logoutLoading ? 'Signing out...' : 'Sign Out'}</span>
           </button>
         </div>
 
-        {/* Collapse toggle */}
+        {/* Collapse toggle — desktop only */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center hover:scale-110 transition-transform z-50"
+          className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-yellow-500 items-center justify-center hover:scale-110 transition-transform z-50 hidden xl:flex"
         >
           <Icon name={collapsed ? 'ChevronRightIcon' : 'ChevronLeftIcon'} size={14} className="text-black" />
         </button>
       </aside>
 
       {/* ── Main content ─────────────────────────────────────────────── */}
-      <main className={`flex-1 transition-all duration-300 ${collapsed ? 'ml-[72px]' : 'ml-64'}`}>
+      <main className={`flex-1 min-w-0 transition-all duration-300 ${collapsed ? 'xl:ml-[72px]' : 'xl:ml-64'}`}>
         {/* Top bar */}
-        <div className="sticky top-0 z-30 glass-card border-b border-white/10 px-6 py-4 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">Super Admin Panel</span>
-            </div>
-            <h1 className="font-playfair text-2xl font-bold text-white">{active.label}</h1>
-            <p className="text-neutral-400 text-sm">{active.desc}</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex flex-col text-left max-w-[220px]">
-                <span className="text-sm text-white font-semibold truncate">{user?.name}</span>
-                <span className="text-xs text-neutral-400 truncate hidden md:block">{user?.email}</span>
-                <span className="text-xs text-neutral-500 truncate hidden md:block">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-              </div>
+        <div className="sticky top-0 z-30 glass-card border-b border-white/10 px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3">
+          {/* Hamburger — mobile only */}
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="p-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all xl:hidden shrink-0"
+          >
+            <Icon name="Bars3Icon" size={20} />
+          </button>
 
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center">
-                <Icon name="StarIcon" size={16} className="text-black" />
-              </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full whitespace-nowrap">Super Admin Panel</span>
+            </div>
+            <h1 className="font-playfair text-lg sm:text-2xl font-bold text-white truncate">{active.label}</h1>
+            <p className="text-neutral-400 text-xs sm:text-sm hidden sm:block truncate">{active.desc}</p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="hidden sm:flex flex-col text-left max-w-[180px]">
+              <span className="text-sm text-white font-semibold truncate">{user?.name}</span>
+              <span className="text-xs text-neutral-400 truncate hidden md:block">{user?.email}</span>
+              <span className="text-xs text-neutral-500 truncate hidden lg:block">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            </div>
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center shrink-0">
+              <Icon name="StarIcon" size={16} className="text-black" />
             </div>
           </div>
         </div>
 
-        <div className="p-6 md:p-10 max-w-7xl mx-auto">
+        <div className="p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto">
           <div className="animate-fade-in-up">{renderContent()}</div>
         </div>
       </main>

@@ -1054,13 +1054,13 @@ export default function OutfitManagementSection() {
       {panelMode && (
         <div ref={panelRef} className="glass-card rounded-2xl border border-yellow-500/20 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-yellow-500/10">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-4 border-b border-white/10">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="p-2.5 rounded-xl bg-yellow-500/10 shrink-0">
                 <Icon name={panelMode === 'add' ? 'PlusCircleIcon' : 'PencilSquareIcon'} size={20} className="text-yellow-400" />
               </div>
-              <div>
-                <h3 className="font-playfair text-lg font-bold text-white">
+              <div className="min-w-0">
+                <h3 className="font-playfair text-base sm:text-lg font-bold text-white truncate">
                   {panelMode === 'add' ? 'Add New Outfit' : `Editing — ${form.title || '...'}`}
                 </h3>
                 <p className="text-neutral-500 text-xs font-montserrat">
@@ -1068,7 +1068,7 @@ export default function OutfitManagementSection() {
                 </p>
               </div>
             </div>
-            <button onClick={closePanel} className="p-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all">
+            <button onClick={closePanel} className="self-end sm:self-auto p-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all">
               <Icon name="XMarkIcon" size={18} />
             </button>
           </div>
@@ -1105,16 +1105,16 @@ export default function OutfitManagementSection() {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-white/10">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-4 border-t border-white/10">
                 <p className="text-neutral-600 text-xs font-montserrat">* Required fields</p>
-                <div className="flex gap-3">
+                <div className="flex gap-3 sm:ml-auto">
                   <button type="button" onClick={closePanel}
-                    className="px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
+                    className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
                   >
                     Cancel
                   </button>
                   <button type="submit" disabled={formLoading}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {formLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
                     {formLoading
@@ -1131,7 +1131,7 @@ export default function OutfitManagementSection() {
       {/* Table */}
       {panelMode !== 'add' && (
         <div className="glass-card rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
             <h3 className="font-playfair text-xl font-bold text-white">Celebrity Outfits</h3>
             {!loading && (
               <span className="text-neutral-400 text-sm font-montserrat">
@@ -1144,20 +1144,24 @@ export default function OutfitManagementSection() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/10">
-                  {['Outfit', 'Celebrity', 'Brand / Category', 'Price', 'Status', 'Actions'].map((h) => (
-                    <th key={h} className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">{h}</th>
-                  ))}
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Outfit</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden md:table-cell">Celebrity</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden lg:table-cell">Brand / Category</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Price</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Status</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading
                   ? skeletonRows.map((_, i) => (
                       <tr key={i} className="border-b border-white/5">
-                        {[200, 140, 120, 70, 80, 80].map((w, j) => (
-                          <td key={j} className="py-3.5 px-3">
-                            <div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: w }} />
-                          </td>
-                        ))}
+                        <td className="py-3.5 px-3"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 200 }} /></td>
+                        <td className="py-3.5 px-3 hidden md:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 140 }} /></td>
+                        <td className="py-3.5 px-3 hidden lg:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 120 }} /></td>
+                        <td className="py-3.5 px-3 hidden sm:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 70 }} /></td>
+                        <td className="py-3.5 px-3 hidden sm:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 80 }} /></td>
+                        <td className="py-3.5 px-3"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 80 }} /></td>
                       </tr>
                     ))
                   : outfits.map((o) => (
@@ -1183,22 +1187,22 @@ export default function OutfitManagementSection() {
                           </div>
                         </td>
                         {/* Celebrity */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden md:table-cell">
                           <p className="text-neutral-300 text-sm font-montserrat">{getCelebrityName(o.celebrity)}</p>
                           {o.designer && <p className="text-neutral-600 text-xs font-montserrat">by {o.designer}</p>}
                         </td>
                         {/* Brand / Category */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden lg:table-cell">
                           {o.brand && <p className="text-neutral-300 text-sm font-montserrat">{o.brand}</p>}
                           {o.category && <p className="text-neutral-500 text-xs font-montserrat">{o.category}</p>}
                           {!o.brand && !o.category && <span className="text-neutral-600 text-xs font-montserrat">—</span>}
                         </td>
                         {/* Price */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden sm:table-cell">
                           <span className="text-yellow-400 font-bold font-montserrat text-sm">{o.price || '—'}</span>
                         </td>
                         {/* Status */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden sm:table-cell">
                           <div className="flex flex-col gap-1">
                             <button onClick={() => handleToggle(o)} title={o.isActive ? 'Deactivate' : 'Activate'}
                               className={`w-10 h-5 rounded-full transition-all relative ${o.isActive ? 'bg-emerald-500' : 'bg-white/10'}`}
