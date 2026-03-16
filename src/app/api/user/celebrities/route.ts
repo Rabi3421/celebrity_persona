@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Celebrity from '@/models/Celebrity';
+import { normalizeStoredNetWorth } from '@/lib/netWorth';
 
 // ── API Key guard ─────────────────────────────────────────────────────────────
 function isAuthorized(req: NextRequest): boolean {
@@ -98,7 +99,7 @@ export async function GET(request: NextRequest) {
       isVerified:   d.isVerified   || false,
       popularityScore: d.popularityScore || 0,
       viewCount:    d.viewCount    || 0,
-      netWorth:     d.netWorth     || '',
+      netWorth:     normalizeStoredNetWorth(d.netWorth) || '',
       nationality:  d.nationality  || '',
       yearsActive:  d.yearsActive  || '',
       // count movies

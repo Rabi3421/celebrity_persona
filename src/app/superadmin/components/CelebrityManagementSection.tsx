@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import { buildNetWorthString, parseNetWorthString } from '@/lib/netWorth';
 import { useAuth } from '@/context/AuthContext';
 import { uploadImage, deleteImage } from '@/lib/imageUpload';
 
@@ -118,6 +119,7 @@ interface CelebrityFull extends CelebrityRow {
     articleSection?: string;
     readingTime?: string;
   };
+  marriages?: { name?: string; marriedYear?: string; divorcedYear?: string; currentlyMarried?: boolean }[];
 }
 
 type FormTab = 'basic' | 'biography' | 'social' | 'movies' | 'awards' | 'meta' | 'images';
@@ -133,6 +135,7 @@ const EMPTY_FORM: CelebrityFull = {
   netWorthAmount: '', netWorthUnit: 'USD',
   achievements: [], controversies: [], achievementsHtml: '', controversiesHtml: '',
   philanthropy: [], trivia: [], works: [], movies: [], awards: [],
+  marriages: [],
   quotes: [], tags: [], categories: [], language: 'en', profileImage: '',
   coverImage: '', galleryImages: [],
   status: 'draft', contentQuality: 'draft', isActive: true, isFeatured: false, isVerified: false,
@@ -204,28 +207,8 @@ const computeAge = (born?: string) => {
   return age >= 0 ? age : undefined;
 };
 
-const computeNetWorthString = (amount?: string, unit?: string) => {
-  if (!amount) return '';
-  const a = String(amount).trim();
-  if (!a) return '';
-  if (!unit) unit = 'USD';
-  if (unit === 'INR') return `₹${a}`;
-  if (unit === 'M') return `$${a}M`;
-  if (unit === 'B') return `$${a}B`;
-  return (unit === 'USD') ? `$${a}` : `${a} ${unit}`;
-};
-
-const parseNetWorth = (raw?: string) => {
-  const r = String(raw || '').trim();
-  if (!r) return { amount: '', unit: 'USD' };
-  const num = r.replace(/[^0-9.]/g, '');
-  if (r.includes('₹') || /inr/i.test(r) || /rs\.?/i.test(r)) return { amount: num, unit: 'INR' };
-  if (/[mM]\b/.test(r)) return { amount: num, unit: 'M' };
-  if (/[bB]\b/.test(r)) return { amount: num, unit: 'B' };
-  if (r.includes('$') || /usd/i.test(r)) return { amount: num, unit: 'USD' };
-  // fallback: numeric only
-  return { amount: num, unit: 'USD' };
-};
+const computeNetWorthString = buildNetWorthString;
+const parseNetWorth = parseNetWorthString;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
@@ -321,7 +304,7 @@ function WeightInput({ label, value, onChange, placeholder }:
   const inputClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
 
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 mt-4">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
         <select value={unit} onChange={(e) => setUnit(e.target.value as any)} className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
@@ -337,78 +320,97 @@ function WeightInput({ label, value, onChange, placeholder }:
 function BodyMeasurementsInput({ label, value, onChange }:
   { label: string; value: string; onChange: (v: string) => void }) {
   const [gender, setGender] = useState<'Boy'|'Girl'>('Boy');
+  const [unit, setUnit] = useState<'cm'|'in'>('cm');
   const [chest, setChest] = useState('');
   const [waist, setWaist] = useState('');
   const [hips, setHips] = useState('');
-  // removed inseam/dress per request
   const [bust, setBust] = useState('');
 
+  // Parse stored value back into fields on load/edit
   useEffect(() => {
     const v = (value || '').trim();
-    if (!v) { setGender('Boy'); setChest(''); setWaist(''); setHips(''); setBust(''); return; }
+    if (!v) { setGender('Boy'); setUnit('cm'); setChest(''); setWaist(''); setHips(''); setBust(''); return; }
+    // detect unit
+    setUnit(/\bin\b|inches/i.test(v) ? 'in' : 'cm');
     if (/girl|female|bust/i.test(v)) {
       setGender('Girl');
-      const mBust = v.match(/bust[:\s]*(\d+(?:\.\d+)?)/i);
+      const mBust  = v.match(/bust[:\s]*(\d+(?:\.\d+)?)/i);
       const mWaist = v.match(/waist[:\s]*(\d+(?:\.\d+)?)/i);
-      const mHips = v.match(/hips[:\s]*(\d+(?:\.\d+)?)/i);
+      const mHips  = v.match(/hips[:\s]*(\d+(?:\.\d+)?)/i);
       setBust(mBust?.[1] || ''); setWaist(mWaist?.[1] || ''); setHips(mHips?.[1] || '');
       setChest('');
     } else {
       setGender('Boy');
       const mChest = v.match(/chest[:\s]*(\d+(?:\.\d+)?)/i);
       const mWaist = v.match(/waist[:\s]*(\d+(?:\.\d+)?)/i);
-      const mHips = v.match(/hips[:\s]*(\d+(?:\.\d+)?)/i);
+      const mHips  = v.match(/hips[:\s]*(\d+(?:\.\d+)?)/i);
       setChest(mChest?.[1] || ''); setWaist(mWaist?.[1] || ''); setHips(mHips?.[1] || '');
       setBust('');
     }
   }, [value]);
 
+  // Build stored string whenever any field changes
   useEffect(() => {
+    const u = unit === 'cm' ? 'cm' : 'in';
     let out = '';
     if (gender === 'Boy') {
-      const parts = [] as string[];
-      if (chest) parts.push(`Chest:${chest}`);
-      if (waist) parts.push(`Waist:${waist}`);
-      if (hips) parts.push(`Hips:${hips}`);
+      const parts: string[] = [];
+      if (chest) parts.push(`Chest:${chest}${u}`);
+      if (waist) parts.push(`Waist:${waist}${u}`);
+      if (hips)  parts.push(`Hips:${hips}${u}`);
       out = parts.join(', ');
     } else {
-      const parts = [] as string[];
-      if (bust) parts.push(`Bust:${bust}`);
-      if (waist) parts.push(`Waist:${waist}`);
-      if (hips) parts.push(`Hips:${hips}`);
+      const parts: string[] = [];
+      if (bust)  parts.push(`Bust:${bust}${u}`);
+      if (waist) parts.push(`Waist:${waist}${u}`);
+      if (hips)  parts.push(`Hips:${hips}${u}`);
       out = parts.join(', ');
     }
-    const final = out ? `${finalizeGender(gender)}| ${out}` : '';
-    onChange(final);
+    const prefix = gender === 'Boy' ? 'BoyMeasurements' : 'GirlMeasurements';
+    onChange(out ? `${prefix}| ${out}` : '');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gender, chest, waist, hips, bust]);
+  }, [gender, unit, chest, waist, hips, bust]);
 
-  const inputClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
-
-  function finalizeGender(g: 'Boy'|'Girl') { return g === 'Boy' ? 'BoyMeasurements' : 'GirlMeasurements'; }
+  const selectClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer transition-all";
+  const inputClass  = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
+  const unitLabel   = unit === 'cm' ? 'cm' : 'in';
 
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 mt-4">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
+
+      {/* Controls row: Gender + Unit */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center mb-2">
-        <select value={gender} onChange={(e) => setGender(e.target.value as any)} className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
-          <option value="Boy" style={{ color: '#111' }}>Boy</option>
-          <option value="Girl" style={{ color: '#111' }}>Girl</option>
+        <select
+          value={gender}
+          onChange={(e) => setGender(e.target.value as 'Boy'|'Girl')}
+          className={`${selectClass} sm:col-span-2`}
+        >
+          <option value="Boy"  style={{ background: '#1c1033', color: '#fff' }}>Boy</option>
+          <option value="Girl" style={{ background: '#1c1033', color: '#fff' }}>Girl</option>
         </select>
-        <div className="sm:col-span-2 text-neutral-500 text-xs">Choose athlete gender to show measurement fields</div>
+        <select
+          value={unit}
+          onChange={(e) => setUnit(e.target.value as 'cm'|'in')}
+          className={`${selectClass} w-full`}
+        >
+          <option value="cm" style={{ background: '#1c1033', color: '#fff' }}>cm</option>
+          <option value="in" style={{ background: '#1c1033', color: '#fff' }}>inches (in)</option>
+        </select>
       </div>
 
+      {/* Measurement fields */}
       {gender === 'Boy' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
-          <input className={inputClass} placeholder="Chest (cm)" value={chest} onChange={(e) => setChest(e.target.value.replace(/[^0-9.]/g, ''))} />
-          <input className={inputClass} placeholder="Waist (cm)" value={waist} onChange={(e) => setWaist(e.target.value.replace(/[^0-9.]/g, ''))} />
-          <input className={inputClass} placeholder="Hips (cm)" value={hips} onChange={(e) => setHips(e.target.value.replace(/[^0-9.]/g, ''))} />
+          <input className={inputClass} placeholder={`Chest (${unitLabel})`} value={chest} onChange={(e) => setChest(e.target.value.replace(/[^0-9.]/g, ''))} />
+          <input className={inputClass} placeholder={`Waist (${unitLabel})`} value={waist} onChange={(e) => setWaist(e.target.value.replace(/[^0-9.]/g, ''))} />
+          <input className={inputClass} placeholder={`Hips (${unitLabel})`}  value={hips}  onChange={(e) => setHips(e.target.value.replace(/[^0-9.]/g, ''))} />
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
-          <input className={inputClass} placeholder="Bust (cm)" value={bust} onChange={(e) => setBust(e.target.value.replace(/[^0-9.]/g, ''))} />
-          <input className={inputClass} placeholder="Waist (cm)" value={waist} onChange={(e) => setWaist(e.target.value.replace(/[^0-9.]/g, ''))} />
-          <input className={inputClass} placeholder="Hips (cm)" value={hips} onChange={(e) => setHips(e.target.value.replace(/[^0-9.]/g, ''))} />
+          <input className={inputClass} placeholder={`Bust (${unitLabel})`}  value={bust}  onChange={(e) => setBust(e.target.value.replace(/[^0-9.]/g, ''))} />
+          <input className={inputClass} placeholder={`Waist (${unitLabel})`} value={waist} onChange={(e) => setWaist(e.target.value.replace(/[^0-9.]/g, ''))} />
+          <input className={inputClass} placeholder={`Hips (${unitLabel})`}  value={hips}  onChange={(e) => setHips(e.target.value.replace(/[^0-9.]/g, ''))} />
         </div>
       )}
     </div>
@@ -444,6 +446,100 @@ function LabeledMultiline({ label, value, onChange, placeholder }:
         placeholder={placeholder}
         className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
       />
+    </div>
+  );
+}
+
+type MarriageEntry = { name?: string; marriedYear?: string; divorcedYear?: string; currentlyMarried?: boolean };
+
+function MarriagesInput({ label, value, onChange }:
+  { label: string; value: MarriageEntry[]; onChange: (v: MarriageEntry[]) => void }) {
+  const inputClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed";
+
+  const [local, setLocal] = useState<MarriageEntry[]>(value || []);
+
+  useEffect(() => { setLocal(value || []); }, [value]);
+
+  const propagate = (arr: MarriageEntry[]) => { setLocal(arr); onChange(arr); };
+
+  const update = (idx: number, patch: Partial<MarriageEntry>) => {
+    const copy = local.map((m) => ({ ...m }));
+    copy[idx] = { ...copy[idx], ...patch };
+    propagate(copy);
+  };
+
+  const add = () => propagate([...local, { name: '', marriedYear: '', divorcedYear: '', currentlyMarried: false }]);
+  const remove = (idx: number) => propagate(local.filter((_, i) => i !== idx));
+
+  const lastIdx = local.length - 1;
+
+  return (
+    <div className="min-w-0">
+      <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
+      <div className="space-y-3">
+        {local.map((m, idx) => {
+          const isLast = idx === lastIdx;
+          const isCurrent = isLast && !!m.currentlyMarried;
+          return (
+            <div key={idx} className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+              {/* Row: name + years */}
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-center">
+                <input
+                  value={m.name || ''}
+                  onChange={(e) => update(idx, { name: e.target.value })}
+                  placeholder="Spouse name"
+                  className={`${inputClass} sm:col-span-2`}
+                />
+                <input
+                  value={m.marriedYear || ''}
+                  onChange={(e) => update(idx, { marriedYear: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  placeholder="Married (year)"
+                  className={`${inputClass} sm:col-span-1`}
+                  inputMode="numeric"
+                />
+                <input
+                  value={m.divorcedYear || ''}
+                  onChange={(e) => update(idx, { divorcedYear: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  placeholder="Divorced (year)"
+                  className={`${inputClass} sm:col-span-1`}
+                  inputMode="numeric"
+                  disabled={isCurrent}
+                />
+                <button
+                  type="button"
+                  onClick={() => remove(idx)}
+                  className="text-xs text-red-400 hover:text-red-300 text-left sm:text-center"
+                >
+                  Remove
+                </button>
+              </div>
+              {/* "Married till now" checkbox — only on last entry */}
+              {isLast && (
+                <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isCurrent}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      update(idx, { currentlyMarried: checked, divorcedYear: checked ? '' : m.divorcedYear });
+                    }}
+                    className="w-4 h-4 accent-yellow-400 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-300 font-montserrat">Married till now</span>
+                </label>
+              )}
+            </div>
+          );
+        })}
+
+        <button
+          type="button"
+          onClick={add}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm hover:bg-white/10 transition-all"
+        >
+          + Add marriage
+        </button>
+      </div>
     </div>
   );
 }
@@ -653,7 +749,6 @@ export default function CelebrityManagementSection() {
         isActive:         d.isActive         ?? true,
         isFeatured:       d.isFeatured       ?? false,
         isVerified:       d.isVerified       ?? false,
-        movies:    d.movies    || [],
         awards:    d.awards    || [],
         socialMedia: {
           instagram: d.socialMedia?.instagram || '',
@@ -1079,18 +1174,16 @@ export default function CelebrityManagementSection() {
               <p className="text-neutral-500 text-xs mt-2">Preview: <span className="text-white">{form.netWorth}</span></p>
             </div>
           </div>
-          <LabeledInput label="Language Code"   value={form.language     || 'en'} onChange={(v) => setField('language', v)}  placeholder="en" />
-
-          <div className="md:col-span-2">
-            <LabeledMultiline
+          <div className="md:col-span-1">
+            <LabeledInput
               label="Occupation (comma separated)"
               value={(form.occupation || []).join(', ')}
               onChange={(v) => setField('occupation', v.split(',').map((s) => s.trim()).filter(Boolean))}
               placeholder={"Actor, Producer, Filmmaker"}
             />
           </div>
-          <div className="md:col-span-2">
-            <LabeledMultiline
+          <div className="md:col-span-1">
+            <LabeledInput
               label="Citizenship (comma separated)"
               value={(form.citizenship || []).join(', ')}
               onChange={(v) => setField('citizenship', v.split(',').map((s) => s.trim()).filter(Boolean))}
@@ -1099,17 +1192,43 @@ export default function CelebrityManagementSection() {
           </div>
 
           <div className="md:col-span-2 mt-4">
-            <p className="text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">Family</p>
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-yellow-400/90 font-montserrat mb-1">Family</h3>
+            <p className="text-xs text-neutral-500">Add family members and marriage timeline. You can add multiple marriages with married/divorced years.</p>
           </div>
           <div className="md:col-span-2">
-            <LabeledInput label="Spouse" value={form.spouse || ''} onChange={(v) => setField('spouse', v)} placeholder="e.g. Lauren Hashian" />
+            <MarriagesInput
+              label="Marriages"
+              value={(form.marriages || [])}
+              onChange={(v) => { setField('marriages', v); setField('spouse', (v && v.length) ? (v[v.length-1].name || '') : ''); }}
+            />
           </div>
-          <LabeledMultiline label="Children (comma separated)"  value={joinComma(form.children)}  onChange={(v) => setField('children',  splitComma(v))} placeholder="Simone Alexandra Johnson, Ava Johnson" />
-          <LabeledMultiline label="Parents (comma separated)"   value={joinComma(form.parents)}   onChange={(v) => setField('parents',   splitComma(v))} placeholder="Rocky Johnson, Ata Johnson" />
-          <LabeledMultiline label="Siblings (comma separated)"  value={joinComma(form.siblings)}  onChange={(v) => setField('siblings',  splitComma(v))} placeholder="Curtis Bowles, John Doe" />
-          <LabeledMultiline label="Relatives (comma separated)" value={joinComma(form.relatives)} onChange={(v) => setField('relatives', splitComma(v))} placeholder="Uncle Bob, Cousin Jane" />
+          <LabeledInput label="Children (comma separated)"  value={joinComma(form.children)}  onChange={(v) => setField('children',  splitComma(v))} placeholder="Simone Alexandra Johnson, Ava Johnson" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <LabeledInput
+              label="Father"
+              value={(form.parents && form.parents[0]) || ''}
+              onChange={(v) => {
+                const mother = (form.parents && form.parents[1]) || '';
+                const arr = [v, mother].filter(Boolean);
+                setField('parents', arr);
+              }}
+              placeholder="Father's name"
+            />
+            <LabeledInput
+              label="Mother"
+              value={(form.parents && form.parents[1]) || ''}
+              onChange={(v) => {
+                const father = (form.parents && form.parents[0]) || '';
+                const arr = [father, v].filter(Boolean);
+                setField('parents', arr);
+              }}
+              placeholder="Mother's name"
+            />
+          </div>
+          <LabeledInput label="Siblings (comma separated)"  value={joinComma(form.siblings)}  onChange={(v) => setField('siblings',  splitComma(v))} placeholder="Curtis Bowles, John Doe" />
+          <LabeledInput label="Relatives (comma separated)" value={joinComma(form.relatives)} onChange={(v) => setField('relatives', splitComma(v))} placeholder="Uncle Bob, Cousin Jane" />
           <div className="md:col-span-2">
-            <LabeledMultiline label="Education (comma separated)" value={joinComma(form.education)} onChange={(v) => setField('education', splitComma(v))} placeholder="University of Miami, Harvard University" />
+            <LabeledInput label="Education (comma separated)" value={joinComma(form.education)} onChange={(v) => setField('education', splitComma(v))} placeholder="University of Miami, Harvard University" />
           </div>
 
           <div className="md:col-span-2 space-y-3">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Celebrity from '@/models/Celebrity';
+import { normalizeStoredNetWorth } from '@/lib/netWorth';
 import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
 
 // Helper function to generate slug from name
@@ -155,7 +156,7 @@ async function createCelebrity(request: AuthenticatedRequest) {
       siblings: Array.isArray(data.siblings) ? data.siblings : [],
       relatives: Array.isArray(data.relatives) ? data.relatives : [],
       education: Array.isArray(data.education) ? data.education : [],
-      netWorth: data.netWorth || '',
+      netWorth: normalizeStoredNetWorth(data.netWorth) || '',
       introduction: data.introduction || '',
       earlyLife: data.earlyLife || '',
       career: data.career || '',

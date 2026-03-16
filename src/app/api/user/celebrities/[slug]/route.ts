@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Celebrity from '@/models/Celebrity';
+import { normalizeStoredNetWorth } from '@/lib/netWorth';
 
 function isAuthorized(req: NextRequest): boolean {
   return req.headers.get('x-api-key') === process.env.X_API_KEY;
@@ -45,6 +46,7 @@ export async function GET(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const celebrity: Record<string, any> = { ...(doc as any), id: String((doc as any)._id) };
     delete celebrity._id;
+    celebrity.netWorth = normalizeStoredNetWorth(celebrity.netWorth);
 
     return NextResponse.json({ success: true, celebrity });
   } catch (err) {

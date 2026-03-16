@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
 import dbConnect from '@/lib/mongodb';
 import Celebrity from '@/models/Celebrity';
+import { normalizeStoredNetWorth } from '@/lib/netWorth';
 
 async function handler(request: AuthenticatedRequest) {
   try {
@@ -92,7 +93,7 @@ async function handler(request: AuthenticatedRequest) {
         siblings:         Array.isArray(body.siblings)         ? body.siblings         : [],
         relatives:        Array.isArray(body.relatives)        ? body.relatives        : [],
         education:        Array.isArray(body.education)        ? body.education        : [],
-        netWorth:         body.netWorth?.trim()         || undefined,
+        netWorth:         normalizeStoredNetWorth(body.netWorth) || undefined,
         introduction:     introduction?.trim()          || '',
         earlyLife:        body.earlyLife?.trim()        || undefined,
         career:           body.career?.trim()           || undefined,

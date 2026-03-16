@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
 import dbConnect from '@/lib/mongodb';
 import Celebrity from '@/models/Celebrity';
+import { normalizeStoredNetWorth } from '@/lib/netWorth';
 
 const ALLOWED_FIELDS = new Set([
   'name', 'slug', 'born', 'birthPlace', 'died', 'age', 'nationality', 'citizenship',
@@ -42,6 +43,10 @@ async function handler(request: AuthenticatedRequest, { params }: any) {
       const update: any = {};
       for (const key of Object.keys(body)) {
         if (ALLOWED_FIELDS.has(key)) update[key] = body[key];
+      }
+
+      if (typeof update.netWorth === 'string') {
+        update.netWorth = normalizeStoredNetWorth(update.netWorth) || undefined;
       }
 
       // Validate status if provided
