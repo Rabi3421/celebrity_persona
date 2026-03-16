@@ -103,6 +103,9 @@ async function handler(request: AuthenticatedRequest) {
         philanthropy:     Array.isArray(body.philanthropy)     ? body.philanthropy     : [],
         trivia:           Array.isArray(body.trivia)           ? body.trivia           : [],
         works:            Array.isArray(body.works)            ? body.works            : [],
+        movies:           Array.isArray(body.movies)           ? body.movies           : [],
+        awards:           Array.isArray(body.awards)           ? body.awards           : [],
+        marriages:        Array.isArray(body.marriages)        ? body.marriages        : [],
         quotes:           Array.isArray(body.quotes)           ? body.quotes           : [],
         tags:             Array.isArray(body.tags)             ? body.tags             : [],
         categories:       Array.isArray(body.categories)       ? body.categories       : [],
@@ -121,6 +124,9 @@ async function handler(request: AuthenticatedRequest) {
           facebook:  body.socialMedia?.facebook  || '',
           youtube:   body.socialMedia?.youtube   || '',
           tiktok:    body.socialMedia?.tiktok    || '',
+          threads:   body.socialMedia?.threads   || '',
+          imdb:      body.socialMedia?.imdb      || '',
+          wikipedia: body.socialMedia?.wikipedia || '',
           website:   body.socialMedia?.website   || '',
         },
         seo: {
@@ -145,7 +151,6 @@ async function handler(request: AuthenticatedRequest) {
         },
         relatedCelebrities: [],
         newsArticles:       [],
-        movies:             [],
       });
 
       const obj: any = celebrity.toObject();

@@ -12,11 +12,19 @@ export interface IMovie extends Document {
 
 export interface IAward extends Document {
   title: string;
-  category: string;
-  year: string;
-  organization: string;
-  work: string;
-  description: string;
+  category?: string;
+  year?: string;
+  organization?: string;
+  work?: string;
+  description?: string;
+  _id?: string;
+}
+
+export interface IMarriage {
+  name?: string;
+  marriedYear?: string;
+  divorcedYear?: string;
+  currentlyMarried?: boolean;
   _id?: string;
 }
 
@@ -96,6 +104,7 @@ export interface ICelebrity extends Document {
   works: string[];
   movies: IMovie[];
   awards: IAward[];
+  marriages: IMarriage[];
   quotes: string[];
   relatedCelebrities: string[];
   newsArticles: string[];
@@ -136,36 +145,19 @@ export interface ICelebrity extends Document {
 }
 
 const movieSchema = new Schema<IMovie>({
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  role: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  year: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  director: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  genre: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  description: {
-    type: String,
-    required: true,
-    trim: true
-  }
+  name:        { type: String, required: true, trim: true },
+  role:        { type: String, trim: true, default: '' },
+  year:        { type: String, trim: true, default: '' },
+  director:    { type: String, trim: true, default: '' },
+  genre:       { type: String, trim: true, default: '' },
+  description: { type: String, trim: true, default: '' },
+}, { _id: true });
+
+const marriageSchema = new Schema<IMarriage>({
+  name:             { type: String, trim: true },
+  marriedYear:      { type: String, trim: true },
+  divorcedYear:     { type: String, trim: true },
+  currentlyMarried: { type: Boolean, default: false },
 }, { _id: true });
 
 const awardSchema = new Schema<IAward>({
@@ -317,6 +309,7 @@ const celebritySchema = new Schema<ICelebrity>(
     works: [String],
     movies: [movieSchema],
     awards: [awardSchema],
+    marriages: { type: [marriageSchema], default: [] },
     quotes: [String],
     relatedCelebrities: [String],
     newsArticles: [String],

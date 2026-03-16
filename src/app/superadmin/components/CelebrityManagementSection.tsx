@@ -750,6 +750,12 @@ export default function CelebrityManagementSection() {
         isFeatured:       d.isFeatured       ?? false,
         isVerified:       d.isVerified       ?? false,
         awards:    d.awards    || [],
+        marriages: (d.marriages || []).map((m: any) => ({
+          name:             m.name             || '',
+          marriedYear:      m.marriedYear      || '',
+          divorcedYear:     m.divorcedYear     || '',
+          currentlyMarried: m.currentlyMarried ?? false,
+        })),
         socialMedia: {
           instagram: d.socialMedia?.instagram || '',
           twitter:   d.socialMedia?.twitter   || '',
@@ -835,6 +841,12 @@ export default function CelebrityManagementSection() {
     works:            form.works                    || [],
     movies:           form.movies                   || [],
     awards:           form.awards                   || [],
+    marriages:        (form.marriages || []).map((m) => ({
+                        name:             m.name             || '',
+                        marriedYear:      m.marriedYear      || '',
+                        divorcedYear:     m.currentlyMarried ? '' : (m.divorcedYear || ''),
+                        currentlyMarried: m.currentlyMarried ?? false,
+                      })),
     quotes:           form.quotes                   || [],
     tags:             form.tags                     || [],
     categories:       form.categories               || [],
