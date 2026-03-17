@@ -232,145 +232,182 @@ function LabeledInput({ label, value, onChange, placeholder, type = 'text', hint
   );
 }
 
+function parseHeight(value: string): { unit: 'cm'|'in'|'ft'; cm: string; inch: string; feet: string } {
+  const v = (value || '').trim();
+  if (!v) return { unit: 'cm', cm: '', inch: '', feet: '' };
+  const mCm = v.match(/(\d+(?:\.\d+)?)\s*cm/i);
+  const mFt = v.match(/(\d+)\s*ft(?:\s*(\d+)\s*in)?/i);
+  const mIn = v.match(/(\d+(?:\.\d+)?)\s*in(?:ches)?/i);
+  if (mCm) return { unit: 'cm', cm: mCm[1], inch: '', feet: '' };
+  if (mFt) return { unit: 'ft', cm: '', feet: mFt[1] || '', inch: mFt[2] || '' };
+  if (mIn) return { unit: 'in', cm: '', inch: mIn[1], feet: '' };
+  const num = (v.match(/\d+(?:\.\d+)?/) || [''])[0];
+  return { unit: 'cm', cm: num || '', inch: '', feet: '' };
+}
+
+function buildHeight(unit: 'cm'|'in'|'ft', cm: string, inch: string, feet: string): string {
+  if (unit === 'cm') return cm ? `${cm} cm` : '';
+  if (unit === 'in') return inch ? `${inch} in` : '';
+  const f = feet || ''; const i = inch || '';
+  return `${f}${f && i ? ' ft ' : f ? ' ft' : ''}${i ? `${i} in` : ''}`.trim();
+}
+
 function HeightInput({ label, value, onChange, placeholder }:
   { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
-  const [unit, setUnit] = useState<'cm'|'in'|'ft'>('cm');
-  const [cm, setCm] = useState('');
-  const [inch, setInch] = useState('');
-  const [feet, setFeet] = useState('');
+  const parsed = parseHeight(value);
+  const [unit, setUnit] = useState<'cm'|'in'|'ft'>(parsed.unit);
+  const [cm, setCm] = useState(parsed.cm);
+  const [inch, setInch] = useState(parsed.inch);
+  const [feet, setFeet] = useState(parsed.feet);
 
+  // Sync from parent value when it changes externally (e.g. on edit load)
+  const prevValue = useRef(value);
   useEffect(() => {
-    const v = (value || '').trim();
-    if (!v) { setUnit('cm'); setCm(''); setFeet(''); setInch(''); return; }
-    const mCm = v.match(/(\d+(?:\.\d+)?)\s*cm/i);
-    const mFt = v.match(/(\d+)\s*ft(?:\s*(\d+)\s*in)?/i);
-    const mIn = v.match(/(\d+(?:\.\d+)?)\s*in(?:ches)?/i);
-    if (mCm) { setUnit('cm'); setCm(mCm[1]); setFeet(''); setInch(''); return; }
-    if (mFt) { setUnit('ft'); setFeet(mFt[1] || ''); setInch(mFt[2] || ''); setCm(''); return; }
-    if (mIn) { setUnit('in'); setInch(mIn[1]); setFeet(''); setCm(''); return; }
-    // fallback: try numeric as cm
-    const num = (v.match(/\d+(?:\.\d+)?/) || [''])[0];
-    setUnit('cm'); setCm(num || ''); setFeet(''); setInch('');
+    if (value === prevValue.current) return;
+    prevValue.current = value;
+    const p = parseHeight(value);
+    setUnit(p.unit); setCm(p.cm); setInch(p.inch); setFeet(p.feet);
   }, [value]);
 
-  useEffect(() => {
-    let out = '';
-    if (unit === 'cm') { if (cm) out = `${cm} cm`; }
-    else if (unit === 'in') { if (inch) out = `${inch} in`; }
-    else { const f = feet || ''; const i = inch || ''; out = `${f}${f && i ? ' ft ' : f ? ' ft' : ''}${i ? ` ${i} in` : ''}`.trim(); }
-    onChange(out);
-  }, [unit, cm, feet, inch]);
-
   const inputClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
+
+  const handleUnitChange = (newUnit: 'cm'|'in'|'ft') => {
+    setUnit(newUnit);
+    onChange(buildHeight(newUnit, cm, inch, feet));
+  };
+  const handleCmChange = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setCm(s); onChange(buildHeight(unit, s, inch, feet)); };
+  const handleInchChange = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setInch(s); onChange(buildHeight(unit, cm, s, feet)); };
+  const handleFeetChange = (v: string) => { const s = v.replace(/[^0-9]/g, ''); setFeet(s); onChange(buildHeight(unit, cm, inch, s)); };
+  const handleFeetInchChange = (v: string) => { const s = v.replace(/[^0-9]/g, ''); setInch(s); onChange(buildHeight(unit, cm, s, feet)); };
 
   return (
     <div className="min-w-0">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
-        <select value={unit} onChange={(e) => setUnit(e.target.value as any)} className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
+        <select value={unit} onChange={(e) => handleUnitChange(e.target.value as any)} className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
           <option value="cm" style={{ color: '#111' }}>cm</option>
           <option value="in" style={{ color: '#111' }}>in</option>
           <option value="ft" style={{ color: '#111' }}>ft + in</option>
         </select>
         {unit === 'ft' ? (
           <>
-            <input type="number" value={feet} onChange={(e) => setFeet(e.target.value.replace(/[^0-9]/g, ''))} placeholder="ft" className={`${inputClass} col-span-1`} />
-            <input type="number" value={inch} onChange={(e) => setInch(e.target.value.replace(/[^0-9]/g, ''))} placeholder="in" className={`${inputClass} col-span-1`} />
+            <input type="number" value={feet} onChange={(e) => handleFeetChange(e.target.value)} placeholder="ft" className={`${inputClass} col-span-1`} />
+            <input type="number" value={inch} onChange={(e) => handleFeetInchChange(e.target.value)} placeholder="in" className={`${inputClass} col-span-1`} />
           </>
         ) : (
-          <input type="text" value={unit === 'cm' ? cm : inch} onChange={(e) => unit === 'cm' ? setCm(e.target.value.replace(/[^0-9.]/g, '')) : setInch(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={placeholder} className={`${inputClass} sm:col-span-2`} />
+          <input type="text" value={unit === 'cm' ? cm : inch} onChange={(e) => unit === 'cm' ? handleCmChange(e.target.value) : handleInchChange(e.target.value)} placeholder={placeholder} className={`${inputClass} sm:col-span-2`} />
         )}
       </div>
     </div>
   );
 }
 
+function parseWeight(value: string): { unit: 'kg'|'lb'; val: string } {
+  const v = (value || '').trim();
+  if (!v) return { unit: 'kg', val: '' };
+  const mKg = v.match(/(\d+(?:\.\d+)?)\s*kg/i);
+  const mLb = v.match(/(\d+(?:\.\d+)?)\s*(?:lb|lbs|pound|pounds)/i);
+  if (mKg) return { unit: 'kg', val: mKg[1] };
+  if (mLb) return { unit: 'lb', val: mLb[1] };
+  const num = (v.match(/\d+(?:\.\d+)?/) || [''])[0];
+  return { unit: 'kg', val: num || '' };
+}
+
 function WeightInput({ label, value, onChange, placeholder }:
   { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
-  const [unit, setUnit] = useState<'kg'|'lb'>('kg');
-  const [val, setVal] = useState('');
+  const parsed = parseWeight(value);
+  const [unit, setUnit] = useState<'kg'|'lb'>(parsed.unit);
+  const [val, setVal] = useState(parsed.val);
 
+  const prevValue = useRef(value);
   useEffect(() => {
-    const v = (value || '').trim();
-    if (!v) { setUnit('kg'); setVal(''); return; }
-    const mKg = v.match(/(\d+(?:\.\d+)?)\s*kg/i);
-    const mLb = v.match(/(\d+(?:\.\d+)?)\s*(?:lb|lbs|pound|pounds)/i);
-    if (mKg) { setUnit('kg'); setVal(mKg[1]); return; }
-    if (mLb) { setUnit('lb'); setVal(mLb[1]); return; }
-    const num = (v.match(/\d+(?:\.\d+)?/) || [''])[0]; setUnit('kg'); setVal(num || '');
+    if (value === prevValue.current) return;
+    prevValue.current = value;
+    const p = parseWeight(value);
+    setUnit(p.unit); setVal(p.val);
   }, [value]);
 
-  useEffect(() => { onChange(val ? `${val} ${unit}` : ''); }, [unit, val]);
-
   const inputClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
+
+  const handleUnitChange = (newUnit: 'kg'|'lb') => { setUnit(newUnit); onChange(val ? `${val} ${newUnit}` : ''); };
+  const handleValChange = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setVal(s); onChange(s ? `${s} ${unit}` : ''); };
 
   return (
     <div className="min-w-0 mt-4">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
-        <select value={unit} onChange={(e) => setUnit(e.target.value as any)} className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
+        <select value={unit} onChange={(e) => handleUnitChange(e.target.value as any)} className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
           <option value="kg" style={{ color: '#111' }}>kg</option>
           <option value="lb" style={{ color: '#111' }}>lb</option>
         </select>
-        <input type="text" value={val} onChange={(e) => setVal(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={placeholder} className={`${inputClass} sm:col-span-2`} />
+        <input type="text" value={val} onChange={(e) => handleValChange(e.target.value)} placeholder={placeholder} className={`${inputClass} sm:col-span-2`} />
       </div>
     </div>
   );
 }
 
+function parseBodyMeasurements(value: string): { gender: 'Boy'|'Girl'; unit: 'cm'|'in'; chest: string; waist: string; hips: string; bust: string } {
+  const v = (value || '').trim();
+  if (!v) return { gender: 'Boy', unit: 'cm', chest: '', waist: '', hips: '', bust: '' };
+  const detectedUnit: 'cm'|'in' = /\bin\b|inches/i.test(v) ? 'in' : 'cm';
+  if (/girl|female|bust/i.test(v)) {
+    return {
+      gender: 'Girl', unit: detectedUnit, chest: '',
+      bust:  v.match(/bust[:\s]*(\d+(?:\.\d+)?)/i)?.[1]  || '',
+      waist: v.match(/waist[:\s]*(\d+(?:\.\d+)?)/i)?.[1] || '',
+      hips:  v.match(/hips[:\s]*(\d+(?:\.\d+)?)/i)?.[1]  || '',
+    };
+  }
+  return {
+    gender: 'Boy', unit: detectedUnit, bust: '',
+    chest: v.match(/chest[:\s]*(\d+(?:\.\d+)?)/i)?.[1] || '',
+    waist: v.match(/waist[:\s]*(\d+(?:\.\d+)?)/i)?.[1] || '',
+    hips:  v.match(/hips[:\s]*(\d+(?:\.\d+)?)/i)?.[1]  || '',
+  };
+}
+
+function buildBodyMeasurements(gender: 'Boy'|'Girl', unit: 'cm'|'in', chest: string, waist: string, hips: string, bust: string): string {
+  const u = unit;
+  const parts: string[] = [];
+  if (gender === 'Boy') {
+    if (chest) parts.push(`Chest:${chest}${u}`);
+    if (waist) parts.push(`Waist:${waist}${u}`);
+    if (hips)  parts.push(`Hips:${hips}${u}`);
+  } else {
+    if (bust)  parts.push(`Bust:${bust}${u}`);
+    if (waist) parts.push(`Waist:${waist}${u}`);
+    if (hips)  parts.push(`Hips:${hips}${u}`);
+  }
+  const out = parts.join(', ');
+  const prefix = gender === 'Boy' ? 'BoyMeasurements' : 'GirlMeasurements';
+  return out ? `${prefix}| ${out}` : '';
+}
+
 function BodyMeasurementsInput({ label, value, onChange }:
   { label: string; value: string; onChange: (v: string) => void }) {
-  const [gender, setGender] = useState<'Boy'|'Girl'>('Boy');
-  const [unit, setUnit] = useState<'cm'|'in'>('cm');
-  const [chest, setChest] = useState('');
-  const [waist, setWaist] = useState('');
-  const [hips, setHips] = useState('');
-  const [bust, setBust] = useState('');
+  const parsed = parseBodyMeasurements(value);
+  const [gender, setGender] = useState<'Boy'|'Girl'>(parsed.gender);
+  const [unit, setUnit] = useState<'cm'|'in'>(parsed.unit);
+  const [chest, setChest] = useState(parsed.chest);
+  const [waist, setWaist] = useState(parsed.waist);
+  const [hips, setHips] = useState(parsed.hips);
+  const [bust, setBust] = useState(parsed.bust);
 
-  // Parse stored value back into fields on load/edit
+  // Sync from parent when value changes externally (e.g. on edit load)
+  const prevValue = useRef(value);
   useEffect(() => {
-    const v = (value || '').trim();
-    if (!v) { setGender('Boy'); setUnit('cm'); setChest(''); setWaist(''); setHips(''); setBust(''); return; }
-    // detect unit
-    setUnit(/\bin\b|inches/i.test(v) ? 'in' : 'cm');
-    if (/girl|female|bust/i.test(v)) {
-      setGender('Girl');
-      const mBust  = v.match(/bust[:\s]*(\d+(?:\.\d+)?)/i);
-      const mWaist = v.match(/waist[:\s]*(\d+(?:\.\d+)?)/i);
-      const mHips  = v.match(/hips[:\s]*(\d+(?:\.\d+)?)/i);
-      setBust(mBust?.[1] || ''); setWaist(mWaist?.[1] || ''); setHips(mHips?.[1] || '');
-      setChest('');
-    } else {
-      setGender('Boy');
-      const mChest = v.match(/chest[:\s]*(\d+(?:\.\d+)?)/i);
-      const mWaist = v.match(/waist[:\s]*(\d+(?:\.\d+)?)/i);
-      const mHips  = v.match(/hips[:\s]*(\d+(?:\.\d+)?)/i);
-      setChest(mChest?.[1] || ''); setWaist(mWaist?.[1] || ''); setHips(mHips?.[1] || '');
-      setBust('');
-    }
+    if (value === prevValue.current) return;
+    prevValue.current = value;
+    const p = parseBodyMeasurements(value);
+    setGender(p.gender); setUnit(p.unit); setChest(p.chest); setWaist(p.waist); setHips(p.hips); setBust(p.bust);
   }, [value]);
 
-  // Build stored string whenever any field changes
-  useEffect(() => {
-    const u = unit === 'cm' ? 'cm' : 'in';
-    let out = '';
-    if (gender === 'Boy') {
-      const parts: string[] = [];
-      if (chest) parts.push(`Chest:${chest}${u}`);
-      if (waist) parts.push(`Waist:${waist}${u}`);
-      if (hips)  parts.push(`Hips:${hips}${u}`);
-      out = parts.join(', ');
-    } else {
-      const parts: string[] = [];
-      if (bust)  parts.push(`Bust:${bust}${u}`);
-      if (waist) parts.push(`Waist:${waist}${u}`);
-      if (hips)  parts.push(`Hips:${hips}${u}`);
-      out = parts.join(', ');
-    }
-    const prefix = gender === 'Boy' ? 'BoyMeasurements' : 'GirlMeasurements';
-    onChange(out ? `${prefix}| ${out}` : '');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gender, unit, chest, waist, hips, bust]);
+  const handleGenderChange = (g: 'Boy'|'Girl') => { setGender(g); onChange(buildBodyMeasurements(g, unit, chest, waist, hips, bust)); };
+  const handleUnitChange   = (u: 'cm'|'in')    => { setUnit(u);   onChange(buildBodyMeasurements(gender, u, chest, waist, hips, bust)); };
+  const handleChest = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setChest(s); onChange(buildBodyMeasurements(gender, unit, s, waist, hips, bust)); };
+  const handleWaist = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setWaist(s); onChange(buildBodyMeasurements(gender, unit, chest, s, hips, bust)); };
+  const handleHips  = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setHips(s);  onChange(buildBodyMeasurements(gender, unit, chest, waist, s, bust)); };
+  const handleBust  = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setBust(s);  onChange(buildBodyMeasurements(gender, unit, chest, waist, hips, s)); };
 
   const selectClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer transition-all";
   const inputClass  = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
@@ -384,7 +421,7 @@ function BodyMeasurementsInput({ label, value, onChange }:
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center mb-2">
         <select
           value={gender}
-          onChange={(e) => setGender(e.target.value as 'Boy'|'Girl')}
+          onChange={(e) => handleGenderChange(e.target.value as 'Boy'|'Girl')}
           className={`${selectClass} sm:col-span-2`}
         >
           <option value="Boy"  style={{ background: '#1c1033', color: '#fff' }}>Boy</option>
@@ -392,7 +429,7 @@ function BodyMeasurementsInput({ label, value, onChange }:
         </select>
         <select
           value={unit}
-          onChange={(e) => setUnit(e.target.value as 'cm'|'in')}
+          onChange={(e) => handleUnitChange(e.target.value as 'cm'|'in')}
           className={`${selectClass} w-full`}
         >
           <option value="cm" style={{ background: '#1c1033', color: '#fff' }}>cm</option>
@@ -403,15 +440,15 @@ function BodyMeasurementsInput({ label, value, onChange }:
       {/* Measurement fields */}
       {gender === 'Boy' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
-          <input className={inputClass} placeholder={`Chest (${unitLabel})`} value={chest} onChange={(e) => setChest(e.target.value.replace(/[^0-9.]/g, ''))} />
-          <input className={inputClass} placeholder={`Waist (${unitLabel})`} value={waist} onChange={(e) => setWaist(e.target.value.replace(/[^0-9.]/g, ''))} />
-          <input className={inputClass} placeholder={`Hips (${unitLabel})`}  value={hips}  onChange={(e) => setHips(e.target.value.replace(/[^0-9.]/g, ''))} />
+          <input className={inputClass} placeholder={`Chest (${unitLabel})`} value={chest} onChange={(e) => handleChest(e.target.value)} />
+          <input className={inputClass} placeholder={`Waist (${unitLabel})`} value={waist} onChange={(e) => handleWaist(e.target.value)} />
+          <input className={inputClass} placeholder={`Hips (${unitLabel})`}  value={hips}  onChange={(e) => handleHips(e.target.value)} />
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
-          <input className={inputClass} placeholder={`Bust (${unitLabel})`}  value={bust}  onChange={(e) => setBust(e.target.value.replace(/[^0-9.]/g, ''))} />
-          <input className={inputClass} placeholder={`Waist (${unitLabel})`} value={waist} onChange={(e) => setWaist(e.target.value.replace(/[^0-9.]/g, ''))} />
-          <input className={inputClass} placeholder={`Hips (${unitLabel})`}  value={hips}  onChange={(e) => setHips(e.target.value.replace(/[^0-9.]/g, ''))} />
+          <input className={inputClass} placeholder={`Bust (${unitLabel})`}  value={bust}  onChange={(e) => handleBust(e.target.value)} />
+          <input className={inputClass} placeholder={`Waist (${unitLabel})`} value={waist} onChange={(e) => handleWaist(e.target.value)} />
+          <input className={inputClass} placeholder={`Hips (${unitLabel})`}  value={hips}  onChange={(e) => handleHips(e.target.value)} />
         </div>
       )}
     </div>
@@ -673,9 +710,17 @@ export default function CelebrityManagementSection() {
     setLoadingDetail(true);
     setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     try {
-      const res  = await fetch(`/api/superadmin/celebrities/${row.id}`, {
+      let res = await fetch(`/api/superadmin/celebrities/${row.id}`, {
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       });
+      if (res.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          res = await fetch(`/api/superadmin/celebrities/${row.id}`, {
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          });
+        }
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed to load celebrity');
       const d: any = data.data;
@@ -909,11 +954,21 @@ export default function CelebrityManagementSection() {
     if (!validate()) return;
     setFormLoading(true); setFormApiError('');
     try {
-      const res  = await fetch('/api/superadmin/celebrities', {
+      let res = await fetch('/api/superadmin/celebrities', {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(buildPayload()),
       });
+      if (res.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          res = await fetch('/api/superadmin/celebrities', {
+            method: 'POST',
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildPayload()),
+          });
+        }
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed to create');
       closePanel();
@@ -932,11 +987,21 @@ export default function CelebrityManagementSection() {
     if (!validate()) return;
     setFormLoading(true); setFormApiError('');
     try {
-      const res  = await fetch(`/api/superadmin/celebrities/${form.id}`, {
+      let res = await fetch(`/api/superadmin/celebrities/${form.id}`, {
         method: 'PUT',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(buildPayload()),
       });
+      if (res.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          res = await fetch(`/api/superadmin/celebrities/${form.id}`, {
+            method: 'PUT',
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildPayload()),
+          });
+        }
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Update failed');
       closePanel();
@@ -964,15 +1029,35 @@ export default function CelebrityManagementSection() {
           headers: { ...authHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
+        if (res.status === 401) {
+          const refreshed = await refreshToken();
+          if (refreshed) {
+            res = await fetch(`/api/superadmin/celebrities/${form.id}`, {
+              method: 'PUT',
+              headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+          }
+        }
       } else {
         res = await fetch('/api/superadmin/celebrities', {
           method: 'POST',
           headers: { ...authHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
+        if (res.status === 401) {
+          const refreshed = await refreshToken();
+          if (refreshed) {
+            res = await fetch('/api/superadmin/celebrities', {
+              method: 'POST',
+              headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+          }
+        }
       }
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to save draft');
+      const data = await res!.json();
+      if (!res!.ok || !data.success) throw new Error(data.message || 'Failed to save draft');
       // If we just created a new draft, switch the panel to edit mode so
       // subsequent "Save as Draft" calls update the same record.
       if (panelMode === 'add' && data.data?.id) {
@@ -993,9 +1078,17 @@ export default function CelebrityManagementSection() {
     setConfirmDelete(null);
     setBusy(c.id, true);
     try {
-      const res  = await fetch(`/api/superadmin/celebrities/${c.id}`, {
+      let res = await fetch(`/api/superadmin/celebrities/${c.id}`, {
         method: 'DELETE', headers: authHeaders(),
       });
+      if (res.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          res = await fetch(`/api/superadmin/celebrities/${c.id}`, {
+            method: 'DELETE', headers: authHeaders(),
+          });
+        }
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Delete failed');
       setCelebrities((prev) => prev.filter((x) => x.id !== c.id));
@@ -1013,11 +1106,21 @@ export default function CelebrityManagementSection() {
     setBusy(c.id, true);
     const newVal = !c[field];
     try {
-      const res  = await fetch(`/api/superadmin/celebrities/${c.id}`, {
+      let res = await fetch(`/api/superadmin/celebrities/${c.id}`, {
         method: 'PUT',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: newVal }),
       });
+      if (res.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          res = await fetch(`/api/superadmin/celebrities/${c.id}`, {
+            method: 'PUT',
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [field]: newVal }),
+          });
+        }
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Update failed');
       setCelebrities((prev) => prev.map((x) => x.id === c.id ? { ...x, [field]: newVal } : x));
