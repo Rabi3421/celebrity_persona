@@ -28,7 +28,7 @@ async function handler(request: AuthenticatedRequest) {
       const [total, docs] = await Promise.all([
         Celebrity.countDocuments(filter),
         Celebrity.find(filter)
-          .select('name slug nationality occupation profileImage status isActive isFeatured isVerified contentQuality popularity createdAt')
+          .select('name slug nationality occupation profileImage status isFeatured isVerified popularity createdAt')
           .sort({ createdAt: -1 })
           .skip((page - 1) * limit)
           .limit(limit)
@@ -137,6 +137,9 @@ async function handler(request: AuthenticatedRequest) {
           ogDescription:     body.seo?.ogDescription     || '',
           ogImages:          Array.isArray(body.seo?.ogImages)    ? body.seo.ogImages    : [],
           twitterCard:       body.seo?.twitterCard       || 'summary_large_image',
+          twitterTitle:      body.seo?.twitterTitle      || '',
+          twitterDescription: body.seo?.twitterDescription || '',
+          twitterImage:      body.seo?.twitterImage      || '',
           twitterCreator:    body.seo?.twitterCreator    || '',
           schemaType:        body.seo?.schemaType        || 'Person',
           noindex:           body.seo?.noindex           ?? false,

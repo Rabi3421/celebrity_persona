@@ -31,34 +31,6 @@ interface AuthContextType {
   refreshToken: () => Promise<boolean>;
 }
 
-// ─── localStorage helpers ─────────────────────────────────────────────────────
-
-const KEY = { AT: 'cp_access_token', RT: 'cp_refresh_token', USER: 'cp_user' };
-
-function saveSession(at: string, rt: string, user: User) {
-  try {
-    localStorage.setItem(KEY.AT, at);
-    localStorage.setItem(KEY.RT, rt);
-    localStorage.setItem(KEY.USER, JSON.stringify(user));
-  } catch { /* SSR guard */ }
-}
-
-function clearSession() {
-  try { Object.values(KEY).forEach((k) => localStorage.removeItem(k)); } catch { /* guard */ }
-}
-
-function loadSession() {
-  try {
-    const at = localStorage.getItem(KEY.AT);
-    const rt = localStorage.getItem(KEY.RT);
-    const raw = localStorage.getItem(KEY.USER);
-    const user: User | null = raw ? JSON.parse(raw) : null;
-    return { at, rt, user };
-  } catch {
-    return { at: null, rt: null, user: null };
-  }
-}
-
 // ─── JWT util ─────────────────────────────────────────────────────────────────
 
 function msUntilExpiry(token: string): number {
@@ -73,69 +45,69 @@ function msUntilExpiry(token: string): number {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  // Access token lives ONLY in memory — never touches any browser storage
+  const [user, setUser]               = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]         = useState(true);
 
-  const rtRef = useRef<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ─── schedule silent refresh 60 s before the access token expires ────────
   const scheduleRefresh = useCallback((at: string) => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    const delay = msUntilExpiry(at) - 60_000; // 60 s before expiry
+    const delay = msUntilExpiry(at) - 60_000;
     timerRef.current = setTimeout(() => doSilentRefresh(), delay > 0 ? delay : 0);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ─── silent refresh — hits /api/auth/refresh, cookie sent automatically ──
   const doSilentRefresh = useCallback(async (): Promise<boolean> => {
-    const rt = rtRef.current;
-    if (!rt) { clearSession(); setUser(null); setAccessToken(null); return false; }
     try {
       const res = await fetch('/api/auth/refresh', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: rt }),
+        credentials: 'include', // sends the httpOnly cookie automatically
       });
       if (res.ok) {
         const data = await res.json();
         setAccessToken(data.accessToken);
         setUser(data.user);
-        try {
-          localStorage.setItem(KEY.AT, data.accessToken);
-          localStorage.setItem(KEY.USER, JSON.stringify(data.user));
-        } catch { /* guard */ }
         scheduleRefresh(data.accessToken);
         return true;
       }
-      clearSession(); setUser(null); setAccessToken(null); rtRef.current = null;
+      // Cookie invalid / expired — clear state
+      setUser(null);
+      setAccessToken(null);
       return false;
     } catch { return false; }
   }, [scheduleRefresh]);
 
+  // ─── on mount: restore session via /api/auth/me (cookie-authenticated) ───
   useEffect(() => {
-    const { at, rt, user: savedUser } = loadSession();
-    if (at && rt && savedUser) {
-      if (msUntilExpiry(at) > 0) {
-        setAccessToken(at); setUser(savedUser); rtRef.current = rt;
-        scheduleRefresh(at); setLoading(false);
-      } else {
-        rtRef.current = rt;
-        doSilentRefresh().finally(() => setLoading(false));
-      }
-    } else { setLoading(false); }
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          setAccessToken(data.accessToken);
+          setUser(data.user);
+          scheduleRefresh(data.accessToken);
+        }
+      } catch { /* network error — stay logged out */ }
+      finally { setLoading(false); }
+    })();
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ─── login ────────────────────────────────────────────────────────────────
   const login = useCallback(async (email: string, password: string) => {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
+        credentials: 'include', // server will set httpOnly cookie
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        saveSession(data.accessToken, data.refreshToken, data.user);
-        rtRef.current = data.refreshToken;
         setAccessToken(data.accessToken);
         setUser(data.user);
         scheduleRefresh(data.accessToken);
@@ -145,20 +117,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch { return { success: false, message: 'Network error occurred' }; }
   }, [scheduleRefresh]);
 
+  // ─── logout ───────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
-    const rt = rtRef.current;
-    const at = accessToken;
     if (timerRef.current) clearTimeout(timerRef.current);
-    clearSession(); setUser(null); setAccessToken(null); rtRef.current = null;
-    if (rt && at) {
-      try {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${at}` },
-          body: JSON.stringify({ refreshToken: rt }),
-        });
-      } catch { /* best-effort */ }
-    }
+    const at = accessToken;
+    setUser(null);
+    setAccessToken(null);
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include', // sends httpOnly cookie so server can invalidate it
+        headers: at ? { Authorization: `Bearer ${at}` } : {},
+      });
+    } catch { /* best-effort */ }
   }, [accessToken]);
 
   const refreshToken = useCallback(() => doSilentRefresh(), [doSilentRefresh]);

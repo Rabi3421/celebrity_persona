@@ -110,6 +110,9 @@ interface CelebrityFull extends CelebrityRow {
     ogDescription?: string;
     ogImage?: string;
     twitterCard?: 'summary' | 'summary_large_image';
+    twitterTitle?: string;
+    twitterDescription?: string;
+    twitterImage?: string;
     twitterCreator?: string;
     schemaType?: string;
     breadcrumbTitle?: string;
@@ -142,7 +145,7 @@ const EMPTY_FORM: CelebrityFull = {
   seo: {
     metaTitle: '', metaDescription: '', focusKeyword: '', keywords: [],
     canonicalUrl: '', ogTitle: '', ogDescription: '', ogImage: '',
-    twitterCard: 'summary_large_image', twitterCreator: '',
+    twitterCard: 'summary_large_image', twitterTitle: '', twitterDescription: '', twitterImage: '', twitterCreator: '',
     schemaType: 'Person', breadcrumbTitle: '',
     robotsIndex: true, robotsFollow: true,
     articleSection: '', readingTime: '',
@@ -563,7 +566,7 @@ function ToggleField({ label, value, onChange }:
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CelebrityManagementSection() {
-  const { authHeaders } = useAuth();
+  const { authHeaders, loading: authLoading, refreshToken } = useAuth();
 
   // List state
   const [celebrities, setCelebrities] = useState<CelebrityRow[]>([]);
@@ -596,6 +599,8 @@ export default function CelebrityManagementSection() {
   const emptySlot = (): UploadSlot => ({ uploading: false, progress: 0, error: '' });
   const [profileUpload, setProfileUpload] = useState<UploadSlot>(emptySlot());
   const [coverUpload,   setCoverUpload]   = useState<UploadSlot>(emptySlot());
+  const [ogImageUpload, setOgImageUpload] = useState<UploadSlot>(emptySlot());
+  const [twitterImageUpload, setTwitterImageUpload] = useState<UploadSlot>(emptySlot());
   const [galleryUploads, setGalleryUploads] = useState<Record<number, UploadSlot>>({});
 
   const profileInputRef = useRef<HTMLInputElement>(null);
@@ -621,9 +626,18 @@ export default function CelebrityManagementSection() {
       const params = new URLSearchParams({ page: String(p), limit: String(lim) });
       if (searchQuery) params.set('q', searchQuery);
       if (statusFilter) params.set('status', statusFilter);
-      const res  = await fetch(`/api/superadmin/celebrities?${params}`, {
+      let res  = await fetch(`/api/superadmin/celebrities?${params}`, {
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       });
+      // If token expired, silently refresh and retry once
+      if (res.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          res = await fetch(`/api/superadmin/celebrities?${params}`, {
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          });
+        }
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed to load');
       setCelebrities(data.data);
@@ -636,9 +650,9 @@ export default function CelebrityManagementSection() {
     } finally {
       setLoading(false);
     }
-  }, [authHeaders, searchQuery, statusFilter, limit]);
+  }, [authHeaders, refreshToken, searchQuery, statusFilter, limit]);
 
-  useEffect(() => { fetchList(1); }, [fetchList]);
+  useEffect(() => { if (!authLoading) fetchList(1); }, [fetchList, authLoading]);
 
   // ─── open add panel ──────────────────────────────────────────────────────
   const openAdd = () => {
@@ -734,7 +748,7 @@ export default function CelebrityManagementSection() {
         controversiesHtml: (d.controversies || [])[0] || '',
         philanthropy:     d.philanthropy     || [],
         trivia:           d.trivia           || [],
-        works:            d.works            || [],
+        works:            Array.isArray(d.works) ? d.works : [],
         movies:           d.movies           || [],
         quotes:           d.quotes           || [],
         tags:             d.tags             || [],
@@ -774,6 +788,9 @@ export default function CelebrityManagementSection() {
           ogDescription:   d.seo?.ogDescription   || '',
           ogImage:         (d.seo?.ogImages || [])[0] || '',      // DB: ogImages[]
           twitterCard:     d.seo?.twitterCard     || 'summary_large_image',
+          twitterTitle:    d.seo?.twitterTitle    || '',
+          twitterDescription: d.seo?.twitterDescription || '',
+          twitterImage:    d.seo?.twitterImage    || '',
           twitterCreator:  d.seo?.twitterCreator  || '',
           schemaType:      d.seo?.schemaType      || 'Person',
           breadcrumbTitle: '',
@@ -875,6 +892,9 @@ export default function CelebrityManagementSection() {
       ogDescription:   form.seo?.ogDescription   || '',
       ogImages:        form.seo?.ogImage ? [form.seo.ogImage] : [],  // form: ogImage → DB: ogImages[]
       twitterCard:     form.seo?.twitterCard     || 'summary_large_image',
+      twitterTitle:    form.seo?.twitterTitle    || '',
+      twitterDescription: form.seo?.twitterDescription || '',
+      twitterImage:    form.seo?.twitterImage    || '',
       twitterCreator:  form.seo?.twitterCreator  || '',
       schemaType:      form.seo?.schemaType      || 'Person',
       noindex:         !(form.seo?.robotsIndex  ?? true),        // form: robotsIndex → DB: noindex (inverted)
@@ -1032,6 +1052,28 @@ export default function CelebrityManagementSection() {
       setCoverUpload({ uploading: false, progress: 100, error: '' });
     } catch (e: any) {
       setCoverUpload({ uploading: false, progress: 0, error: e.message || 'Upload failed' });
+    }
+  };
+
+  const handleOgImageUpload = async (file: File) => {
+    setOgImageUpload({ uploading: true, progress: 10, error: '' });
+    try {
+      const url = await uploadImage(file, `celebrities/${celebFolder()}/og`);
+      setField('seo', { ...form.seo, ogImage: url });
+      setOgImageUpload({ uploading: false, progress: 100, error: '' });
+    } catch (e: any) {
+      setOgImageUpload({ uploading: false, progress: 0, error: e.message || 'Upload failed' });
+    }
+  };
+
+  const handleTwitterImageUpload = async (file: File) => {
+    setTwitterImageUpload({ uploading: true, progress: 10, error: '' });
+    try {
+      const url = await uploadImage(file, `celebrities/${celebFolder()}/twitter`);
+      setField('seo', { ...form.seo, twitterImage: url });
+      setTwitterImageUpload({ uploading: false, progress: 100, error: '' });
+    } catch (e: any) {
+      setTwitterImageUpload({ uploading: false, progress: 0, error: e.message || 'Upload failed' });
     }
   };
 
@@ -2158,14 +2200,47 @@ export default function CelebrityManagementSection() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Image URL</label>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Image</label>
+                  {/* Upload button */}
+                  <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all mb-2 ${
+                    ogImageUpload.uploading ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+                  }`}>
+                    <input type="file" accept="image/*" className="sr-only" disabled={ogImageUpload.uploading}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleOgImageUpload(f); e.target.value = ''; }}
+                    />
+                    {ogImageUpload.uploading ? (
+                      <><span className="text-yellow-400 text-sm font-montserrat">Uploading…</span>
+                      <div className="ml-auto h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${ogImageUpload.progress}%` }} />
+                      </div></>
+                    ) : (
+                      <><span className="text-2xl">🖼️</span>
+                      <div>
+                        <p className="text-sm text-white font-montserrat font-medium">Upload OG Image</p>
+                        <p className="text-xs text-neutral-500 font-montserrat">Uploads to Firebase · 1200 × 630 px recommended</p>
+                      </div>
+                      {seo.ogImage && <span className="ml-auto text-[10px] text-emerald-400 font-montserrat">✓ Set</span>}
+                      </>
+                    )}
+                  </label>
+                  {ogImageUpload.error && <p className="text-red-400 text-xs font-montserrat mb-2">{ogImageUpload.error}</p>}
+                  {/* OR paste a URL */}
                   <input
                     type="url" value={seo.ogImage || ''}
                     onChange={(e) => setSeo('ogImage', e.target.value)}
-                    placeholder={form.profileImage || 'https://... (1200×630 px recommended)'}
+                    placeholder="Or paste an image URL (https://…)"
                     className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
                   />
-                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Recommended: 1200 × 630 px. Leave blank to default to profile photo.</p>
+                  {seo.ogImage && (
+                    <div className="mt-2 relative rounded-xl overflow-hidden border border-white/10 h-28 bg-black/20">
+                      <img src={seo.ogImage} alt="OG preview" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setSeo('ogImage', '')}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-red-500/80 transition-all">
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to default to profile photo.</p>
                 </div>
               </div>
             </section>
@@ -2206,6 +2281,69 @@ export default function CelebrityManagementSection() {
                     placeholder="@handle"
                     className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Title</label>
+                  <input
+                    type="text" value={seo.twitterTitle || ''}
+                    onChange={(e) => setSeo('twitterTitle', e.target.value)}
+                    placeholder={seo.metaTitle || `${form.name || 'Celebrity Name'} — Biography`}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to inherit Meta Title.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Description</label>
+                  <textarea
+                    rows={2} value={seo.twitterDescription || ''}
+                    onChange={(e) => setSeo('twitterDescription', e.target.value)}
+                    placeholder={seo.metaDescription || 'Description shown in Twitter card preview…'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to inherit Meta Description.</p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Image</label>
+                  {/* Upload button */}
+                  <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all mb-2 ${
+                    twitterImageUpload.uploading ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+                  }`}>
+                    <input type="file" accept="image/*" className="sr-only" disabled={twitterImageUpload.uploading}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTwitterImageUpload(f); e.target.value = ''; }}
+                    />
+                    {twitterImageUpload.uploading ? (
+                      <><span className="text-yellow-400 text-sm font-montserrat">Uploading…</span>
+                      <div className="ml-auto h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${twitterImageUpload.progress}%` }} />
+                      </div></>
+                    ) : (
+                      <><span className="text-2xl">🐦</span>
+                      <div>
+                        <p className="text-sm text-white font-montserrat font-medium">Upload Twitter Image</p>
+                        <p className="text-xs text-neutral-500 font-montserrat">Uploads to Firebase · min 120×120; large card: 1200×600 px</p>
+                      </div>
+                      {seo.twitterImage && <span className="ml-auto text-[10px] text-emerald-400 font-montserrat">✓ Set</span>}
+                      </>
+                    )}
+                  </label>
+                  {twitterImageUpload.error && <p className="text-red-400 text-xs font-montserrat mb-2">{twitterImageUpload.error}</p>}
+                  {/* OR paste a URL */}
+                  <input
+                    type="url" value={seo.twitterImage || ''}
+                    onChange={(e) => setSeo('twitterImage', e.target.value)}
+                    placeholder={seo.ogImage || form.profileImage || 'Or paste an image URL (https://…)'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                  {seo.twitterImage && (
+                    <div className="mt-2 relative rounded-xl overflow-hidden border border-white/10 h-28 bg-black/20">
+                      <img src={seo.twitterImage} alt="Twitter image preview" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setSeo('twitterImage', '')}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-red-500/80 transition-all">
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to fall back to OG Image.</p>
                 </div>
               </div>
             </section>
