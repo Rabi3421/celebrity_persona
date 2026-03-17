@@ -113,9 +113,7 @@ async function handler(request: AuthenticatedRequest) {
         profileImage:     profileImage?.trim()         || '',
         coverImage:       body.coverImage?.trim()      || undefined,
         galleryImages:    Array.isArray(body.galleryImages)    ? body.galleryImages    : [],
-        status:           ['draft', 'published', 'archived'].includes(s) ? s : 'draft',
-        contentQuality:   ['draft', 'review', 'published', 'archived'].includes(body.contentQuality) ? body.contentQuality : 'draft',
-        isActive:         body.isActive  !== undefined ? Boolean(body.isActive)  : true,
+        status:           ['draft', 'published'].includes(s) ? s : 'draft',
         isFeatured:       body.isFeatured !== undefined ? Boolean(body.isFeatured) : false,
         isVerified:       body.isVerified !== undefined ? Boolean(body.isVerified) : false,
         socialMedia: {

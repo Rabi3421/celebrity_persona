@@ -127,17 +127,15 @@ export interface ICelebrity extends Document {
   searchRank?: number;
   trendingScore?: number;
   likes: mongoose.Types.ObjectId[];
-  isActive: boolean;
   isFeatured?: boolean;
   isVerified?: boolean;
-  contentQuality?: 'draft' | 'review' | 'published' | 'archived';
   tags: string[];
   categories: string[];
   language?: string;
   profileImage?: string;
   coverImage?: string;
   galleryImages: string[];
-  status?: 'draft' | 'published' | 'archived';
+  status?: 'draft' | 'published';
   isScheduled?: boolean;
   publishAt?: Date;
   createdAt: Date;
@@ -356,10 +354,6 @@ const celebritySchema = new Schema<ICelebrity>(
       type: [{ type: Schema.Types.ObjectId, ref: 'User' }],
       default: [],
     },
-    isActive: {
-      type: Boolean,
-      default: true
-    },
     isFeatured: {
       type: Boolean,
       default: false
@@ -367,11 +361,6 @@ const celebritySchema = new Schema<ICelebrity>(
     isVerified: {
       type: Boolean,
       default: false
-    },
-    contentQuality: {
-      type: String,
-      enum: ['draft', 'review', 'published', 'archived'],
-      default: 'draft'
     },
     tags: [String],
     categories: [String],
@@ -384,7 +373,7 @@ const celebritySchema = new Schema<ICelebrity>(
     galleryImages: [String],
     status: {
       type: String,
-      enum: ['draft', 'published', 'archived'],
+      enum: ['draft', 'published'],
       default: 'draft'
     },
     isScheduled: {
@@ -407,7 +396,7 @@ celebritySchema.index(
 );
 
 // Compound indexes for performance
-celebritySchema.index({ status: 1, isActive: 1 });
+celebritySchema.index({ status: 1 });
 // Note: slug index is already created by `unique: true` on the schema field.
 celebritySchema.index({ viewCount: -1 });
 celebritySchema.index({ popularityScore: -1 });

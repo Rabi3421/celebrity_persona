@@ -38,8 +38,7 @@ interface CelebrityRow {
   nationality?: string;
   occupation?: string[];
   profileImage?: string;
-  status?: 'draft' | 'published' | 'archived';
-  isActive: boolean;
+  status?: 'draft' | 'published';
   isFeatured?: boolean;
   isVerified?: boolean;
   popularity?: number;
@@ -89,7 +88,7 @@ interface CelebrityFull extends CelebrityRow {
   language?: string;
   coverImage?: string;
   galleryImages?: string[];
-  contentQuality?: 'draft' | 'review' | 'published' | 'archived';
+  // contentQuality removed — only status: draft | published is used
   socialMedia?: {
     instagram?: string;
     twitter?: string;
@@ -138,7 +137,7 @@ const EMPTY_FORM: CelebrityFull = {
   marriages: [],
   quotes: [], tags: [], categories: [], language: 'en', profileImage: '',
   coverImage: '', galleryImages: [],
-  status: 'draft', contentQuality: 'draft', isActive: true, isFeatured: false, isVerified: false,
+  status: 'draft', isFeatured: false, isVerified: false,
   socialMedia: { instagram: '', twitter: '', facebook: '', youtube: '', tiktok: '', threads: '', imdb: '', wikipedia: '', website: '' },
   seo: {
     metaTitle: '', metaDescription: '', focusKeyword: '', keywords: [],
@@ -152,18 +151,17 @@ const EMPTY_FORM: CelebrityFull = {
 
 const STATUS_COLORS: Record<string, string> = {
   published: 'bg-emerald-500/20 text-emerald-400',
-  draft:     'bg-neutral-500/20 text-neutral-400',
-  archived:  'bg-red-500/20 text-red-400',
+  draft:     'bg-yellow-500/20 text-yellow-400',
 };
 
 const TABS: { key: FormTab; label: string; icon: string }[] = [
   { key: 'basic',      label: 'Basic',     icon: 'IdentificationIcon' },
-  { key: 'biography',  label: 'Biography', icon: 'BookOpenIcon'       },
   { key: 'social',     label: 'Social',    icon: 'GlobeAltIcon'       },
+  { key: 'biography',  label: 'Biography', icon: 'BookOpenIcon'       },
+  { key: 'images',     label: 'Images',    icon: 'PhotoIcon'          },
   { key: 'movies',     label: 'Movies',    icon: 'FilmIcon'           },
   { key: 'awards',     label: 'Awards',    icon: 'TrophyIcon'         },
   { key: 'meta',       label: 'Meta',      icon: 'TagIcon'            },
-  { key: 'images',     label: 'Images',    icon: 'PhotoIcon'          },
 ];
 
 const PAGE_SIZES = [10, 20, 50];
@@ -589,6 +587,7 @@ export default function CelebrityManagementSection() {
   const [form, setForm]               = useState<CelebrityFull>(EMPTY_FORM);
   const [formErrors, setFormErrors]   = useState<Partial<Record<keyof CelebrityFull, string>>>({});
   const [formLoading, setFormLoading] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
   const [formApiError, setFormApiError] = useState('');
   const [loadingDetail, setLoadingDetail] = useState(false);
 
@@ -744,9 +743,7 @@ export default function CelebrityManagementSection() {
         profileImage:     d.profileImage     || '',
         coverImage:       d.coverImage       || '',
         galleryImages:    d.galleryImages    || [],
-        status:           d.status           || 'draft',
-        contentQuality:   d.contentQuality   || 'draft',
-        isActive:         d.isActive         ?? true,
+        status:           (d.status === 'published' ? 'published' : 'draft') as 'draft' | 'published',
         isFeatured:       d.isFeatured       ?? false,
         isVerified:       d.isVerified       ?? false,
         awards:    d.awards    || [],
@@ -796,11 +793,20 @@ export default function CelebrityManagementSection() {
 
   const closePanel = () => { setPanelMode(null); };
 
-  // ─── validate ────────────────────────────────────────────────────────────
+  // ─── validate (full — requires name + slug) ──────────────────────────────
   const validate = () => {
     const errs: Partial<Record<keyof CelebrityFull, string>> = {};
     if (!form.name || form.name.trim().length < 2) errs.name = 'Name is required (min 2 chars)';
     if (!form.slug || form.slug.trim().length < 2) errs.slug = 'Slug is required';
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  // ─── validate draft (only name + slug required) ───────────────────────────
+  const validateDraft = () => {
+    const errs: Partial<Record<keyof CelebrityFull, string>> = {};
+    if (!form.name || form.name.trim().length < 2) errs.name = 'Name is required to save as draft';
+    if (!form.slug || form.slug.trim().length < 2) errs.slug = 'Slug is required to save as draft';
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -855,8 +861,6 @@ export default function CelebrityManagementSection() {
     coverImage:       form.coverImage?.trim()       || '',
     galleryImages:    form.galleryImages            || [],
     status:           form.status,
-    contentQuality:   form.contentQuality,
-    isActive:         form.isActive,
     isFeatured:       form.isFeatured,
     isVerified:       form.isVerified,
     socialMedia:      form.socialMedia,
@@ -925,6 +929,45 @@ export default function CelebrityManagementSection() {
     }
   };
 
+  // ─── save as draft ─────────────────────────────────────────────────────
+  // Works for both add (creates new) and edit (updates existing).
+  // Only name + slug are required. All other fields can be partially filled.
+  const handleSaveDraft = async () => {
+    if (!validateDraft()) return;
+    setDraftLoading(true); setFormApiError('');
+    const payload = { ...buildPayload(), status: 'draft' as const };
+    try {
+      let res: Response;
+      if (panelMode === 'edit' && form.id) {
+        res = await fetch(`/api/superadmin/celebrities/${form.id}`, {
+          method: 'PUT',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch('/api/superadmin/celebrities', {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to save draft');
+      // If we just created a new draft, switch the panel to edit mode so
+      // subsequent "Save as Draft" calls update the same record.
+      if (panelMode === 'add' && data.data?.id) {
+        setForm((f) => ({ ...f, id: data.data.id, status: 'draft' }));
+        setPanelMode('edit');
+      }
+      showToast('success', `Draft saved — "${form.name.trim()}"`);
+      fetchList(page === 1 ? 1 : page);
+    } catch (err: any) {
+      setFormApiError(err.message || 'Failed to save draft');
+    } finally {
+      setDraftLoading(false);
+    }
+  };
+
   // ─── delete ──────────────────────────────────────────────────────────────
   const handleDelete = async (c: CelebrityRow) => {
     setConfirmDelete(null);
@@ -946,7 +989,7 @@ export default function CelebrityManagementSection() {
   };
 
   // ─── quick toggle ────────────────────────────────────────────────────────
-  const handleToggle = async (c: CelebrityRow, field: 'isActive' | 'isFeatured') => {
+  const handleToggle = async (c: CelebrityRow, field: 'isFeatured') => {
     setBusy(c.id, true);
     const newVal = !c[field];
     try {
@@ -958,7 +1001,7 @@ export default function CelebrityManagementSection() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Update failed');
       setCelebrities((prev) => prev.map((x) => x.id === c.id ? { ...x, [field]: newVal } : x));
-      showToast('success', `${c.name} ${field === 'isActive' ? (newVal ? 'activated' : 'deactivated') : (newVal ? 'featured' : 'unfeatured')}`);
+      showToast('success', `${c.name} ${newVal ? 'featured' : 'unfeatured'}`);
     } catch (err: any) {
       showToast('error', err.message || 'Failed to update');
     } finally {
@@ -1065,36 +1108,38 @@ export default function CelebrityManagementSection() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-center">
               <div>
                 <label className="block text-[10px] text-neutral-500 mb-1">From</label>
-                <input
-                  type="number"
-                  min={1900}
-                  max={new Date().getFullYear()}
+                <select
                   value={form.yearsActiveFrom || ''}
                   onChange={(e) => {
-                    const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                    const v = e.target.value;
                     setField('yearsActiveFrom', v);
                     setField('yearsActive', computeYearsActive(v, form.yearsActiveTo, form.yearsActivePresent));
                   }}
-                  placeholder="e.g. 2016"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
-                />
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all appearance-none cursor-pointer"
+                >
+                  <option value="" className="bg-neutral-900 text-neutral-400">Select year</option>
+                  {Array.from({ length: new Date().getFullYear() - 1900 + 1 }, (_, i) => new Date().getFullYear() - i).map((yr) => (
+                    <option key={yr} value={String(yr)} className="bg-neutral-900">{yr}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-[10px] text-neutral-500 mb-1">To</label>
-                <input
-                  type="number"
-                  min={1900}
-                  max={new Date().getFullYear()}
+                <select
                   value={form.yearsActiveTo || ''}
                   onChange={(e) => {
-                    const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                    const v = e.target.value;
                     setField('yearsActiveTo', v);
                     setField('yearsActive', computeYearsActive(form.yearsActiveFrom, v, form.yearsActivePresent));
                   }}
                   disabled={form.yearsActivePresent}
-                  placeholder="e.g. 2024"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all disabled:opacity-50"
-                />
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="" className="bg-neutral-900 text-neutral-400">Select year</option>
+                  {Array.from({ length: new Date().getFullYear() - 1900 + 1 }, (_, i) => new Date().getFullYear() - i).map((yr) => (
+                    <option key={yr} value={String(yr)} className="bg-neutral-900">{yr}</option>
+                  ))}
+                </select>
               </div>
               <div className="pt-1">
                 <ToggleField
@@ -1243,42 +1288,7 @@ export default function CelebrityManagementSection() {
             <LabeledInput label="Education (comma separated)" value={joinComma(form.education)} onChange={(v) => setField('education', splitComma(v))} placeholder="University of Miami, Harvard University" />
           </div>
 
-          <div className="md:col-span-2 space-y-3">
-            <label className="block text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">Status & Quality</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-neutral-600 mb-1 font-montserrat">Publish Status</label>
-                <select
-                  value={form.status}
-                  onChange={(e) => setField('status', e.target.value as CelebrityFull['status'])}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-neutral-600 mb-1 font-montserrat">Content Quality</label>
-                <select
-                  value={form.contentQuality}
-                  onChange={(e) => setField('contentQuality', e.target.value as CelebrityFull['contentQuality'])}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="review">Review</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-            </div>
-          </div>
 
-          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-1">
-            <ToggleField label="Active"   value={form.isActive}            onChange={(v) => setField('isActive', v)}   />
-            <ToggleField label="Featured" value={form.isFeatured  ?? false} onChange={(v) => setField('isFeatured', v)} />
-            <ToggleField label="Verified" value={form.isVerified  ?? false} onChange={(v) => setField('isVerified', v)} />
-          </div>
         </div>
       );
 
@@ -2356,8 +2366,8 @@ export default function CelebrityManagementSection() {
         </div>
       )}
 
-      {/* Stats — hidden while the Add form is open */}
-      {panelMode !== 'add' && <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Stats — hidden while the form panel is open */}
+      {!panelMode && <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Total',     value: total,                                                      icon: 'StarIcon',         color: 'text-yellow-400'  },
           { label: 'Published', value: celebrities.filter((c) => c.status === 'published').length,  icon: 'CheckBadgeIcon',   color: 'text-emerald-400' },
@@ -2395,7 +2405,6 @@ export default function CelebrityManagementSection() {
             <option value="">All Statuses</option>
             <option value="published">Published</option>
             <option value="draft">Draft</option>
-            <option value="archived">Archived</option>
           </select>
           <select
             value={limit}
@@ -2412,7 +2421,7 @@ export default function CelebrityManagementSection() {
           >
             <Icon name="ArrowPathIcon" size={16} className={loading ? 'animate-spin' : ''} />
           </button>
-          {panelMode === 'add' ? (
+          {panelMode ? (
             <button
               onClick={closePanel}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 font-semibold font-montserrat text-sm hover:bg-white/20 transition-all"
@@ -2432,8 +2441,8 @@ export default function CelebrityManagementSection() {
         </div>
       </div>
 
-      {/* Error — hidden while the Add form is open */}
-      {panelMode !== 'add' && fetchError && (
+      {/* Error — hidden while the form panel is open */}
+      {!panelMode && fetchError && (
         <div className="glass-card rounded-2xl p-4 border border-red-500/20 bg-red-500/10 flex items-center gap-3">
           <Icon name="ExclamationCircleIcon" size={18} className="text-red-400 shrink-0" />
           <p className="text-red-400 text-sm font-montserrat flex-1">{fetchError}</p>
@@ -2501,9 +2510,38 @@ export default function CelebrityManagementSection() {
               </div>
 
               {/* Footer */}
-              <div className="flex flex-col gap-3 px-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 border-t border-white/10 bg-white/2">
+              <div className="flex flex-col gap-3 px-3 py-4 sm:px-6 border-t border-white/10 bg-white/2">
+                {/* Status + Toggles row */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Status pills */}
+                  <div className="flex gap-2">
+                    {(['draft', 'published'] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setField('status', s)}
+                        className={`px-4 py-1.5 rounded-xl border font-montserrat text-xs font-semibold capitalize transition-all ${
+                          form.status === s
+                            ? s === 'published'
+                              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                              : 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400'
+                            : 'bg-white/5 border-white/10 text-neutral-500 hover:border-white/20 hover:text-neutral-300'
+                        }`}
+                      >
+                        {s === 'draft' ? '📝 Draft' : '✅ Published'}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Divider */}
+                  <div className="h-5 w-px bg-white/10 hidden sm:block" />
+                  {/* Featured & Verified toggles */}
+                  <ToggleField label="Featured" value={form.isFeatured ?? false} onChange={(v) => setField('isFeatured', v)} />
+                  <ToggleField label="Verified" value={form.isVerified ?? false} onChange={(v) => setField('isVerified', v)} />
+                </div>
+                {/* Actions row */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-neutral-600 text-xs font-montserrat">* Name and Slug are required</p>
-                <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                   <button
                     type="button"
                     onClick={closePanel}
@@ -2511,9 +2549,20 @@ export default function CelebrityManagementSection() {
                   >
                     Cancel
                   </button>
+                  {/* Save as Draft — always visible, only needs name+slug */}
+                  <button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    disabled={draftLoading || formLoading}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-yellow-500/40 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 font-montserrat text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {draftLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
+                    {draftLoading ? 'Saving draft…' : '📝 Save as Draft'}
+                  </button>
+                  {/* Publish — requires full validation */}
                   <button
                     type="submit"
-                    disabled={formLoading}
+                    disabled={formLoading || draftLoading}
                     className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {formLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
@@ -2522,14 +2571,15 @@ export default function CelebrityManagementSection() {
                       : (panelMode === 'add' ? 'Create Celebrity' : 'Save Changes')}
                   </button>
                 </div>
+                </div>
               </div>
             </form>
           )}
         </div>
       )}
 
-      {/* Table — hidden while the Add form is open */}
-      {panelMode !== 'add' && <div className="glass-card rounded-2xl p-6">
+      {/* Table — hidden while the form panel is open */}
+      {!panelMode && <div className="glass-card rounded-2xl p-6">
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-playfair text-xl font-bold text-white">Celebrity Profiles</h3>
           {!loading && (
@@ -2545,7 +2595,7 @@ export default function CelebrityManagementSection() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/10">
-                {['Celebrity', 'Nationality / Occupation', 'Status', 'Active', 'Featured', 'Actions'].map((h) => (
+                {['Celebrity', 'Nationality / Occupation', 'Status', 'Featured', 'Actions'].map((h) => (
                   <th key={h} className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -2554,7 +2604,7 @@ export default function CelebrityManagementSection() {
               {loading
                 ? skeletonRows.map((_, i) => (
                     <tr key={i} className="border-b border-white/5">
-                      {[180, 140, 80, 60, 60, 80].map((w, j) => (
+                      {[180, 140, 80, 60, 80].map((w, j) => (
                         <td key={j} className="py-3.5 px-3">
                           <div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: w }} />
                         </td>
@@ -2587,15 +2637,6 @@ export default function CelebrityManagementSection() {
                         <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium font-montserrat capitalize ${STATUS_COLORS[c.status || 'draft']}`}>
                           {c.status || 'draft'}
                         </span>
-                      </td>
-                      <td className="py-3.5 px-3">
-                        <button
-                          onClick={() => handleToggle(c, 'isActive')}
-                          title={c.isActive ? 'Deactivate' : 'Activate'}
-                          className={`w-10 h-5 rounded-full transition-all relative ${c.isActive ? 'bg-emerald-500' : 'bg-white/10'}`}
-                        >
-                          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${c.isActive ? 'left-5' : 'left-0.5'}`} />
-                        </button>
                       </td>
                       <td className="py-3.5 px-3">
                         <button
