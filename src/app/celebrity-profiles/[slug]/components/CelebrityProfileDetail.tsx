@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
@@ -17,12 +17,32 @@ interface Movie {
   description: string;
 }
 
+interface Award {
+  _id?: string;
+  title: string;
+  category: string;
+  year: string;
+  organization: string;
+  work: string;
+  description: string;
+}
+
+interface Marriage {
+  name?: string;
+  marriedYear?: string;
+  divorcedYear?: string;
+  currentlyMarried?: boolean;
+}
+
 interface SocialMedia {
   instagram?: string;
   twitter?: string;
   facebook?: string;
   youtube?: string;
   tiktok?: string;
+  threads?: string;
+  imdb?: string;
+  wikipedia?: string;
   website?: string;
 }
 
@@ -40,12 +60,14 @@ export interface FullCelebrity {
   yearsActive?: string;
   height?: string;
   weight?: string;
+  bodyMeasurements?: string;
   eyeColor?: string;
   hairColor?: string;
   spouse?: string;
   children?: string[];
   parents?: string[];
   siblings?: string[];
+  relatives?: string[];
   education?: string[];
   netWorth?: string;
   introduction?: string;
@@ -58,6 +80,8 @@ export interface FullCelebrity {
   trivia?: string[];
   works?: string[];
   movies?: Movie[];
+  awards?: Award[];
+  marriages?: Marriage[];
   quotes?: string[];
   socialMedia?: SocialMedia;
   profileImage?: string;
@@ -69,31 +93,47 @@ export interface FullCelebrity {
   isVerified?: boolean;
   viewCount?: number;
   popularityScore?: number;
-  nationality_display?: string;
   likes?: string[];
 }
 
-// ── Strip HTML tags and decode basic HTML entities ────────────────────────────
-function stripHtml(raw?: string): string {
-  if (!raw) return '';
-  return raw
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function RichHtml({ html, className }: { html?: string; className?: string }) {
+  if (!html) return null;
+  return (
+    <div
+      className={`rich-editor-content ${className ?? ''}`}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function SectionHeading({ children, icon }: { children: React.ReactNode; icon?: string }) {
+function formatDate(raw?: string): string {
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function parseBodyMeasurements(raw?: string): string {
+  if (!raw) return '';
+  return raw.replace(/^(Girl|Boy)Measurements\|\s*/i, '');
+}
+
+function SectionHeading({
+  children,
+  icon,
+  id,
+}: {
+  children: React.ReactNode;
+  icon?: string;
+  id?: string;
+}) {
   return (
-    <h2 className="font-playfair text-2xl md:text-3xl font-bold text-white mb-5 flex items-center gap-3">
+    <h2
+      id={id}
+      className="font-playfair text-2xl md:text-3xl font-bold text-white mb-6 flex items-center gap-3 scroll-mt-24"
+    >
       <span className="w-1 h-8 rounded-full bg-primary inline-block flex-shrink-0" />
       {icon && <Icon name={icon as never} size={22} className="text-primary" />}
       {children}
@@ -101,19 +141,41 @@ function SectionHeading({ children, icon }: { children: React.ReactNode; icon?: 
   );
 }
 
-function InfoRow({ label, value, highlight }: { label: string; value?: string | number; highlight?: boolean }) {
-  if (!value) return null;
+function InfoRow({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value?: string | number;
+  highlight?: boolean;
+}) {
+  if (value === undefined || value === null || value === '') return null;
   return (
     <div className="flex justify-between gap-4 py-2.5 border-b border-white/5 last:border-0">
-      <span className="text-[11px] text-neutral-500 uppercase tracking-wider flex-shrink-0 pt-0.5">{label}</span>
-      <span className={`text-sm font-medium text-right ${highlight ? 'text-primary' : 'text-neutral-200'}`}>{value}</span>
+      <span className="text-[11px] text-neutral-500 uppercase tracking-wider flex-shrink-0 pt-0.5">
+        {label}
+      </span>
+      <span
+        className={`text-sm font-medium text-right ${highlight ? 'text-primary' : 'text-neutral-200'}`}
+      >
+        {value}
+      </span>
     </div>
   );
 }
 
-function StatBadge({ label, value, icon }: { label: string; value: string; icon: string }) {
+function StatBadge({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: string;
+}) {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/8 transition-colors">
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/[0.08] transition-colors">
       <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
         <Icon name={icon as never} size={15} className="text-primary" />
       </div>
@@ -125,33 +187,100 @@ function StatBadge({ label, value, icon }: { label: string; value: string; icon:
   );
 }
 
+function SocialBtn({
+  href,
+  icon,
+  label,
+  color,
+}: {
+  href: string;
+  icon: string;
+  label: string;
+  color: string;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={label}
+      aria-label={`${label} profile`}
+      className={`glass-card p-2.5 rounded-full text-neutral-400 ${color} transition-all backdrop-blur-md`}
+    >
+      <Icon name={icon as never} size={17} />
+    </a>
+  );
+}
+
+// ── Wikipedia-style table helpers ────────────────────────────────────────────
+function TableWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="w-full overflow-x-auto rounded-xl border border-white/8">
+      <table className="w-full text-sm border-collapse">
+        {children}
+      </table>
+    </div>
+  );
+}
+
+function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <th
+      scope="col"
+      className={`px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-400 bg-white/5 border-b border-white/8 whitespace-nowrap ${className ?? ''}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+function Td({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <td className={`px-4 py-3 border-b border-white/5 align-top text-neutral-300 ${className ?? ''}`}>
+      {children}
+    </td>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: FullCelebrity }) {
+export default function CelebrityProfileDetail({
+  celebrity: c,
+}: {
+  celebrity: FullCelebrity;
+}) {
   const { user, authHeaders } = useAuth();
   const router = useRouter();
 
-  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
-  const [activeQuote, setActiveQuote] = useState(0);
+  const [lightboxImg, setLightboxImg]   = useState<string | null>(null);
+  const [lightboxIdx, setLightboxIdx]   = useState(0);
+  const [activeQuote, setActiveQuote]   = useState(0);
 
-  // Follow state
-  const [following, setFollowing]   = useState(false);
-  const [followLoading, setFollowLoading] = useState(false);
-  const [followChecked, setFollowChecked] = useState(false);
+  const [following, setFollowing]           = useState(false);
+  const [followLoading, setFollowLoading]   = useState(false);
+  const [followChecked, setFollowChecked]   = useState(false);
 
-  // Like state — seed count from server-rendered prop immediately
-  const [liked, setLiked]           = useState(false);
-  const [likeCount, setLikeCount]   = useState((c.likes ?? []).length);
-  const [likeLoading, setLikeLoading] = useState(false);
-  const [likeChecked, setLikeChecked] = useState(false);
+  const [liked, setLiked]               = useState(false);
+  const [likeCount, setLikeCount]       = useState((c.likes ?? []).length);
+  const [likeLoading, setLikeLoading]   = useState(false);
+  const [likeChecked, setLikeChecked]   = useState(false);
 
-  // Check follow / like state — count fetched for everyone, user status only when logged in
+  const [expandedMovieId, setExpandedMovieId] = useState<string | null>(null);
+
+  // Auto-rotate quotes
   useEffect(() => {
-    // Always fetch the total like count (no auth required)
+    if ((c.quotes?.length ?? 0) <= 1) return;
+    const t = setInterval(
+      () => setActiveQuote((p) => (p + 1) % c.quotes!.length),
+      6000,
+    );
+    return () => clearInterval(t);
+  }, [c.quotes]);
+
+  // Follow / like status
+  useEffect(() => {
     fetch(`/api/user/celebrities/like-status/${c.slug}`)
       .then((r) => r.json())
-      .then((json) => {
-        if (json.success) setLikeCount(json.count);
-      })
+      .then((json) => { if (json.success) setLikeCount(json.count); })
       .catch(() => {});
 
     if (!user) {
@@ -160,14 +289,10 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
       return;
     }
 
-    // Logged-in: get personal like + follow status
     fetch(`/api/user/celebrities/like-status/${c.slug}`, { headers: authHeaders() })
       .then((r) => r.json())
       .then((json) => {
-        if (json.success) {
-          setLiked(json.liked);
-          setLikeCount(json.count);
-        }
+        if (json.success) { setLiked(json.liked); setLikeCount(json.count); }
       })
       .catch(() => {})
       .finally(() => setLikeChecked(true));
@@ -175,18 +300,52 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
     fetch('/api/user/celebrities/following', { headers: authHeaders() })
       .then((r) => r.json())
       .then((json) => {
-        if (json.success) {
+        if (json.success)
           setFollowing(json.celebrities.some((cel: any) => cel.slug === c.slug));
-        }
       })
       .catch(() => {})
       .finally(() => setFollowChecked(true));
   }, [user]); // eslint-disable-line
 
+  // Lightbox keyboard navigation
+  useEffect(() => {
+    if (!lightboxImg) return;
+    const allImgs = [c.profileImage, ...(c.galleryImages ?? [])].filter(
+      Boolean,
+    ) as string[];
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxImg(null);
+      if (e.key === 'ArrowRight') {
+        const next = (lightboxIdx + 1) % allImgs.length;
+        setLightboxIdx(next);
+        setLightboxImg(allImgs[next]);
+      }
+      if (e.key === 'ArrowLeft') {
+        const prev = (lightboxIdx - 1 + allImgs.length) % allImgs.length;
+        setLightboxIdx(prev);
+        setLightboxImg(allImgs[prev]);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [lightboxImg, lightboxIdx, c]);
+
+  const openLightbox = (src: string) => {
+    const allImgs = [c.profileImage, ...(c.galleryImages ?? [])].filter(
+      Boolean,
+    ) as string[];
+    const idx = allImgs.indexOf(src);
+    setLightboxIdx(idx >= 0 ? idx : 0);
+    setLightboxImg(src);
+  };
+
   const handleFollow = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    if (!user) { router.push(`/login?redirect=/celebrity-profiles/${c.slug}`); return; }
+    if (!user) {
+      router.push(`/login?redirect=/celebrity-profiles/${c.slug}`);
+      return;
+    }
     if (followLoading) return;
     setFollowLoading(true);
     try {
@@ -205,7 +364,10 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    if (!user) { router.push(`/login?redirect=/celebrity-profiles/${c.slug}`); return; }
+    if (!user) {
+      router.push(`/login?redirect=/celebrity-profiles/${c.slug}`);
+      return;
+    }
     if (likeLoading) return;
     setLikeLoading(true);
     try {
@@ -215,157 +377,176 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
         body:    JSON.stringify({ celebrityId: c.id }),
       });
       const json = await res.json();
-      if (json.success) {
-        setLiked(json.liked);
-        setLikeCount(json.count);
-      }
+      if (json.success) { setLiked(json.liked); setLikeCount(json.count); }
     } finally {
       setLikeLoading(false);
     }
   };
 
+  // ── Derived values ──────────────────────────────────────────────────────────
   const coverImg   = c.coverImage   || c.profileImage || '';
   const profileImg = c.profileImage || c.coverImage   || '';
   const profession = c.occupation?.join(' · ') || '';
 
-  const allImages = [
-    ...(profileImg ? [profileImg] : []),
-    ...(c.galleryImages || []),
-  ].filter(Boolean);
+  const galleryOnly = (c.galleryImages ?? []).filter(Boolean);
+  const inlineImg1  = galleryOnly[0] ?? null;
+  const inlineImg2  = galleryOnly[1] ?? null;
+  const inlineImg3  = galleryOnly[2] ?? null;
+  const inlineImg4  = galleryOnly[3] ?? null;
+  const inlineImg5  = galleryOnly[4] ?? null;
+  const stripImgs   = galleryOnly.slice(4);
 
-  // ── Clean text fields ───────────────────────────────────────────────────────
-  const intro       = stripHtml(c.introduction);
-  const earlyLife   = stripHtml(c.earlyLife);
-  const career      = stripHtml(c.career);
-  const personalLife = stripHtml(c.personalLife);
+  const hasFilms        = (c.movies?.length ?? 0) > 0;
+  const hasAwards       = (c.awards?.length ?? 0) > 0;
+  const hasQuotes       = (c.quotes?.length ?? 0) > 0;
+  const hasBio          = !!(c.earlyLife || c.career || c.personalLife);
+  const hasFamily       = !!(
+    c.parents?.length ||
+    c.children?.length ||
+    c.siblings?.length ||
+    c.relatives?.length ||
+    c.spouse ||
+    c.marriages?.length
+  );
+  const hasPhilanthr    = (c.philanthropy?.length ?? 0) > 0;
+  const hasControversy  = (c.controversies?.length ?? 0) > 0;
+  const hasTrivia       = (c.trivia?.length ?? 0) > 0;
+  const hasAchiev       = (c.achievements?.length ?? 0) > 0;
+  const hasWorks        = (c.works?.length ?? 0) > 0;
+  const hasEducation    = (c.education?.length ?? 0) > 0;
+  const hasGallery      = galleryOnly.length > 0;
 
-  const hasFilms      = (c.movies?.length ?? 0) > 0;
-  const hasQuotes     = (c.quotes?.length ?? 0) > 0;
-  const hasBio        = earlyLife || career || personalLife;
-  const hasFamily     = (c.parents?.length ?? 0) > 0 || (c.children?.length ?? 0) > 0 || (c.siblings?.length ?? 0) > 0;
-  const hasPhilanthr  = (c.philanthropy?.length ?? 0) > 0;
-  const hasControversy = (c.controversies?.length ?? 0) > 0;
-  const hasTrivia     = (c.trivia?.length ?? 0) > 0;
-  const hasAchiev     = (c.achievements?.length ?? 0) > 0;
-  const hasWorks      = (c.works?.length ?? 0) > 0;
-  const hasEducation  = (c.education?.length ?? 0) > 0;
+  const bodyMeas = parseBodyMeasurements(c.bodyMeasurements);
 
-  // Distribute gallery images across the page
-  // allImages[0] is always the profile image — skip it for inline placement
-  const galleryOnly = c.galleryImages?.filter(Boolean) || [];
-  const inlineImg1  = galleryOnly[0] || null;  // floated beside intro
-  const inlineImg2  = galleryOnly[1] || null;  // floated beside early life
-  const inlineImg3  = galleryOnly[2] || null;  // floated beside personalLife
-  const inlineImg4  = galleryOnly[3] || null;  // floated beside career
-  const stripImgs   = galleryOnly.slice(4);    // horizontal strip between trivia & filmography
+  const winnerAwards  = c.awards?.filter((a) => /winner/i.test(a.category)) ?? [];
+  const nomineeAwards = c.awards?.filter((a) => !/winner/i.test(a.category)) ?? [];
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <article className="pt-20">
+    <article className="pt-20 min-h-screen">
 
-      {/* ── Hero Banner ───────────────────────────────────────────────── */}
-      <div className="relative h-[75vh] min-h-[520px] w-full overflow-hidden">
+      {/* ── Hero ─────────────────────────────────────────────────────── */}
+      <div className="relative h-[80vh] min-h-[540px] w-full overflow-hidden">
         {coverImg ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={coverImg}
-            alt={c.name}
+            alt={`${c.name} cover`}
             className="w-full h-full object-cover object-top scale-105 pointer-events-none"
-            style={{ filter: 'brightness(0.7)' }}
+            style={{ filter: 'brightness(0.65)' }}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-indigo-950 via-purple-950 to-background" />
         )}
-
-        {/* Layered gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/55 to-transparent pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/20 to-transparent pointer-events-none" />
 
-        {/* Back button */}
-        <div className="absolute top-6 left-6 md:left-10">
-          <Link
-            href="/celebrity-profiles"
-            className="flex items-center gap-2 glass-card px-4 py-2 rounded-full text-sm text-neutral-300 hover:text-white transition-colors backdrop-blur-md"
-          >
-            <Icon name="ArrowLeftIcon" size={16} />
-            <span>Celebrity Profiles</span>
-          </Link>
-        </div>
+        {/* Back breadcrumb */}
+        <nav aria-label="Breadcrumb" className="absolute top-6 left-6 md:left-10 z-10">
+          <ol className="flex items-center gap-1.5 text-sm">
+            <li>
+              <Link href="/" className="glass-card px-3 py-2 rounded-full text-neutral-400 hover:text-white transition-colors backdrop-blur-md text-xs">
+                Home
+              </Link>
+            </li>
+            <li className="text-neutral-600">/</li>
+            <li>
+              <Link href="/celebrity-profiles" className="glass-card px-3 py-2 rounded-full text-neutral-400 hover:text-white transition-colors backdrop-blur-md text-xs">
+                Celebrities
+              </Link>
+            </li>
+            <li className="text-neutral-600">/</li>
+            <li aria-current="page" className="glass-card px-3 py-2 rounded-full text-white backdrop-blur-md text-xs max-w-[180px] truncate">
+              {c.name}
+            </li>
+          </ol>
+        </nav>
 
-        {/* Social links + Follow + Like — top right */}
-        <div className="absolute top-6 right-6 md:right-10 flex items-center gap-2 z-10">
-          {/* Like button — always visible, count seeded from prop */}
+        {/* Top-right: actions + social */}
+        <div className="absolute top-6 right-6 md:right-10 flex items-center gap-2 z-10 flex-wrap justify-end max-w-[60%]">
+          {/* Like */}
           <button
             onClick={handleLike}
             disabled={likeLoading}
+            aria-label={liked ? 'Unlike' : 'Like'}
             className={`flex items-center gap-1.5 px-3 py-2.5 rounded-full text-sm font-semibold backdrop-blur-md transition-all ${
               liked
                 ? 'bg-rose-500/30 text-rose-300 border border-rose-500/40'
                 : 'glass-card text-neutral-300 hover:bg-rose-500/20 hover:text-rose-300 border border-white/20'
             }`}
-            title={liked ? 'Unlike' : 'Like'}
           >
-            {likeLoading
-              ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              : <Icon name="HeartIcon" size={15} className={liked ? 'fill-rose-400 text-rose-400' : ''} />
-            }
-            <span className="text-xs">{likeCount > 0 ? likeCount : ''}</span>
+            {likeLoading ? (
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Icon name="HeartIcon" size={15} className={liked ? 'fill-rose-400 text-rose-400' : ''} />
+            )}
+            {likeCount > 0 && <span className="text-xs">{likeCount}</span>}
           </button>
 
-          {/* Follow button */}
+          {/* Follow */}
           {followChecked && (
             <button
               onClick={handleFollow}
               disabled={followLoading}
+              aria-label={following ? 'Unfollow' : 'Follow'}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold backdrop-blur-md transition-all ${
                 following
                   ? 'bg-primary text-black hover:bg-primary/80'
                   : 'glass-card text-white hover:bg-white/10 border border-white/20'
               }`}
             >
-              {followLoading
-                ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                : <Icon name={following ? 'HeartIcon' : 'HeartIcon'} size={16} className={following ? 'fill-black' : ''} />
-              }
+              {followLoading ? (
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Icon name="UserPlusIcon" size={16} />
+              )}
               {following ? 'Following' : 'Follow'}
             </button>
           )}
 
+          {/* Social links */}
           {c.socialMedia && (
-            <>
+            <div className="flex items-center gap-1.5 flex-wrap">
               {c.socialMedia.instagram && (
-                <a href={c.socialMedia.instagram} target="_blank" rel="noopener noreferrer"
-                  className="glass-card p-2.5 rounded-full text-neutral-400 hover:text-pink-400 transition-all backdrop-blur-md">
-                  <Icon name="CameraIcon" size={17} />
-                </a>
+                <SocialBtn href={c.socialMedia.instagram} icon="CameraIcon" label="Instagram" color="hover:text-pink-400" />
               )}
               {c.socialMedia.twitter && (
-                <a href={c.socialMedia.twitter} target="_blank" rel="noopener noreferrer"
-                  className="glass-card p-2.5 rounded-full text-neutral-400 hover:text-sky-400 transition-all backdrop-blur-md">
-                  <Icon name="ChatBubbleLeftEllipsisIcon" size={17} />
-                </a>
+                <SocialBtn href={c.socialMedia.twitter} icon="ChatBubbleLeftEllipsisIcon" label="Twitter/X" color="hover:text-sky-400" />
+              )}
+              {c.socialMedia.facebook && (
+                <SocialBtn href={c.socialMedia.facebook} icon="UserGroupIcon" label="Facebook" color="hover:text-blue-400" />
               )}
               {c.socialMedia.youtube && (
-                <a href={c.socialMedia.youtube} target="_blank" rel="noopener noreferrer"
-                  className="glass-card p-2.5 rounded-full text-neutral-400 hover:text-red-400 transition-all backdrop-blur-md">
-                  <Icon name="PlayCircleIcon" size={17} />
-                </a>
+                <SocialBtn href={c.socialMedia.youtube} icon="PlayCircleIcon" label="YouTube" color="hover:text-red-400" />
+              )}
+              {c.socialMedia.tiktok && (
+                <SocialBtn href={c.socialMedia.tiktok} icon="MusicalNoteIcon" label="TikTok" color="hover:text-white" />
+              )}
+              {c.socialMedia.threads && (
+                <SocialBtn href={c.socialMedia.threads} icon="ChatBubbleOvalLeftEllipsisIcon" label="Threads" color="hover:text-neutral-200" />
+              )}
+              {c.socialMedia.imdb && (
+                <SocialBtn href={c.socialMedia.imdb} icon="FilmIcon" label="IMDb" color="hover:text-yellow-400" />
+              )}
+              {c.socialMedia.wikipedia && (
+                <SocialBtn href={c.socialMedia.wikipedia} icon="BookOpenIcon" label="Wikipedia" color="hover:text-neutral-100" />
               )}
               {c.socialMedia.website && (
-                <a href={c.socialMedia.website} target="_blank" rel="noopener noreferrer"
-                  className="glass-card p-2.5 rounded-full text-neutral-400 hover:text-emerald-400 transition-all backdrop-blur-md">
-                  <Icon name="GlobeAltIcon" size={17} />
-                </a>
+                <SocialBtn href={c.socialMedia.website} icon="GlobeAltIcon" label="Website" color="hover:text-emerald-400" />
               )}
-            </>
+            </div>
           )}
         </div>
 
-        {/* Hero content — anchored to bottom */}
-        <div className="absolute bottom-0 left-0 right-0 px-6 pb-12 md:px-16">
+        {/* Hero bottom: avatar + name */}
+        <div className="absolute bottom-0 left-0 right-0 px-6 pb-10 md:px-16">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-end gap-6">
             {/* Avatar */}
             <div className="relative flex-shrink-0">
-              <div className="w-28 h-28 md:w-40 md:h-40 rounded-2xl overflow-hidden ring-2 ring-primary/40 shadow-2xl">
+              <button
+                onClick={() => profileImg && openLightbox(profileImg)}
+                className="block w-28 h-28 md:w-40 md:h-40 rounded-2xl overflow-hidden ring-2 ring-primary/40 shadow-2xl hover:ring-primary/70 transition-all"
+              >
                 {profileImg ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={profileImg} alt={c.name} className="w-full h-full object-cover" />
@@ -374,15 +555,18 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
                     <Icon name="UserCircleIcon" size={56} className="text-neutral-600" />
                   </div>
                 )}
-              </div>
+              </button>
               {c.isVerified && (
-                <span className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-1.5 ring-2 ring-background">
+                <span
+                  className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-1.5 ring-2 ring-background"
+                  title="Verified"
+                >
                   <Icon name="CheckBadgeIcon" size={14} className="text-white" />
                 </span>
               )}
             </div>
 
-            {/* Name & meta */}
+            {/* Name + meta */}
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 {c.isFeatured && (
@@ -391,463 +575,874 @@ export default function CelebrityProfileDetail({ celebrity: c }: { celebrity: Fu
                   </span>
                 )}
                 {c.categories?.slice(0, 3).map((cat) => (
-                  <span key={cat} className="px-3 py-0.5 rounded-full text-[10px] glass-card text-neutral-400 capitalize backdrop-blur-md">
+                  <span
+                    key={cat}
+                    className="px-3 py-0.5 rounded-full text-[10px] glass-card text-neutral-400 capitalize backdrop-blur-md"
+                  >
                     {cat}
                   </span>
                 ))}
               </div>
-              <h1 className="font-playfair text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-tight break-words">
+              <h1 className="font-playfair text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-tight">
                 {c.name}
               </h1>
               {profession && (
-                <p className="font-montserrat text-primary text-base md:text-lg mt-1.5 tracking-wide">{profession}</p>
+                <p className="font-montserrat text-primary text-base md:text-lg mt-1.5 tracking-wide">
+                  {profession}
+                </p>
               )}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-neutral-400 text-sm">
                 {c.nationality && (
+                  <span className="flex items-center gap-1">
+                    <Icon name="GlobeAltIcon" size={13} />
+                    {c.nationality}
+                  </span>
+                )}
+                {c.nationality && c.born && <span className="text-neutral-600">·</span>}
+                {c.born && <span>Born {formatDate(c.born)}</span>}
+                {c.age && (
                   <>
-                    <span className="flex items-center gap-1">
-                      <Icon name="GlobeAltIcon" size={13} />
-                      {c.nationality}
-                    </span>
                     <span className="text-neutral-600">·</span>
+                    <span>Age {c.age}</span>
                   </>
                 )}
-                {c.born && <span>Born {c.born}</span>}
-                {c.age && <><span className="text-neutral-600">·</span><span>Age {c.age}</span></>}
-                {c.died && <><span className="text-neutral-600">·</span><span className="text-neutral-500">d. {c.died}</span></>}
+                {c.died && (
+                  <>
+                    <span className="text-neutral-600">·</span>
+                    <span className="text-neutral-500">d. {formatDate(c.died)}</span>
+                  </>
+                )}
+                {c.yearsActive && (
+                  <>
+                    <span className="text-neutral-600">·</span>
+                    <span>{c.yearsActive}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Main Content ──────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-6 md:px-16 pb-32 mt-10 space-y-20">
+      {/* ── Content ──────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-6 md:px-16 mt-10">
 
-        {/* Introduction + Personal Info sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        {/* ═══════════ OVERVIEW ═══════════ */}
+        <div className="space-y-20">
 
-          {/* Left — introduction */}
-          <div className="lg:col-span-2 space-y-10">
-            {intro && (
-              <section>
-                <SectionHeading>Introduction</SectionHeading>
-                <div>
-                  {inlineImg1 && (
-                    <button
-                      onClick={() => setLightboxImg(inlineImg1)}
-                      className="float-right ml-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
-                      style={{ aspectRatio: '3/4' }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={inlineImg1}
-                        alt={c.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
-                        <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">View Photo</span>
-                      </div>
-                    </button>
+          {/* Intro + Sidebar */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+              {/* Left */}
+              <div className="lg:col-span-2 space-y-12">
+
+                {/* Introduction */}
+                {c.introduction && (
+                  <section id="introduction">
+                    <SectionHeading id="introduction">Introduction</SectionHeading>
+                    <div>
+                      {inlineImg1 && (
+                        <button
+                          onClick={() => openLightbox(inlineImg1)}
+                          className="float-right ml-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
+                          style={{ aspectRatio: '3/4' }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={inlineImg1}
+                            alt={c.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+                            <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">
+                              View Photo
+                            </span>
+                          </div>
+                        </button>
+                      )}
+                      <RichHtml html={c.introduction} className="text-lg leading-relaxed" />
+                      <div className="clear-both" />
+                    </div>
+                  </section>
+                )}
+
+                {/* Achievements */}
+                {hasAchiev && (
+                  <section id="achievements">
+                    <SectionHeading id="achievements" icon="TrophyIcon">
+                      Achievements
+                    </SectionHeading>
+                    {c.achievements!.map((a, i) => (
+                      <RichHtml key={i} html={a} />
+                    ))}
+                  </section>
+                )}
+
+                {/* Notable Works */}
+                {hasWorks && (
+                  <section id="works">
+                    <SectionHeading id="works">Notable Works</SectionHeading>
+                    <div className="flex flex-wrap gap-2.5">
+                      {c.works!.map((w, i) => (
+                        <span
+                          key={i}
+                          className="glass-card px-4 py-2 rounded-full text-sm text-neutral-300 border border-white/5"
+                        >
+                          {w}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+
+              {/* ── Sidebar ── */}
+              <aside className="space-y-5 lg:sticky lg:top-20 lg:self-start">
+
+                {/* Quick Stats */}
+                {(c.netWorth || c.height || c.weight || c.eyeColor || hasFilms || hasAwards) && (
+                  <div className="glass-card rounded-2xl p-5 border border-white/5">
+                    <h3 className="font-playfair text-lg font-bold text-white mb-4 flex items-center gap-2">
+                      <span className="w-1 h-5 rounded-full bg-primary inline-block" />
+                      Quick Stats
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {c.netWorth    && <StatBadge label="Net Worth"    value={c.netWorth}                    icon="CurrencyRupeeIcon" />}
+                      {c.yearsActive && <StatBadge label="Active Since" value={c.yearsActive}                 icon="CalendarDaysIcon" />}
+                      {c.height      && <StatBadge label="Height"       value={c.height}                      icon="ArrowsUpDownIcon" />}
+                      {c.weight      && <StatBadge label="Weight"       value={c.weight}                      icon="ScaleIcon" />}
+                      {c.eyeColor    && <StatBadge label="Eye Color"    value={c.eyeColor}                    icon="EyeIcon" />}
+                      {hasFilms      && <StatBadge label="Films"        value={`${c.movies!.length} films`}   icon="FilmIcon" />}
+                      {hasAwards     && <StatBadge label="Awards"       value={`${c.awards!.length} total`}   icon="TrophyIcon" />}
+                      {winnerAwards.length > 0 && (
+                        <StatBadge label="Wins" value={`${winnerAwards.length} wins`} icon="StarIcon" />
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Personal Info */}
+                <div className="glass-card rounded-2xl p-5 border border-white/5">
+                  <h3 className="font-playfair text-lg font-bold text-white mb-3 flex items-center gap-2">
+                    <span className="w-1 h-5 rounded-full bg-primary inline-block" />
+                    Personal Info
+                  </h3>
+                  <InfoRow label="Full Name"     value={c.name} />
+                  <InfoRow label="Born"          value={formatDate(c.born)} />
+                  <InfoRow label="Birthplace"    value={c.birthPlace} />
+                  <InfoRow label="Nationality"   value={c.nationality} />
+                  {(c.citizenship?.length ?? 0) > 0 && (
+                    <InfoRow label="Citizenship" value={c.citizenship!.join(', ')} />
                   )}
-                  <p className="text-neutral-300 leading-relaxed text-lg whitespace-pre-line">{intro}</p>
-                  <div className="clear-both" />
+                  <InfoRow label="Age"           value={c.age} />
+                  <InfoRow label="Years Active"  value={c.yearsActive} />
+                  <InfoRow label="Height"        value={c.height} />
+                  <InfoRow label="Weight"        value={c.weight} />
+                  {bodyMeas && <InfoRow label="Measurements" value={bodyMeas} />}
+                  <InfoRow label="Eye Color"     value={c.eyeColor} />
+                  <InfoRow label="Hair Color"    value={c.hairColor} />
+                  {c.netWorth && <InfoRow label="Net Worth"  value={c.netWorth} highlight />}
+                  {c.died     && <InfoRow label="Died"       value={formatDate(c.died)} />}
+                </div>
+
+                {/* Family */}
+                {hasFamily && (
+                  <div className="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
+                    <h3 className="font-playfair text-lg font-bold text-white flex items-center gap-2">
+                      <span className="w-1 h-5 rounded-full bg-primary inline-block" />
+                      Family
+                    </h3>
+                    {c.spouse && (
+                      <div>
+                        <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1.5">
+                          Spouse
+                        </p>
+                        <p className="text-sm text-neutral-300">{c.spouse}</p>
+                      </div>
+                    )}
+                    {(c.marriages?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-2">
+                          Marriages
+                        </p>
+                        <div className="space-y-2">
+                          {c.marriages!.map((m, i) => (
+                            <div key={i} className="text-sm text-neutral-300 flex flex-wrap gap-x-2">
+                              {m.name && (
+                                <span className="font-medium text-white">{m.name}</span>
+                              )}
+                              {m.marriedYear && (
+                                <span className="text-neutral-500">m. {m.marriedYear}</span>
+                              )}
+                              {m.currentlyMarried ? (
+                                <span className="text-emerald-400 text-xs">Present</span>
+                              ) : m.divorcedYear ? (
+                                <span className="text-neutral-500">div. {m.divorcedYear}</span>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {(c.parents?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1.5">
+                          Parents
+                        </p>
+                        {c.parents!.map((p, i) => (
+                          <p key={i} className="text-sm text-neutral-300">
+                            {p}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {(c.siblings?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1.5">
+                          Siblings
+                        </p>
+                        {c.siblings!.map((s, i) => (
+                          <p key={i} className="text-sm text-neutral-300">
+                            {s}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {(c.children?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1.5">
+                          Children
+                        </p>
+                        {c.children!.map((ch, i) => (
+                          <p key={i} className="text-sm text-neutral-300">
+                            {ch}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {(c.relatives?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1.5">
+                          Relatives
+                        </p>
+                        {c.relatives!.map((r, i) => (
+                          <p key={i} className="text-sm text-neutral-300">
+                            {r}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Education */}
+                {hasEducation && (
+                  <div className="glass-card rounded-2xl p-5 border border-white/5">
+                    <h3 className="font-playfair text-lg font-bold text-white mb-3 flex items-center gap-2">
+                      <span className="w-1 h-5 rounded-full bg-primary inline-block" />
+                      Education
+                    </h3>
+                    <div className="space-y-2">
+                      {c.education!.map((e, i) => (
+                        <div key={i} className="flex items-start gap-2.5">
+                          <Icon
+                            name="AcademicCapIcon"
+                            size={14}
+                            className="text-primary mt-0.5 flex-shrink-0"
+                          />
+                          <p className="text-sm text-neutral-300 leading-relaxed">{e}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags */}
+                {(c.tags?.length ?? 0) > 0 && (
+                  <div>
+                    <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-3">
+                      Tags
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {c.tags!.map((tag, i) => (
+                        <span
+                          key={i}
+                          className="glass-card px-3 py-1 rounded-full text-xs text-neutral-400 border border-white/5"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </aside>
+            </div>
+
+            {/* Biography */}
+            {hasBio && (
+              <div className="space-y-14">
+                {c.earlyLife && (
+                  <section id="early-life">
+                    <SectionHeading id="early-life">Early Life</SectionHeading>
+                    <div>
+                      {inlineImg2 && (
+                        <button
+                          onClick={() => openLightbox(inlineImg2)}
+                          className="float-right ml-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
+                          style={{ aspectRatio: '3/4' }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={inlineImg2}
+                            alt={c.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+                            <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">
+                              View Photo
+                            </span>
+                          </div>
+                        </button>
+                      )}
+                      <RichHtml html={c.earlyLife} className="text-lg leading-relaxed" />
+                      <div className="clear-both" />
+                    </div>
+                  </section>
+                )}
+
+                {c.career && (
+                  <section id="career">
+                    <SectionHeading id="career">Career</SectionHeading>
+                    <div>
+                      {inlineImg4 && (
+                        <button
+                          onClick={() => openLightbox(inlineImg4)}
+                          className="float-left mr-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
+                          style={{ aspectRatio: '3/4' }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={inlineImg4}
+                            alt={c.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+                            <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">
+                              View Photo
+                            </span>
+                          </div>
+                        </button>
+                      )}
+                      <RichHtml html={c.career} className="text-lg leading-relaxed" />
+                      <div className="clear-both" />
+                    </div>
+                  </section>
+                )}
+
+                {c.personalLife && (
+                  <section id="personal-life">
+                    <SectionHeading id="personal-life">Personal Life</SectionHeading>
+                    <div>
+                      {inlineImg3 && (
+                        <button
+                          onClick={() => openLightbox(inlineImg3)}
+                          className="float-right ml-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
+                          style={{ aspectRatio: '3/4' }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={inlineImg3}
+                            alt={c.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+                            <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">
+                              View Photo
+                            </span>
+                          </div>
+                        </button>
+                      )}
+                      <RichHtml html={c.personalLife} className="text-lg leading-relaxed" />
+                      <div className="clear-both" />
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+
+            {/* Trivia */}
+            {hasTrivia && (
+              <section id="trivia">
+                <SectionHeading id="trivia" icon="LightBulbIcon">
+                  Did You Know?
+                </SectionHeading>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {c.trivia!.map((t, i) => (
+                    <div
+                      key={i}
+                      className="glass-card rounded-2xl p-5 flex gap-3 border border-white/5 hover:border-primary/20 transition-colors"
+                    >
+                      <Icon
+                        name="LightBulbIcon"
+                        size={18}
+                        className="text-primary flex-shrink-0 mt-0.5"
+                      />
+                      <p className="text-neutral-300 text-sm leading-relaxed">{t}</p>
+                    </div>
+                  ))}
                 </div>
               </section>
             )}
 
-            {hasAchiev && (
-              <section>
-                <SectionHeading>Achievements</SectionHeading>
-                <ul className="space-y-3">
-                  {c.achievements!.map((a, i) => (
+            {/* Extra gallery strip */}
+            {stripImgs.length > 0 && (
+              <div className="-mx-6 md:-mx-16 overflow-x-auto">
+                <div className="flex gap-3 px-6 md:px-16 pb-2">
+                  {stripImgs.map((img, i) => (
+                    <button
+                      key={i}
+                      onClick={() => openLightbox(img)}
+                      className="flex-shrink-0 rounded-2xl overflow-hidden group border border-white/5 hover:border-primary/40 transition-all shadow-lg relative"
+                      style={{ width: 220, aspectRatio: '4/5' }}
+                      aria-label={`View photo of ${c.name}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img}
+                        alt={`${c.name} — photo`}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-4">
+                        <span className="text-white text-xs font-medium bg-black/50 px-3 py-1.5 rounded-full">
+                          Expand
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Philanthropy */}
+            {hasPhilanthr && (
+              <section id="philanthropy">
+                <SectionHeading id="philanthropy" icon="HeartIcon">
+                  Philanthropy
+                </SectionHeading>
+                <ul className="space-y-3 max-w-4xl">
+                  {c.philanthropy!.map((p, i) => (
                     <li key={i} className="flex items-start gap-3 text-neutral-300">
-                      <Icon name="TrophyIcon" size={16} className="text-primary mt-0.5 flex-shrink-0" />
-                      <span className="leading-relaxed">{stripHtml(a)}</span>
+                      <Icon
+                        name="HeartIcon"
+                        size={16}
+                        className="text-pink-400 mt-0.5 flex-shrink-0"
+                      />
+                      <span className="leading-relaxed">{p}</span>
                     </li>
                   ))}
                 </ul>
               </section>
             )}
 
-            {hasWorks && (
-              <section>
-                <SectionHeading>Notable Works</SectionHeading>
-                <div className="flex flex-wrap gap-2.5">
-                  {c.works!.map((w, i) => (
-                    <span key={i} className="glass-card px-4 py-2 rounded-full text-sm text-neutral-300 border border-white/5">
-                      {stripHtml(w)}
-                    </span>
+            {/* Controversies */}
+            {hasControversy && (
+              <section id="controversies">
+                <SectionHeading id="controversies" icon="ExclamationTriangleIcon">
+                  Controversies
+                </SectionHeading>
+                <div>
+                  {inlineImg5 && (
+                    <button
+                      onClick={() => openLightbox(inlineImg5)}
+                      className="float-right ml-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
+                      style={{ aspectRatio: '3/4' }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={inlineImg5}
+                        alt={c.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+                        <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">
+                          View Photo
+                        </span>
+                      </div>
+                    </button>
+                  )}
+                  <div className="space-y-3">
+                    {c.controversies!.map((con, i) => (
+                      <div key={i} className="text-neutral-300 text-sm leading-relaxed">
+                        <RichHtml html={con} />
+                        {i < c.controversies!.length - 1 && (
+                          <div className="mt-3 border-b border-white/[0.06]" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="clear-both" />
+                </div>
+              </section>
+            )}
+
+            {/* Quotes */}
+            {hasQuotes && (
+              <section id="quotes">
+                <SectionHeading id="quotes" icon="ChatBubbleBottomCenterTextIcon">
+                  Quotes
+                </SectionHeading>
+                <div className="glass-card rounded-3xl p-10 mb-8 relative overflow-hidden border border-primary/10">
+                  <div className="absolute top-4 left-6 font-playfair text-9xl text-primary/8 leading-none select-none pointer-events-none">
+                    &ldquo;
+                  </div>
+                  <p className="font-playfair text-xl md:text-2xl text-white leading-relaxed italic relative z-10 text-center max-w-3xl mx-auto">
+                    {c.quotes![activeQuote]}
+                  </p>
+                  {c.quotes!.length > 1 && (
+                    <div className="flex justify-center gap-2 mt-8">
+                      {c.quotes!.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setActiveQuote(i)}
+                          className={`rounded-full transition-all duration-300 ${
+                            i === activeQuote
+                              ? 'bg-primary w-6 h-2'
+                              : 'bg-neutral-600 hover:bg-neutral-500 w-2 h-2'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="columns-1 sm:columns-2 gap-4 space-y-4">
+                  {c.quotes!.map((q, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveQuote(i)}
+                      className={`w-full text-left glass-card rounded-xl p-5 break-inside-avoid transition-all border ${
+                        i === activeQuote
+                          ? 'border-primary/40 bg-primary/5'
+                          : 'border-white/5 hover:border-white/15'
+                      }`}
+                    >
+                      <p className="text-neutral-300 text-sm leading-relaxed italic">
+                        &ldquo;{q}&rdquo;
+                      </p>
+                    </button>
                   ))}
                 </div>
               </section>
             )}
-          </div>
-
-          {/* Right — personal info sidebar */}
-          <aside className="space-y-5">
-            {/* Quick Stats */}
-            {(c.netWorth || c.yearsActive || c.height || c.eyeColor || hasFilms) && (
-              <div className="glass-card rounded-2xl p-5 border border-white/5">
-                <h3 className="font-playfair text-lg font-bold text-white mb-4 flex items-center gap-2">
-                  <span className="w-1 h-5 rounded-full bg-primary inline-block" />
-                  Quick Stats
-                </h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {c.netWorth && <StatBadge label="Net Worth" value={c.netWorth} icon="CurrencyRupeeIcon" />}
-                  {c.yearsActive && <StatBadge label="Years Active" value={c.yearsActive} icon="CalendarDaysIcon" />}
-                  {c.height && <StatBadge label="Height" value={c.height} icon="ArrowsUpDownIcon" />}
-                  {c.eyeColor && <StatBadge label="Eye Color" value={c.eyeColor} icon="EyeIcon" />}
-                  {hasFilms && <StatBadge label="Films" value={`${c.movies!.length} films`} icon="FilmIcon" />}
-                  {c.weight && <StatBadge label="Weight" value={c.weight} icon="ScaleIcon" />}
-                </div>
-              </div>
-            )}
-
-            {/* Personal Info */}
-            <div className="glass-card rounded-2xl p-5 border border-white/5">
-              <h3 className="font-playfair text-lg font-bold text-white mb-1 flex items-center gap-2">
-                <span className="w-1 h-5 rounded-full bg-primary inline-block" />
-                Personal Info
-              </h3>
-              <div className="mt-3">
-                <InfoRow label="Born"         value={c.born} />
-                <InfoRow label="Birthplace"   value={c.birthPlace} />
-                <InfoRow label="Nationality"  value={c.nationality} />
-                <InfoRow label="Hair Color"   value={c.hairColor} />
-                <InfoRow label="Spouse"       value={c.spouse} />
-              </div>
-            </div>
-
-            {hasFamily && (
-              <div className="glass-card rounded-2xl p-6 border border-white/5 space-y-4">
-                <h3 className="font-playfair text-lg font-bold text-white">Family</h3>
-                {(c.parents?.length ?? 0) > 0 && (
-                  <div>
-                    <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-2">Parents</p>
-                    {c.parents!.map((p, i) => <p key={i} className="text-sm text-neutral-300 leading-relaxed">{p}</p>)}
-                  </div>
-                )}
-                {(c.siblings?.length ?? 0) > 0 && (
-                  <div>
-                    <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-2">Siblings</p>
-                    {c.siblings!.map((p, i) => <p key={i} className="text-sm text-neutral-300 leading-relaxed">{p}</p>)}
-                  </div>
-                )}
-                {(c.children?.length ?? 0) > 0 && (
-                  <div>
-                    <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-2">Children</p>
-                    {c.children!.map((p, i) => <p key={i} className="text-sm text-neutral-300 leading-relaxed">{p}</p>)}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {hasEducation && (
-              <div className="glass-card rounded-2xl p-6 border border-white/5 space-y-3">
-                <h3 className="font-playfair text-lg font-bold text-white">Education</h3>
-                {c.education!.map((e, i) => (
-                  <div key={i} className="flex items-start gap-2.5">
-                    <Icon name="AcademicCapIcon" size={14} className="text-primary mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-neutral-300 leading-relaxed">{e}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {(c.tags?.length ?? 0) > 0 && (
-              <div>
-                <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-3">Tags</p>
-                <div className="flex flex-wrap gap-2">
-                  {c.tags!.map((tag, i) => (
-                    <span key={i} className="glass-card px-3 py-1 rounded-full text-xs text-neutral-400 border border-white/5">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </aside>
         </div>
+      </div>
 
-        {/* ── Biography ─────────────────────────────────────────────────── */}
-        {hasBio && (
-          <div className="space-y-12">
-            {earlyLife && (
-              <section>
-                <SectionHeading>Early Life</SectionHeading>
-                <div>
-                  {inlineImg2 && (
-                    <button
-                      onClick={() => setLightboxImg(inlineImg2)}
-                      className="float-right ml-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
-                      style={{ aspectRatio: '3/4' }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={inlineImg2}
-                        alt={c.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
-                        <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">View Photo</span>
-                      </div>
-                    </button>
-                  )}
-                  <p className="text-neutral-300 leading-relaxed text-lg whitespace-pre-line">{earlyLife}</p>
-                  <div className="clear-both" />
-                </div>
-              </section>
-            )}
-
-            {career && (
-              <section>
-                <SectionHeading>Career</SectionHeading>
-                <div>
-                  {inlineImg4 && (
-                    <button
-                      onClick={() => setLightboxImg(inlineImg4)}
-                      className="float-left mr-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
-                      style={{ aspectRatio: '3/4' }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={inlineImg4}
-                        alt={c.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
-                        <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">View Photo</span>
-                      </div>
-                    </button>
-                  )}
-                  <p className="text-neutral-300 leading-relaxed text-lg whitespace-pre-line">{career}</p>
-                  <div className="clear-both" />
-                </div>
-              </section>
-            )}
-
-            {personalLife && (
-              <section>
-                <SectionHeading>Personal Life</SectionHeading>
-                <div>
-                  {inlineImg3 && (
-                    <button
-                      onClick={() => setLightboxImg(inlineImg3)}
-                      className="float-right ml-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
-                      style={{ aspectRatio: '3/4' }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={inlineImg3}
-                        alt={c.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
-                        <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">View Photo</span>
-                      </div>
-                    </button>
-                  )}
-                  <p className="text-neutral-300 leading-relaxed text-lg whitespace-pre-line">{personalLife}</p>
-                  <div className="clear-both" />
-                </div>
-              </section>
-            )}
-          </div>
-        )}
-
-        {/* ── Trivia ────────────────────────────────────────────────────── */}
-        {hasTrivia && (
-          <section>
-            <SectionHeading>Did You Know?</SectionHeading>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {c.trivia!.map((t, i) => (
-                <div key={i} className="glass-card rounded-2xl p-5 flex gap-3 border border-white/5 hover:border-primary/20 transition-colors">
-                  <Icon name="LightBulbIcon" size={18} className="text-primary flex-shrink-0 mt-0.5" />
-                  <p className="text-neutral-300 text-sm leading-relaxed">{stripHtml(t)}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ── Inline photo strip (remaining gallery images) ─────────── */}
-        {stripImgs.length > 0 && (
-          <div className="-mx-6 md:-mx-16 overflow-x-auto no-scrollbar">
-            <div className="flex gap-3 px-6 md:px-16 pb-2">
-              {stripImgs.map((img, i) => (
-                <button
-                  key={i}
-                  onClick={() => setLightboxImg(img)}
-                  className="flex-shrink-0 w-56 md:w-72 rounded-2xl overflow-hidden group border border-white/5 hover:border-primary/40 transition-all shadow-lg relative"
-                  style={{ aspectRatio: '4/5' }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={img}
-                    alt={`${c.name} — photo`}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-4">
-                    <span className="text-white text-xs font-medium bg-black/50 px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                      <Icon name="ArrowsPointingOutIcon" size={12} />
-                      Expand
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Filmography ───────────────────────────────────────────────── */}
+        {/* ═══════════ FILMOGRAPHY ═══════════ */}
         {hasFilms && (
-          <section>
-            <SectionHeading>Filmography</SectionHeading>
+          <div className={`max-w-7xl mx-auto px-6 md:px-16 mt-20${!hasAwards && !hasGallery ? ' pb-32' : ''}`}>
+            <SectionHeading icon="FilmIcon">Filmography</SectionHeading>
             <p className="text-sm text-neutral-500 mb-6 -mt-2">
               {c.movies!.length} film{c.movies!.length !== 1 ? 's' : ''}
             </p>
-            <div className="space-y-4">
-              {c.movies!.map((movie, i) => (
-                <div key={movie._id || i}
-                  className="glass-card rounded-2xl p-5 md:p-6 flex flex-col md:flex-row gap-5 hover:border-primary/25 border border-white/5 transition-colors group">
-                  <div className="flex-shrink-0 md:w-20 text-center">
-                    <span className="font-playfair text-3xl font-bold text-primary/30 group-hover:text-primary/60 transition-colors">
-                      {movie.year}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                      <h3 className="font-playfair text-xl font-bold text-white">{movie.name}</h3>
-                      <div className="flex gap-2 flex-wrap">
-                        {movie.genre && <span className="px-2.5 py-1 rounded-full text-xs glass-card text-neutral-400">{movie.genre}</span>}
-                        {movie.role && <span className="px-2.5 py-1 rounded-full text-xs bg-primary/10 text-primary border border-primary/20">{movie.role}</span>}
-                      </div>
-                    </div>
-                    {movie.director && (
-                      <p className="text-sm text-neutral-500 mb-2">
-                        Dir. <span className="text-neutral-400">{movie.director}</span>
-                      </p>
-                    )}
-                    {movie.description && (
-                      <p className="text-sm text-neutral-400 leading-relaxed">{stripHtml(movie.description)}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+
+            <TableWrapper>
+              <thead>
+                <tr>
+                  <Th className="w-16">Year</Th>
+                  <Th>Title</Th>
+                  <Th className="hidden sm:table-cell">Role</Th>
+                  <Th className="hidden md:table-cell">Director</Th>
+                  <Th className="hidden lg:table-cell">Genre</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...c.movies!]
+                  .sort((a, b) => Number(b.year) - Number(a.year))
+                  .map((movie, i, arr) => {
+                    const movieKey = movie._id || String(i);
+                    const isExpanded = expandedMovieId === movieKey;
+                    const isNewDecade =
+                      i === 0 ||
+                      Math.floor(Number(arr[i - 1].year) / 10) !==
+                        Math.floor(Number(movie.year) / 10);
+                    return (
+                      <React.Fragment key={movieKey}>
+
+                        <tr className="hover:bg-white/[0.03] transition-colors group">
+                          {/* Year */}
+                          <Td className="font-mono text-neutral-500 whitespace-nowrap">
+                            {movie.year || '—'}
+                          </Td>
+
+                          {/* Title + read more toggle */}
+                          <Td>
+                            <span className="font-semibold text-white">{movie.name}</span>
+                            {movie.description && (
+                              <button
+                                onClick={() => setExpandedMovieId(isExpanded ? null : movieKey)}
+                                className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors"
+                              >
+                                {isExpanded ? (
+                                  <><span>Show less</span><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg></>
+                                ) : (
+                                  <><span>Read more</span><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg></>
+                                )}
+                              </button>
+                            )}
+                            {/* show role on xs screens */}
+                            {movie.role && (
+                              <span className="sm:hidden mt-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+                                {movie.role}
+                              </span>
+                            )}
+                          </Td>
+
+                          {/* Role */}
+                          <Td className="hidden sm:table-cell">
+                            {movie.role ? (
+                              <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary border border-primary/20 whitespace-nowrap">
+                                {movie.role}
+                              </span>
+                            ) : (
+                              <span className="text-neutral-600">—</span>
+                            )}
+                          </Td>
+
+                          {/* Director */}
+                          <Td className="hidden md:table-cell text-neutral-400">
+                            {movie.director || <span className="text-neutral-600">—</span>}
+                          </Td>
+
+                          {/* Genre */}
+                          <Td className="hidden lg:table-cell">
+                            {movie.genre ? (
+                              <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] bg-white/5 text-neutral-400 border border-white/10 whitespace-nowrap">
+                                {movie.genre}
+                              </span>
+                            ) : (
+                              <span className="text-neutral-600">—</span>
+                            )}
+                          </Td>
+                        </tr>
+
+                        {/* Expanded description row */}
+                        {isExpanded && movie.description && (
+                          <tr>
+                            <td
+                              colSpan={5}
+                              className="px-4 py-3 text-sm text-neutral-300 leading-relaxed bg-white/[0.02] border-b border-white/[0.06]"
+                            >
+                              {movie.description}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+              </tbody>
+            </TableWrapper>
+          </div>
         )}
 
-        {/* ── Philanthropy ──────────────────────────────────────────────── */}
-        {hasPhilanthr && (
-          <section>
-            <SectionHeading>Philanthropy</SectionHeading>
-            <ul className="space-y-3 max-w-4xl">
-              {c.philanthropy!.map((p, i) => (
-                <li key={i} className="flex items-start gap-3 text-neutral-300">
-                  <Icon name="HeartIcon" size={16} className="text-pink-400 mt-0.5 flex-shrink-0" />
-                  <span className="leading-relaxed">{stripHtml(p)}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {/* ── Controversies ─────────────────────────────────────────────── */}
-        {hasControversy && (
-          <section>
-            <SectionHeading icon="ExclamationTriangleIcon">Controversies</SectionHeading>
-            <div className="space-y-4 max-w-4xl">
-              {c.controversies!.map((con, i) => (
-                <div key={i} className="relative rounded-2xl overflow-hidden border border-amber-500/20 bg-amber-950/10 hover:border-amber-500/40 transition-colors group">
-                  {/* Left accent bar */}
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-amber-400 to-amber-600 rounded-l-2xl" />
-                  <div className="pl-6 pr-5 py-5 flex gap-4">
-                    <div className="flex-shrink-0 mt-0.5">
-                      <div className="w-8 h-8 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-                        <span className="text-amber-400 font-bold text-sm">{i + 1}</span>
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-neutral-300 leading-relaxed text-sm md:text-base">{stripHtml(con)}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ── Quotes ────────────────────────────────────────────────────── */}
-        {hasQuotes && (
-          <section>
-            <SectionHeading>Quotes</SectionHeading>
-
-            {/* Featured rotating quote */}
-            <div className="glass-card rounded-3xl p-10 mb-8 relative overflow-hidden border border-primary/10">
-              <div className="absolute top-4 left-6 font-playfair text-9xl text-primary/8 leading-none select-none pointer-events-none">
-                &ldquo;
+        {/* ═══════════ AWARDS ═══════════ */}
+        {hasAwards && (
+          <div className={`max-w-7xl mx-auto px-6 md:px-16 mt-20 space-y-10${!hasGallery ? ' pb-32' : ''}`}>
+            <div className="flex items-start justify-between flex-wrap gap-4">
+              <SectionHeading icon="TrophyIcon">Awards &amp; Nominations</SectionHeading>
+              {/* Summary pills */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/5 border border-white/10 text-neutral-300">
+                  <Icon name="TrophyIcon" size={12} className="text-primary" />
+                  {c.awards!.length} total
+                </span>
+                {winnerAwards.length > 0 && (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                    <Icon name="CheckCircleIcon" size={12} />
+                    {winnerAwards.length} win{winnerAwards.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+                {nomineeAwards.length > 0 && (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                    <Icon name="StarIcon" size={12} />
+                    {nomineeAwards.length} nomination{nomineeAwards.length !== 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
-              <p className="font-playfair text-xl md:text-2xl text-white leading-relaxed italic relative z-10 text-center max-w-3xl mx-auto">
-                {c.quotes![activeQuote]}
-              </p>
-              <div className="flex justify-center gap-2 mt-8">
-                {c.quotes!.map((_, i) => (
+            </div>
+
+            <TableWrapper>
+              <thead>
+                <tr>
+                  <Th className="w-16">Year</Th>
+                  <Th>Award</Th>
+                  <Th className="hidden sm:table-cell">Category</Th>
+                  <Th className="hidden md:table-cell">Organisation</Th>
+                  <Th className="hidden lg:table-cell">For Work</Th>
+                  <Th className="w-24 text-center">Result</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...c.awards!]
+                  .sort((a, b) => {
+                    // Winners first, then sort by year desc
+                    const aWin = /winner/i.test(a.category) ? 0 : 1;
+                    const bWin = /winner/i.test(b.category) ? 0 : 1;
+                    if (aWin !== bWin) return aWin - bWin;
+                    return Number(b.year) - Number(a.year);
+                  })
+                  .map((award, i, arr) => {
+                    const isWinner = /winner/i.test(award.category);
+                    // Insert a visual divider row between wins and nominations
+                    const prevIsWinner = i > 0 && /winner/i.test(arr[i - 1].category);
+                    const showDivider = !isWinner && (i === 0 || prevIsWinner);
+                    return (
+                      <React.Fragment key={award._id || i}>
+                        {showDivider && nomineeAwards.length > 0 && winnerAwards.length > 0 && (
+                          <tr key={`divider-${i}`}>
+                            <td
+                              colSpan={6}
+                              className="px-4 py-2 text-[10px] uppercase tracking-widest text-amber-400/70 bg-amber-500/5 border-y border-amber-500/10 font-semibold"
+                            >
+                              Nominations
+                            </td>
+                          </tr>
+                        )}
+                        <tr
+                          key={award._id || i}
+                          className="hover:bg-white/[0.03] transition-colors group"
+                        >
+                          <Td className="font-mono text-neutral-500 whitespace-nowrap">{award.year}</Td>
+                          <Td>
+                            <span className="font-semibold text-white">{award.title}</span>
+                            {award.description && (
+                              <p className="text-xs text-neutral-500 mt-0.5 leading-relaxed line-clamp-2 hidden sm:block">
+                                {award.description}
+                              </p>
+                            )}
+                          </Td>
+                          <Td className="hidden sm:table-cell text-neutral-400">
+                            {award.category || <span className="text-neutral-600">—</span>}
+                          </Td>
+                          <Td className="hidden md:table-cell text-neutral-400">
+                            {award.organization || <span className="text-neutral-600">—</span>}
+                          </Td>
+                          <Td className="hidden lg:table-cell text-neutral-500 italic text-xs">
+                            {award.work && award.work !== '--'
+                              ? award.work
+                              : <span className="text-neutral-600">—</span>}
+                          </Td>
+                          <Td className="text-center">
+                            {isWinner ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
+                                <Icon name="CheckCircleIcon" size={11} />
+                                Won
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 whitespace-nowrap">
+                                <Icon name="StarIcon" size={11} />
+                                Nominated
+                              </span>
+                            )}
+                          </Td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
+              </tbody>
+            </TableWrapper>
+          </div>
+        )}
+
+        {/* ═══════════ GALLERY ═══════════ */}
+        {hasGallery && (
+          <div className="max-w-7xl mx-auto px-6 md:px-16 mt-20 pb-32">
+            <SectionHeading icon="PhotoIcon">Photo Gallery</SectionHeading>
+            <p className="text-sm text-neutral-500 mb-8 -mt-2">
+              {galleryOnly.length} photo{galleryOnly.length !== 1 ? 's' : ''}
+            </p>
+            <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 space-y-3">
+              {[...(profileImg ? [profileImg] : []), ...galleryOnly]
+                .filter(Boolean)
+                .map((img, i) => (
                   <button
                     key={i}
-                    onClick={() => setActiveQuote(i)}
-                    className={`rounded-full transition-all duration-300 ${
-                      i === activeQuote ? 'bg-primary w-6 h-2' : 'bg-neutral-600 hover:bg-neutral-500 w-2 h-2'
-                    }`}
-                  />
+                    onClick={() => openLightbox(img)}
+                    className="w-full break-inside-avoid rounded-xl overflow-hidden group border border-white/5 hover:border-primary/40 transition-all shadow-md block"
+                    aria-label={`View photo ${i + 1} of ${c.name}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img}
+                      alt={`${c.name} — photo ${i + 1}`}
+                      className="w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </button>
                 ))}
-              </div>
             </div>
-
-            {/* All quotes list */}
-            <div className="columns-1 sm:columns-2 gap-4 space-y-4">
-              {c.quotes!.map((q, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveQuote(i)}
-                  className={`w-full text-left glass-card rounded-xl p-5 break-inside-avoid transition-all border ${
-                    i === activeQuote
-                      ? 'border-primary/40 bg-primary/5'
-                      : 'border-white/5 hover:border-white/15'
-                  }`}
-                >
-                  <p className="text-neutral-300 text-sm leading-relaxed italic">&ldquo;{q}&rdquo;</p>
-                </button>
-              ))}
-            </div>
-          </section>
+          </div>
         )}
 
-
-      </div>
-
-      {/* ── Lightbox ──────────────────────────────────────────────────── */}
-      {lightboxImg && (
-        <div
-          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm"
-          onClick={() => setLightboxImg(null)}
-        >
-          <button
-            onClick={() => setLightboxImg(null)}
-            className="absolute top-6 right-6 glass-card p-2 rounded-full text-white hover:text-primary transition-colors"
-          >
-            <Icon name="XMarkIcon" size={24} />
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lightboxImg}
-            alt={c.name}
-            className="max-h-[90vh] max-w-full object-contain rounded-2xl shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+      {/* ── Lightbox ─────────────────────────────────────────────────── */}
+      {lightboxImg &&
+        (() => {
+          const allImgs = [c.profileImage, ...(c.galleryImages ?? [])].filter(
+            Boolean,
+          ) as string[];
+          const total = allImgs.length;
+          return (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Photo lightbox"
+              className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm"
+              onClick={() => setLightboxImg(null)}
+            >
+              <button
+                onClick={() => setLightboxImg(null)}
+                className="absolute top-6 right-6 glass-card p-2 rounded-full text-white hover:text-primary transition-colors z-10"
+                aria-label="Close lightbox"
+              >
+                <Icon name="XMarkIcon" size={24} />
+              </button>
+              {total > 1 && (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const prev = (lightboxIdx - 1 + total) % total;
+                      setLightboxIdx(prev);
+                      setLightboxImg(allImgs[prev]);
+                    }}
+                    className="absolute left-4 glass-card p-3 rounded-full text-white hover:text-primary transition-colors z-10"
+                    aria-label="Previous photo"
+                  >
+                    <Icon name="ChevronLeftIcon" size={22} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const next = (lightboxIdx + 1) % total;
+                      setLightboxIdx(next);
+                      setLightboxImg(allImgs[next]);
+                    }}
+                    className="absolute right-4 glass-card p-3 rounded-full text-white hover:text-primary transition-colors z-10"
+                    aria-label="Next photo"
+                  >
+                    <Icon name="ChevronRightIcon" size={22} />
+                  </button>
+                  <span className="absolute bottom-6 left-1/2 -translate-x-1/2 text-neutral-400 text-sm glass-card px-4 py-1.5 rounded-full">
+                    {lightboxIdx + 1} / {total}
+                  </span>
+                </>
+              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lightboxImg}
+                alt={c.name}
+                className="max-h-[85vh] max-w-full object-contain rounded-2xl shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          );
+        })()}
     </article>
   );
 }
