@@ -23,8 +23,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page  = Math.max(1, parseInt(searchParams.get('page')  || '1',  10));
     const limit = Math.min(50, parseInt(searchParams.get('limit') || '20', 10));
-    const q     = searchParams.get('q')?.trim();
-    const genre = searchParams.get('genre')?.trim();
+    const q          = searchParams.get('q')?.trim();
+    const genre      = searchParams.get('genre')?.trim();
+    const celebrity  = searchParams.get('celebrity')?.trim();
     const sort  = searchParams.get('sort') || 'anticipation'; // anticipation | release | rating
 
     // Only surface movies whose release date is in the future
@@ -62,6 +63,10 @@ export async function GET(request: NextRequest) {
 
     if (genre && genre !== 'all') {
       filter.$and.push({ genre: { $regex: genre, $options: 'i' } });
+    }
+
+    if (celebrity) {
+      filter.$and.push({ 'cast.name': { $regex: celebrity, $options: 'i' } });
     }
 
     // Sort strategy

@@ -24,9 +24,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page   = Math.max(1, parseInt(searchParams.get('page')  || '1'));
     const limit  = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '20')));
-    const search = searchParams.get('search')?.trim() || '';
-    const genre  = searchParams.get('genre')?.trim()  || '';
-    const sort   = searchParams.get('sort') || 'latest';
+    const search    = searchParams.get('search')?.trim()    || '';
+    const genre     = searchParams.get('genre')?.trim()     || '';
+    const celebrity = searchParams.get('celebrity')?.trim() || '';
+    const sort      = searchParams.get('sort') || 'latest';
 
     const query: Record<string, any> = {
       $or: [
@@ -52,6 +53,10 @@ export async function GET(request: NextRequest) {
 
     if (genre && genre !== 'all') {
       query.genre = { $regex: genre, $options: 'i' };
+    }
+
+    if (celebrity) {
+      query['cast.name'] = { $regex: celebrity, $options: 'i' };
     }
 
     const sortMap: Record<string, any> = {
