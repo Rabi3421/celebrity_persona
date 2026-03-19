@@ -17,6 +17,28 @@ interface Movie {
   description: string;
 }
 
+interface WebSeries {
+  _id?: string;
+  name: string;
+  role: string;
+  seasons: string;
+  year: string;
+  platform: string;
+  genre: string;
+  description: string;
+}
+
+interface TvShow {
+  _id?: string;
+  name: string;
+  role: string;
+  seasons: string;
+  year: string;
+  channel: string;
+  genre: string;
+  description: string;
+}
+
 interface Award {
   _id?: string;
   title: string;
@@ -80,6 +102,8 @@ export interface FullCelebrity {
   trivia?: string[];
   works?: string[];
   movies?: Movie[];
+  webSeries?: WebSeries[];
+  tvShows?: TvShow[];
   awards?: Award[];
   marriages?: Marriage[];
   quotes?: string[];
@@ -481,6 +505,8 @@ export default function CelebrityProfileDetail({
   const stripImgs = galleryOnly.slice(4);
 
   const hasFilms = (c.movies?.length ?? 0) > 0;
+  const hasWebSeries = (c.webSeries?.length ?? 0) > 0;
+  const hasTvShows = (c.tvShows?.length ?? 0) > 0;
   const hasAwards = (c.awards?.length ?? 0) > 0;
   const hasQuotes = (c.quotes?.length ?? 0) > 0;
   const hasBio = !!(c.earlyLife || c.career || c.personalLife);
@@ -1175,7 +1201,7 @@ export default function CelebrityProfileDetail({
 
       {/* ═══════════ FILMOGRAPHY ═══════════ */}
       {hasFilms && (
-        <div className={`max-w-7xl mx-auto px-6 md:px-16 mt-20${!hasAwards && !hasGallery ? ' pb-32' : ''}`}>
+        <div className={`max-w-7xl mx-auto px-6 md:px-16 mt-20${!hasWebSeries && !hasTvShows && !hasAwards && !hasGallery ? ' pb-32' : ''}`}>
           <SectionHeading icon="FilmIcon">Filmography</SectionHeading>
           <p className="text-sm text-neutral-500 mb-6 -mt-2">
             {c.movies!.length} film{c.movies!.length !== 1 ? 's' : ''}
@@ -1232,6 +1258,132 @@ export default function CelebrityProfileDetail({
                           <tr className="border-b border-white/[0.06]">
                             <td colSpan={5} className="px-4 py-3 text-sm text-neutral-400 leading-relaxed bg-white/[0.02]">
                               {movie.description}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════ WEB SERIES ═══════════ */}
+      {hasWebSeries && (
+        <div className={`max-w-7xl mx-auto px-6 md:px-16 mt-20${!hasTvShows && !hasAwards && !hasGallery ? ' pb-32' : ''}`}>
+          <SectionHeading icon="TvIcon">Web Series</SectionHeading>
+          <p className="text-sm text-neutral-500 mb-6 -mt-2">
+            {c.webSeries!.length} series
+          </p>
+
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 w-16">Year</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500">Title</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 hidden sm:table-cell">Role</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 hidden md:table-cell">Platform</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 hidden lg:table-cell">Seasons</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 hidden lg:table-cell">Genre</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...c.webSeries!]
+                  .sort((a, b) => Number(b.year) - Number(a.year))
+                  .map((ws, i) => {
+                    const wsKey = ws._id || `ws-${i}`;
+                    const isExpanded = expandedMovieId === wsKey;
+                    return (
+                      <React.Fragment key={wsKey}>
+                        <tr className="border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors">
+                          <td className="px-4 py-3 align-top text-neutral-500 whitespace-nowrap tabular-nums">{ws.year || '—'}</td>
+                          <td className="px-4 py-3 align-top">
+                            <span className="font-medium text-white">{ws.name}</span>
+                            {ws.role && <span className="sm:hidden block mt-0.5 text-xs text-neutral-400">{ws.role}</span>}
+                            {ws.description && (
+                              <button
+                                onClick={() => setExpandedMovieId(isExpanded ? null : wsKey)}
+                                className="mt-1 flex items-center gap-1 text-xs text-primary hover:underline transition-colors"
+                              >
+                                {isExpanded ? 'Show less ↑' : 'Read more ↓'}
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 align-top text-neutral-300 hidden sm:table-cell">{ws.role || <span className="text-neutral-600">—</span>}</td>
+                          <td className="px-4 py-3 align-top text-neutral-400 hidden md:table-cell">{ws.platform || <span className="text-neutral-600">—</span>}</td>
+                          <td className="px-4 py-3 align-top text-neutral-400 hidden lg:table-cell">{ws.seasons || <span className="text-neutral-600">—</span>}</td>
+                          <td className="px-4 py-3 align-top text-neutral-400 hidden lg:table-cell">{ws.genre || <span className="text-neutral-600">—</span>}</td>
+                        </tr>
+                        {isExpanded && ws.description && (
+                          <tr className="border-b border-white/[0.06]">
+                            <td colSpan={6} className="px-4 py-3 text-sm text-neutral-400 leading-relaxed bg-white/[0.02]">
+                              {ws.description}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════ TV SHOWS ═══════════ */}
+      {hasTvShows && (
+        <div className={`max-w-7xl mx-auto px-6 md:px-16 mt-20${!hasAwards && !hasGallery ? ' pb-32' : ''}`}>
+          <SectionHeading icon="PlayCircleIcon">TV Shows</SectionHeading>
+          <p className="text-sm text-neutral-500 mb-6 -mt-2">
+            {c.tvShows!.length} show{c.tvShows!.length !== 1 ? 's' : ''}
+          </p>
+
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 w-16">Year</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500">Title</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 hidden sm:table-cell">Role</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 hidden md:table-cell">Channel</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 hidden lg:table-cell">Seasons</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500 hidden lg:table-cell">Genre</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...c.tvShows!]
+                  .sort((a, b) => Number(b.year) - Number(a.year))
+                  .map((tv, i) => {
+                    const tvKey = tv._id || `tv-${i}`;
+                    const isExpanded = expandedMovieId === tvKey;
+                    return (
+                      <React.Fragment key={tvKey}>
+                        <tr className="border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors">
+                          <td className="px-4 py-3 align-top text-neutral-500 whitespace-nowrap tabular-nums">{tv.year || '—'}</td>
+                          <td className="px-4 py-3 align-top">
+                            <span className="font-medium text-white">{tv.name}</span>
+                            {tv.role && <span className="sm:hidden block mt-0.5 text-xs text-neutral-400">{tv.role}</span>}
+                            {tv.description && (
+                              <button
+                                onClick={() => setExpandedMovieId(isExpanded ? null : tvKey)}
+                                className="mt-1 flex items-center gap-1 text-xs text-primary hover:underline transition-colors"
+                              >
+                                {isExpanded ? 'Show less ↑' : 'Read more ↓'}
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 align-top text-neutral-300 hidden sm:table-cell">{tv.role || <span className="text-neutral-600">—</span>}</td>
+                          <td className="px-4 py-3 align-top text-neutral-400 hidden md:table-cell">{tv.channel || <span className="text-neutral-600">—</span>}</td>
+                          <td className="px-4 py-3 align-top text-neutral-400 hidden lg:table-cell">{tv.seasons || <span className="text-neutral-600">—</span>}</td>
+                          <td className="px-4 py-3 align-top text-neutral-400 hidden lg:table-cell">{tv.genre || <span className="text-neutral-600">—</span>}</td>
+                        </tr>
+                        {isExpanded && tv.description && (
+                          <tr className="border-b border-white/[0.06]">
+                            <td colSpan={6} className="px-4 py-3 text-sm text-neutral-400 leading-relaxed bg-white/[0.02]">
+                              {tv.description}
                             </td>
                           </tr>
                         )}

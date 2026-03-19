@@ -10,7 +10,7 @@ const ALLOWED_FIELDS = new Set([
   'occupation', 'yearsActive', 'height', 'weight', 'bodyMeasurements', 'eyeColor',
   'hairColor', 'spouse', 'children', 'parents', 'siblings', 'relatives', 'education',
   'netWorth', 'introduction', 'earlyLife', 'career', 'personalLife', 'achievements',
-  'controversies', 'philanthropy', 'trivia', 'works', 'movies', 'awards', 'marriages',
+  'controversies', 'philanthropy', 'trivia', 'works', 'movies', 'webSeries', 'tvShows', 'awards', 'marriages',
   'quotes', 'relatedCelebrities', 'newsArticles', 'socialMedia', 'seo', 'popularity',
   'popularityScore', 'isFeatured', 'isVerified',
   'tags', 'categories', 'language', 'profileImage', 'coverImage', 'galleryImages',
@@ -62,7 +62,7 @@ async function handler(request: AuthenticatedRequest, { params }: any) {
         }
       }
 
-      const updated = await Celebrity.findByIdAndUpdate(id, update, { new: true }).lean();
+      const updated = await Celebrity.findByIdAndUpdate(id, { $set: update }, { new: true, runValidators: false }).lean();
       if (!updated) return NextResponse.json({ success: false, message: 'Celebrity not found' }, { status: 404 });
       const obj: any = { ...updated, id: String((updated as any)._id) };
       delete obj._id; delete obj.__v;

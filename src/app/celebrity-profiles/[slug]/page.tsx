@@ -12,7 +12,7 @@ async function fetchCelebrity(slug: string) {
   try {
     const res = await fetch(`${BASE_URL}/api/user/celebrities/${slug}`, {
       headers: { 'x-api-key': API_KEY },
-      next: { revalidate: 3600 },
+      cache: 'no-store',
     });
     if (!res.ok) return null;
     const data = await res.json();

@@ -10,6 +10,28 @@ export interface IMovie extends Document {
   _id?: string;
 }
 
+export interface IWebSeries extends Document {
+  name: string;
+  role: string;
+  seasons: string;
+  year: string;
+  platform: string;  // Netflix, Prime, Disney+, etc.
+  genre: string;
+  description: string;
+  _id?: string;
+}
+
+export interface ITvShow extends Document {
+  name: string;
+  role: string;
+  seasons: string;
+  year: string;
+  channel: string;   // Star Plus, Colors, Zee TV, etc.
+  genre: string;
+  description: string;
+  _id?: string;
+}
+
 export interface IAward extends Document {
   title: string;
   category?: string;
@@ -103,6 +125,8 @@ export interface ICelebrity extends Document {
   trivia: string[];
   works: string[];
   movies: IMovie[];
+  webSeries: IWebSeries[];
+  tvShows: ITvShow[];
   awards: IAward[];
   marriages: IMarriage[];
   quotes: string[];
@@ -147,6 +171,26 @@ const movieSchema = new Schema<IMovie>({
   role:        { type: String, trim: true, default: '' },
   year:        { type: String, trim: true, default: '' },
   director:    { type: String, trim: true, default: '' },
+  genre:       { type: String, trim: true, default: '' },
+  description: { type: String, trim: true, default: '' },
+}, { _id: true });
+
+const webSeriesSchema = new Schema<IWebSeries>({
+  name:        { type: String, trim: true, default: '' },
+  role:        { type: String, trim: true, default: '' },
+  seasons:     { type: String, trim: true, default: '' },
+  year:        { type: String, trim: true, default: '' },
+  platform:    { type: String, trim: true, default: '' },
+  genre:       { type: String, trim: true, default: '' },
+  description: { type: String, trim: true, default: '' },
+}, { _id: true });
+
+const tvShowSchema = new Schema<ITvShow>({
+  name:        { type: String, trim: true, default: '' },
+  role:        { type: String, trim: true, default: '' },
+  seasons:     { type: String, trim: true, default: '' },
+  year:        { type: String, trim: true, default: '' },
+  channel:     { type: String, trim: true, default: '' },
   genre:       { type: String, trim: true, default: '' },
   description: { type: String, trim: true, default: '' },
 }, { _id: true });
@@ -306,6 +350,8 @@ const celebritySchema = new Schema<ICelebrity>(
     trivia: [String],
     works: [String],
     movies: [movieSchema],
+    webSeries: { type: [webSeriesSchema], default: [] },
+    tvShows:   { type: [tvShowSchema],   default: [] },
     awards: [awardSchema],
     marriages: { type: [marriageSchema], default: [] },
     quotes: [String],
@@ -400,6 +446,11 @@ celebritySchema.index({ status: 1 });
 // Note: slug index is already created by `unique: true` on the schema field.
 celebritySchema.index({ viewCount: -1 });
 celebritySchema.index({ popularityScore: -1 });
+
+// Delete cached model in development to pick up schema changes on hot-reload
+if (process.env.NODE_ENV === 'development') {
+  delete (mongoose.models as any).Celebrity;
+}
 
 const Celebrity: Model<ICelebrity> = mongoose.models.Celebrity || mongoose.model<ICelebrity>('Celebrity', celebritySchema);
 

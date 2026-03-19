@@ -104,6 +104,8 @@ async function handler(request: AuthenticatedRequest) {
         trivia:           Array.isArray(body.trivia)           ? body.trivia           : [],
         works:            Array.isArray(body.works)            ? body.works            : [],
         movies:           Array.isArray(body.movies)           ? body.movies           : [],
+        webSeries:        Array.isArray(body.webSeries)        ? body.webSeries        : [],
+        tvShows:          Array.isArray(body.tvShows)          ? body.tvShows          : [],
         awards:           Array.isArray(body.awards)           ? body.awards           : [],
         marriages:        Array.isArray(body.marriages)        ? body.marriages        : [],
         quotes:           Array.isArray(body.quotes)           ? body.quotes           : [],

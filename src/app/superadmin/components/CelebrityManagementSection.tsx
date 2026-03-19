@@ -21,6 +21,28 @@ interface CelebrityMovie {
   description: string;
 }
 
+interface CelebrityWebSeries {
+  _id?: string;
+  name: string;
+  role: string;
+  seasons: string;
+  year: string;
+  platform: string;
+  genre: string;
+  description: string;
+}
+
+interface CelebrityTvShow {
+  _id?: string;
+  name: string;
+  role: string;
+  seasons: string;
+  year: string;
+  channel: string;
+  genre: string;
+  description: string;
+}
+
 interface CelebrityAward {
   _id?: string;
   title: string;
@@ -81,6 +103,8 @@ interface CelebrityFull extends CelebrityRow {
   trivia?: string[];
   works?: string[];
   movies?: CelebrityMovie[];
+  webSeries?: CelebrityWebSeries[];
+  tvShows?: CelebrityTvShow[];
   awards?: CelebrityAward[];
   quotes?: string[];
   tags?: string[];
@@ -124,7 +148,7 @@ interface CelebrityFull extends CelebrityRow {
   marriages?: { name?: string; marriedYear?: string; divorcedYear?: string; currentlyMarried?: boolean }[];
 }
 
-type FormTab = 'basic' | 'biography' | 'social' | 'movies' | 'awards' | 'meta' | 'images';
+type FormTab = 'basic' | 'biography' | 'social' | 'movies' | 'webSeries' | 'tvShows' | 'awards' | 'meta' | 'images';
 type Toast   = { type: 'success' | 'error'; message: string } | null;
 type PanelMode = 'add' | 'edit' | null;
 
@@ -136,7 +160,7 @@ const EMPTY_FORM: CelebrityFull = {
   netWorth: '', introduction: '', earlyLife: '', career: '', personalLife: '',
   netWorthAmount: '', netWorthUnit: 'USD',
   achievements: [], controversies: [], achievementsHtml: '', controversiesHtml: '',
-  philanthropy: [], trivia: [], works: [], movies: [], awards: [],
+  philanthropy: [], trivia: [], works: [], movies: [], webSeries: [], tvShows: [], awards: [],
   marriages: [],
   quotes: [], tags: [], categories: [], language: 'en', profileImage: '',
   coverImage: '', galleryImages: [],
@@ -163,6 +187,8 @@ const TABS: { key: FormTab; label: string; icon: string }[] = [
   { key: 'biography',  label: 'Biography', icon: 'BookOpenIcon'       },
   { key: 'images',     label: 'Images',    icon: 'PhotoIcon'          },
   { key: 'movies',     label: 'Movies',    icon: 'FilmIcon'           },
+  { key: 'webSeries',  label: 'Web Series', icon: 'TvIcon'            },
+  { key: 'tvShows',    label: 'TV Shows',  icon: 'PlayCircleIcon'     },
   { key: 'awards',     label: 'Awards',    icon: 'TrophyIcon'         },
   { key: 'meta',       label: 'Meta',      icon: 'TagIcon'            },
 ];
@@ -795,6 +821,8 @@ export default function CelebrityManagementSection() {
         trivia:           d.trivia           || [],
         works:            Array.isArray(d.works) ? d.works : [],
         movies:           d.movies           || [],
+        webSeries:        d.webSeries        || [],
+        tvShows:          d.tvShows          || [],
         quotes:           d.quotes           || [],
         tags:             d.tags             || [],
         categories:       d.categories       || [],
@@ -908,6 +936,8 @@ export default function CelebrityManagementSection() {
     trivia:           form.trivia                   || [],
     works:            form.works                    || [],
     movies:           form.movies                   || [],
+    webSeries:        form.webSeries                || [],
+    tvShows:          form.tvShows                  || [],
     awards:           form.awards                   || [],
     marriages:        (form.marriages || []).map((m) => ({
                         name:             m.name             || '',
@@ -1870,6 +1900,374 @@ export default function CelebrityManagementSection() {
                         <button type="button" onClick={() => removeMovie(i)}
                           className="p-1.5 rounded-lg text-neutral-500 hover:bg-red-500/15 hover:text-red-400 transition-all"
                           title="Remove">
+                          <Icon name="TrashIcon" size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // ── WEB SERIES ────────────────────────────────────────────────────
+      case 'webSeries': {
+        const webSeriesList = (form as any).webSeries || [];
+        const EMPTY_WS: CelebrityWebSeries = { name: '', role: '', seasons: '', year: '', platform: '', genre: '', description: '' };
+
+        const wsDraft: CelebrityWebSeries = (form as any).__wsDraft ?? { ...EMPTY_WS };
+        const wsEditIndex = typeof (form as any).__wsEditIndex === 'number' ? (form as any).__wsEditIndex : null;
+        const setWsDraft = (patch: Partial<CelebrityWebSeries>) =>
+          setForm((f) => ({ ...f, __wsDraft: { ...((f as any).__wsDraft ?? EMPTY_WS), ...patch } }));
+        const clearWsDraft = () =>
+          setForm((f) => {
+            const next = { ...f };
+            delete (next as any).__wsDraft;
+            delete (next as any).__wsEditIndex;
+            return next;
+          });
+
+        const commitWs = () => {
+          if (!wsDraft.name.trim()) return;
+          const next = {
+            ...(wsEditIndex !== null ? webSeriesList[wsEditIndex] : {}),
+            name: wsDraft.name.trim(),
+            role: wsDraft.role.trim(),
+            seasons: wsDraft.seasons.trim(),
+            year: wsDraft.year.trim(),
+            platform: wsDraft.platform.trim(),
+            genre: wsDraft.genre.trim(),
+            description: wsDraft.description.trim(),
+          };
+          setField(
+            'webSeries' as any,
+            wsEditIndex !== null
+              ? webSeriesList.map((ws: CelebrityWebSeries, i: number) => (i === wsEditIndex ? next : ws))
+              : [...webSeriesList, next]
+          );
+          clearWsDraft();
+        };
+
+        const editWs = (i: number) =>
+          setForm((f) => ({ ...f, __wsDraft: { ...webSeriesList[i] }, __wsEditIndex: i }));
+
+        const removeWs = (i: number) => {
+          setField('webSeries' as any, webSeriesList.filter((_: any, idx: number) => idx !== i));
+          if (wsEditIndex === i) clearWsDraft();
+          if (wsEditIndex !== null && wsEditIndex > i)
+            setForm((f) => ({ ...f, __wsEditIndex: wsEditIndex - 1 }));
+        };
+
+        const inputCls = 'w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all';
+        const labelCls = 'block text-[10px] font-medium text-neutral-500 mb-1.5 font-montserrat uppercase tracking-wider';
+
+        return (
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold text-yellow-400 font-montserrat uppercase tracking-wider flex items-center gap-2">
+                  <Icon name="TvIcon" size={13} /> {wsEditIndex !== null ? 'Edit Web Series' : 'Add a Web Series'}
+                </p>
+                {wsEditIndex !== null && (
+                  <span className="text-[11px] text-neutral-400 font-montserrat">Editing item #{wsEditIndex + 1}</span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Series Name *</label>
+                  <input type="text" value={wsDraft.name} onChange={(e) => setWsDraft({ name: e.target.value })}
+                    placeholder="e.g. Sacred Games" className={inputCls} />
+                </div>
+                <div className="w-full sm:w-24 shrink-0">
+                  <label className={labelCls}>Year</label>
+                  <input type="text" value={wsDraft.year}
+                    onChange={(e) => setWsDraft({ year: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
+                    placeholder="2018" maxLength={4} className={inputCls} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Role</label>
+                  <input type="text" value={wsDraft.role} onChange={(e) => setWsDraft({ role: e.target.value })}
+                    placeholder="e.g. Lead Actor" className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Seasons</label>
+                  <input type="text" value={wsDraft.seasons} onChange={(e) => setWsDraft({ seasons: e.target.value })}
+                    placeholder="e.g. 2 Seasons" className={inputCls} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Platform</label>
+                  <input type="text" value={wsDraft.platform} onChange={(e) => setWsDraft({ platform: e.target.value })}
+                    placeholder="e.g. Netflix, Amazon Prime, Disney+" className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Genre</label>
+                  <input type="text" value={wsDraft.genre} onChange={(e) => setWsDraft({ genre: e.target.value })}
+                    placeholder="e.g. Thriller, Drama" className={inputCls} />
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>Description</label>
+                <textarea rows={2} value={wsDraft.description} onChange={(e) => setWsDraft({ description: e.target.value })}
+                  placeholder="Brief description of the series or the role…"
+                  className={`${inputCls} resize-none`} />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button type="button" onClick={commitWs}
+                  disabled={!wsDraft.name.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-yellow-500 text-black text-xs font-semibold font-montserrat hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                  <Icon name={wsEditIndex !== null ? 'PencilSquareIcon' : 'PlusIcon'} size={13} />
+                  {wsEditIndex !== null ? 'Save Changes' : 'Add to List'}
+                </button>
+                {(wsDraft.name || wsDraft.role || wsDraft.platform || wsDraft.genre || wsDraft.description) && (
+                  <button type="button" onClick={clearWsDraft}
+                    className="px-4 py-2 rounded-xl text-xs text-neutral-400 hover:text-white font-montserrat transition-all">
+                    {wsEditIndex !== null ? 'Cancel Edit' : 'Clear'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1 h-4 rounded-full bg-primary inline-block" />
+                <p className="text-xs font-semibold text-white font-montserrat uppercase tracking-wider">Web Series</p>
+                <span className="text-xs text-neutral-500 font-montserrat">
+                  ({webSeriesList.length} series)
+                </span>
+              </div>
+
+              {webSeriesList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-10 rounded-2xl border border-dashed border-white/8 text-center">
+                  <Icon name="TvIcon" size={24} className="text-neutral-700" />
+                  <p className="text-sm text-neutral-600 font-montserrat">No web series added yet</p>
+                  <p className="text-xs text-neutral-700 font-montserrat">Fill in the form above and click &ldquo;Add to List&rdquo;</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {webSeriesList.map((ws: CelebrityWebSeries, i: number) => (
+                    <div key={i}
+                      className={`flex flex-col gap-3 px-4 py-3 rounded-xl border bg-white/3 transition-colors sm:flex-row sm:items-start ${wsEditIndex === i ? 'border-primary/40 bg-primary/5' : 'border-white/6 hover:border-white/12'} group`}>
+                      <span className="shrink-0 mt-0.5 text-xs font-bold text-primary font-montserrat w-10 text-left sm:text-center">
+                        {ws.year || '—'}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-white font-montserrat truncate">{ws.name}</span>
+                          {ws.role && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-montserrat shrink-0">{ws.role}</span>
+                          )}
+                          {ws.platform && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-montserrat shrink-0">{ws.platform}</span>
+                          )}
+                          {ws.genre && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-neutral-400 font-montserrat shrink-0">{ws.genre}</span>
+                          )}
+                        </div>
+                        {ws.seasons && <p className="text-xs text-neutral-500 font-montserrat mt-0.5">{ws.seasons}</p>}
+                        {ws.description && <p className="text-xs text-neutral-600 font-montserrat mt-0.5 line-clamp-1">{ws.description}</p>}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
+                        <button type="button" onClick={() => editWs(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-primary/10 hover:text-primary transition-all" title="Edit">
+                          <Icon name="PencilSquareIcon" size={13} />
+                        </button>
+                        <button type="button" onClick={() => removeWs(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-red-500/15 hover:text-red-400 transition-all" title="Remove">
+                          <Icon name="TrashIcon" size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // ── TV SHOWS ──────────────────────────────────────────────────────
+      case 'tvShows': {
+        const tvShowsList = (form as any).tvShows || [];
+        const EMPTY_TV: CelebrityTvShow = { name: '', role: '', seasons: '', year: '', channel: '', genre: '', description: '' };
+
+        const tvDraft: CelebrityTvShow = (form as any).__tvDraft ?? { ...EMPTY_TV };
+        const tvEditIndex = typeof (form as any).__tvEditIndex === 'number' ? (form as any).__tvEditIndex : null;
+        const setTvDraft = (patch: Partial<CelebrityTvShow>) =>
+          setForm((f) => ({ ...f, __tvDraft: { ...((f as any).__tvDraft ?? EMPTY_TV), ...patch } }));
+        const clearTvDraft = () =>
+          setForm((f) => {
+            const next = { ...f };
+            delete (next as any).__tvDraft;
+            delete (next as any).__tvEditIndex;
+            return next;
+          });
+
+        const commitTv = () => {
+          if (!tvDraft.name.trim()) return;
+          const next = {
+            ...(tvEditIndex !== null ? tvShowsList[tvEditIndex] : {}),
+            name: tvDraft.name.trim(),
+            role: tvDraft.role.trim(),
+            seasons: tvDraft.seasons.trim(),
+            year: tvDraft.year.trim(),
+            channel: tvDraft.channel.trim(),
+            genre: tvDraft.genre.trim(),
+            description: tvDraft.description.trim(),
+          };
+          setField(
+            'tvShows' as any,
+            tvEditIndex !== null
+              ? tvShowsList.map((tv: CelebrityTvShow, i: number) => (i === tvEditIndex ? next : tv))
+              : [...tvShowsList, next]
+          );
+          clearTvDraft();
+        };
+
+        const editTv = (i: number) =>
+          setForm((f) => ({ ...f, __tvDraft: { ...tvShowsList[i] }, __tvEditIndex: i }));
+
+        const removeTv = (i: number) => {
+          setField('tvShows' as any, tvShowsList.filter((_: any, idx: number) => idx !== i));
+          if (tvEditIndex === i) clearTvDraft();
+          if (tvEditIndex !== null && tvEditIndex > i)
+            setForm((f) => ({ ...f, __tvEditIndex: tvEditIndex - 1 }));
+        };
+
+        const inputCls = 'w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all';
+        const labelCls = 'block text-[10px] font-medium text-neutral-500 mb-1.5 font-montserrat uppercase tracking-wider';
+
+        return (
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold text-yellow-400 font-montserrat uppercase tracking-wider flex items-center gap-2">
+                  <Icon name="PlayCircleIcon" size={13} /> {tvEditIndex !== null ? 'Edit TV Show' : 'Add a TV Show'}
+                </p>
+                {tvEditIndex !== null && (
+                  <span className="text-[11px] text-neutral-400 font-montserrat">Editing item #{tvEditIndex + 1}</span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Show Name *</label>
+                  <input type="text" value={tvDraft.name} onChange={(e) => setTvDraft({ name: e.target.value })}
+                    placeholder="e.g. Kaun Banega Crorepati" className={inputCls} />
+                </div>
+                <div className="w-full sm:w-24 shrink-0">
+                  <label className={labelCls}>Year</label>
+                  <input type="text" value={tvDraft.year}
+                    onChange={(e) => setTvDraft({ year: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
+                    placeholder="2000" maxLength={4} className={inputCls} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Role</label>
+                  <input type="text" value={tvDraft.role} onChange={(e) => setTvDraft({ role: e.target.value })}
+                    placeholder="e.g. Host, Lead Actor" className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Seasons</label>
+                  <input type="text" value={tvDraft.seasons} onChange={(e) => setTvDraft({ seasons: e.target.value })}
+                    placeholder="e.g. 15 Seasons" className={inputCls} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Channel / Network</label>
+                  <input type="text" value={tvDraft.channel} onChange={(e) => setTvDraft({ channel: e.target.value })}
+                    placeholder="e.g. Star Plus, Colors, Zee TV" className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Genre</label>
+                  <input type="text" value={tvDraft.genre} onChange={(e) => setTvDraft({ genre: e.target.value })}
+                    placeholder="e.g. Reality, Drama, Comedy" className={inputCls} />
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>Description</label>
+                <textarea rows={2} value={tvDraft.description} onChange={(e) => setTvDraft({ description: e.target.value })}
+                  placeholder="Brief description of the show or the role…"
+                  className={`${inputCls} resize-none`} />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button type="button" onClick={commitTv}
+                  disabled={!tvDraft.name.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-yellow-500 text-black text-xs font-semibold font-montserrat hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                  <Icon name={tvEditIndex !== null ? 'PencilSquareIcon' : 'PlusIcon'} size={13} />
+                  {tvEditIndex !== null ? 'Save Changes' : 'Add to List'}
+                </button>
+                {(tvDraft.name || tvDraft.role || tvDraft.channel || tvDraft.genre || tvDraft.description) && (
+                  <button type="button" onClick={clearTvDraft}
+                    className="px-4 py-2 rounded-xl text-xs text-neutral-400 hover:text-white font-montserrat transition-all">
+                    {tvEditIndex !== null ? 'Cancel Edit' : 'Clear'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1 h-4 rounded-full bg-primary inline-block" />
+                <p className="text-xs font-semibold text-white font-montserrat uppercase tracking-wider">TV Shows</p>
+                <span className="text-xs text-neutral-500 font-montserrat">
+                  ({tvShowsList.length} show{tvShowsList.length !== 1 ? 's' : ''})
+                </span>
+              </div>
+
+              {tvShowsList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-10 rounded-2xl border border-dashed border-white/8 text-center">
+                  <Icon name="PlayCircleIcon" size={24} className="text-neutral-700" />
+                  <p className="text-sm text-neutral-600 font-montserrat">No TV shows added yet</p>
+                  <p className="text-xs text-neutral-700 font-montserrat">Fill in the form above and click &ldquo;Add to List&rdquo;</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {tvShowsList.map((tv: CelebrityTvShow, i: number) => (
+                    <div key={i}
+                      className={`flex flex-col gap-3 px-4 py-3 rounded-xl border bg-white/3 transition-colors sm:flex-row sm:items-start ${tvEditIndex === i ? 'border-primary/40 bg-primary/5' : 'border-white/6 hover:border-white/12'} group`}>
+                      <span className="shrink-0 mt-0.5 text-xs font-bold text-primary font-montserrat w-10 text-left sm:text-center">
+                        {tv.year || '—'}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-white font-montserrat truncate">{tv.name}</span>
+                          {tv.role && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-montserrat shrink-0">{tv.role}</span>
+                          )}
+                          {tv.channel && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 font-montserrat shrink-0">{tv.channel}</span>
+                          )}
+                          {tv.genre && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-neutral-400 font-montserrat shrink-0">{tv.genre}</span>
+                          )}
+                        </div>
+                        {tv.seasons && <p className="text-xs text-neutral-500 font-montserrat mt-0.5">{tv.seasons}</p>}
+                        {tv.description && <p className="text-xs text-neutral-600 font-montserrat mt-0.5 line-clamp-1">{tv.description}</p>}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
+                        <button type="button" onClick={() => editTv(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-primary/10 hover:text-primary transition-all" title="Edit">
+                          <Icon name="PencilSquareIcon" size={13} />
+                        </button>
+                        <button type="button" onClick={() => removeTv(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-red-500/15 hover:text-red-400 transition-all" title="Remove">
                           <Icon name="TrashIcon" size={13} />
                         </button>
                       </div>
