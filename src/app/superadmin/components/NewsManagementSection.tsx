@@ -1450,7 +1450,7 @@ export default function NewsManagementSection() {
       )}
 
       {/* Stats */}
-      {panelMode !== 'add' && (
+      {!panelMode && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Total',     value: total,                                                     icon: 'NewspaperIcon',     color: 'text-yellow-400'  },
@@ -1513,7 +1513,7 @@ export default function NewsManagementSection() {
           >
             <Icon name="ArrowPathIcon" size={16} className={loading ? 'animate-spin' : ''} />
           </button>
-          {panelMode === 'add' ? (
+          {panelMode ? (
             <button onClick={closePanel}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 font-semibold font-montserrat text-sm hover:bg-white/20 transition-all"
             >
@@ -1530,7 +1530,7 @@ export default function NewsManagementSection() {
       </div>
 
       {/* Error */}
-      {panelMode !== 'add' && fetchError && (
+      {!panelMode && fetchError && (
         <div className="glass-card rounded-2xl p-4 border border-red-500/20 bg-red-500/10 flex items-center gap-3">
           <Icon name="ExclamationCircleIcon" size={18} className="text-red-400 shrink-0" />
           <p className="text-red-400 text-sm font-montserrat flex-1">{fetchError}</p>
@@ -1630,7 +1630,7 @@ export default function NewsManagementSection() {
       )}
 
       {/* Table */}
-      {panelMode !== 'add' && (
+      {!panelMode && (
         <div className="glass-card rounded-2xl p-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-5">
             <h3 className="font-playfair text-xl font-bold text-white flex-1">Celebrity News</h3>
