@@ -33,6 +33,7 @@ interface OutfitRow {
   tags?: string[];
   isActive: boolean;
   isFeatured: boolean;
+  status: 'draft' | 'published';
   likesCount: number;
   commentsCount: number;
   createdAt?: string;
@@ -87,6 +88,11 @@ type Toast     = { type: 'success' | 'error'; message: string } | null;
 
 const PAGE_SIZES = [10, 20, 50];
 
+const STATUS_COLORS: Record<string, string> = {
+  published: 'bg-emerald-500/20 text-emerald-400',
+  draft:     'bg-yellow-500/20 text-yellow-400',
+};
+
 const EMPTY_SEO: IOutfitSEO = {
   metaTitle: '', metaDescription: '', focusKeyword: '',
   metaKeywords: [], canonicalUrl: '', robots: 'index,follow',
@@ -104,7 +110,7 @@ const EMPTY_FORM: OutfitFull = {
   id: '', title: '', slug: '', celebrity: '',
   images: [''], event: '', designer: '', brand: '', category: '',
   color: '', price: '', purchaseLink: '', size: '',
-  description: '', tags: [], isActive: true, isFeatured: false,
+  description: '', tags: [], isActive: true, isFeatured: false, status: 'draft' as const,
   likesCount: 0, commentsCount: 0,
   seo: { ...EMPTY_SEO },
 };
@@ -173,6 +179,7 @@ export default function OutfitManagementSection() {
   const [searchQuery, setSearchQuery] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   // Row actions
   const [busyMap, setBusyMap]           = useState<Record<string, boolean>>({});
@@ -185,6 +192,7 @@ export default function OutfitManagementSection() {
   const [form, setForm]                 = useState<OutfitFull>(EMPTY_FORM);
   const [formErrors, setFormErrors]     = useState<Partial<Record<keyof OutfitFull, string>>>({});
   const [formLoading, setFormLoading]   = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
   const [formApiError, setFormApiError] = useState('');
   const [loadingDetail, setLoadingDetail] = useState(false);
   const isSlugEditedRef = useRef(false);
@@ -206,9 +214,10 @@ export default function OutfitManagementSection() {
     setLoading(true); setFetchError(null);
     try {
       const params = new URLSearchParams({ page: String(p), limit: String(lim) });
-      if (searchQuery)  params.set('q', searchQuery);
-      if (brandFilter)  params.set('brand', brandFilter);
+      if (searchQuery)    params.set('q', searchQuery);
+      if (brandFilter)    params.set('brand', brandFilter);
       if (categoryFilter) params.set('category', categoryFilter);
+      if (statusFilter)   params.set('status', statusFilter);
       const res  = await fetch(`/api/superadmin/outfits?${params}`, {
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       });
@@ -224,7 +233,7 @@ export default function OutfitManagementSection() {
     } finally {
       setLoading(false);
     }
-  }, [authHeaders, searchQuery, brandFilter, categoryFilter, limit]);
+  }, [authHeaders, searchQuery, brandFilter, categoryFilter, statusFilter, limit]);
 
   useEffect(() => { fetchList(1); }, [fetchList]);
 
@@ -296,9 +305,21 @@ export default function OutfitManagementSection() {
         tags:         d.tags          || [],
         isActive:     d.isActive      ?? true,
         isFeatured:   d.isFeatured    ?? false,
+        status:       (d.status === 'published' ? 'published' : 'draft') as 'draft' | 'published',
         likesCount:   d.likesCount    ?? 0,
         commentsCount: d.commentsCount ?? 0,
-        seo:          d.seo ? { ...EMPTY_SEO, ...d.seo } : { ...EMPTY_SEO },
+        seo: d.seo ? {
+          ...EMPTY_SEO,
+          ...d.seo,
+          // map DB fields → form aliases
+          ogImage:      (d.seo.ogImages || [])[0] || d.seo.ogImage || '',
+          robotsIndex:  !(d.seo.noindex  ?? false),
+          robotsFollow: !(d.seo.nofollow ?? false),
+          articleSection: d.seo.section || d.seo.articleSection || '',
+          metaKeywords: d.seo.metaKeywords || [],
+          relatedTopics: d.seo.relatedTopics || [],
+          alternateLangs: d.seo.alternateLangs || [],
+        } : { ...EMPTY_SEO },
       });
       isSlugEditedRef.current = true;
     } catch (err: any) {
@@ -323,25 +344,62 @@ export default function OutfitManagementSection() {
   };
 
   // ─── payload ─────────────────────────────────────────────────────────────
-  const buildPayload = () => ({
-    title:        form.title.trim(),
-    slug:         form.slug?.trim() || undefined,
-    celebrity:    String(form.celebrity).trim(),
-    images:       (form.images || []).filter(Boolean),
-    event:        form.event?.trim()        || undefined,
-    designer:     form.designer?.trim()     || undefined,
-    description:  form.description?.trim()  || undefined,
-    brand:        form.brand?.trim()        || undefined,
-    category:     form.category?.trim()     || undefined,
-    color:        form.color?.trim()        || undefined,
-    price:        form.price?.trim()        || undefined,
-    purchaseLink: form.purchaseLink?.trim() || undefined,
-    size:         form.size?.trim()         || undefined,
-    tags:         form.tags || [],
-    isActive:     form.isActive,
-    isFeatured:   form.isFeatured,
-    seo:          form.seo || undefined,
-  });
+  const buildPayload = () => {
+    // Map form-friendly SEO aliases → DB field names
+    const rawSeo = form.seo;
+    const seoPayload = rawSeo ? {
+      metaTitle:          rawSeo.metaTitle          || undefined,
+      metaDescription:    rawSeo.metaDescription    || undefined,
+      focusKeyword:       rawSeo.focusKeyword        || undefined,
+      metaKeywords:       rawSeo.metaKeywords        || [],
+      canonicalUrl:       rawSeo.canonicalUrl        || undefined,
+      robots:             rawSeo.robots              || 'index,follow',
+      noindex:            rawSeo.robotsIndex === false ? true : false,   // inverted
+      nofollow:           rawSeo.robotsFollow === false ? true : false,  // inverted
+      ogTitle:            rawSeo.ogTitle             || undefined,
+      ogDescription:      rawSeo.ogDescription       || undefined,
+      ogImages:           rawSeo.ogImage ? [rawSeo.ogImage] : (rawSeo.ogImages || []),
+      ogType:             rawSeo.ogType              || undefined,
+      ogSiteName:         rawSeo.ogSiteName          || undefined,
+      ogUrl:              rawSeo.ogUrl               || undefined,
+      twitterCard:        rawSeo.twitterCard         || undefined,
+      twitterTitle:       rawSeo.twitterTitle        || undefined,
+      twitterDescription: rawSeo.twitterDescription  || undefined,
+      twitterImage:       rawSeo.twitterImage        || undefined,
+      twitterSite:        rawSeo.twitterSite         || undefined,
+      twitterCreator:     rawSeo.twitterCreator      || undefined,
+      schemaType:         rawSeo.schemaType          || undefined,
+      structuredDataDepth: rawSeo.structuredDataDepth || undefined,
+      authorName:         rawSeo.authorName          || undefined,
+      authorUrl:          rawSeo.authorUrl           || undefined,
+      section:            rawSeo.articleSection || rawSeo.section || undefined,
+      relatedTopics:      rawSeo.relatedTopics        || [],
+      alternateLangs:     rawSeo.alternateLangs       || [],
+      prevUrl:            rawSeo.prevUrl             || undefined,
+      nextUrl:            rawSeo.nextUrl             || undefined,
+    } : undefined;
+
+    return {
+      title:        form.title.trim(),
+      slug:         form.slug?.trim() || undefined,
+      celebrity:    String(form.celebrity).trim(),
+      images:       (form.images || []).filter(Boolean),
+      event:        form.event?.trim()        || undefined,
+      designer:     form.designer?.trim()     || undefined,
+      description:  form.description?.trim()  || undefined,
+      brand:        form.brand?.trim()        || undefined,
+      category:     form.category?.trim()     || undefined,
+      color:        form.color?.trim()        || undefined,
+      price:        form.price?.trim()        || undefined,
+      purchaseLink: form.purchaseLink?.trim() || undefined,
+      size:         form.size?.trim()         || undefined,
+      tags:         form.tags || [],
+      isActive:     form.isActive,
+      isFeatured:   form.isFeatured,
+      status:       form.status,
+      seo:          seoPayload,
+    };
+  };
 
   // ─── create ──────────────────────────────────────────────────────────────
   const handleCreate = async (e: React.FormEvent) => {
@@ -352,7 +410,7 @@ export default function OutfitManagementSection() {
       const res  = await fetch('/api/superadmin/outfits', {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildPayload()),
+        body: JSON.stringify({ ...buildPayload(), status: 'published' }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed to create');
@@ -363,6 +421,53 @@ export default function OutfitManagementSection() {
       setFormApiError(err.message || 'Failed to create outfit');
     } finally {
       setFormLoading(false);
+    }
+  };
+
+  // ─── validate draft (title + celebrity required) ──────────────────────────
+  const validateDraft = () => {
+    const errs: Partial<Record<keyof OutfitFull, string>> = {};
+    if (!form.title.trim()) errs.title = 'Title is required to save as draft';
+    if (!String(form.celebrity).trim()) errs.celebrity = 'Celebrity is required to save as draft';
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  // ─── save as draft ────────────────────────────────────────────────────────
+  const handleSaveDraft = async () => {
+    if (!validateDraft()) return;
+    setDraftLoading(true); setFormApiError('');
+    const payload = { ...buildPayload(), status: 'draft' as const };
+    try {
+      let res: Response;
+      if (panelMode === 'edit' && form.id) {
+        res = await fetch(`/api/superadmin/outfits/${form.id}`, {
+          method: 'PUT',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch('/api/superadmin/outfits', {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to save draft');
+      // If newly created draft, switch panel to edit mode
+      if (panelMode === 'add') {
+        setForm((f) => ({ ...f, id: data.data.id, status: 'draft' }));
+        setPanelMode('edit');
+      } else {
+        setForm((f) => ({ ...f, status: 'draft' }));
+      }
+      showToast('success', `Draft saved — "${form.title.trim()}"`);
+      fetchList(page);
+    } catch (err: any) {
+      setFormApiError(err.message || 'Failed to save draft');
+    } finally {
+      setDraftLoading(false);
     }
   };
 
@@ -424,6 +529,26 @@ export default function OutfitManagementSection() {
       showToast('success', `"${o.title}" ${newVal ? 'activated' : 'deactivated'}`);
     } catch (err: any) {
       showToast('error', err.message || 'Failed to update');
+    } finally {
+      setBusy(o.id, false);
+    }
+  };
+
+  const handleStatusToggle = async (o: OutfitRow, newStatus: 'draft' | 'published') => {
+    if (o.status === newStatus) return;
+    setBusy(o.id, true);
+    try {
+      const res  = await fetch(`/api/superadmin/outfits/${o.id}`, {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Update failed');
+      setOutfits((prev) => prev.map((x) => x.id === o.id ? { ...x, status: newStatus } : x));
+      showToast('success', `"${o.title}" set to ${newStatus}`);
+    } catch (err: any) {
+      showToast('error', err.message || 'Failed to update status');
     } finally {
       setBusy(o.id, false);
     }
@@ -1547,13 +1672,13 @@ export default function OutfitManagementSection() {
       )}
 
       {/* Stats */}
-      {panelMode !== 'add' && (
+      {!panelMode && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total',    value: total,                                             icon: 'ShoppingBagIcon',   color: 'text-yellow-400'  },
-            { label: 'Active',   value: outfits.filter((o) => o.isActive).length,          icon: 'CheckBadgeIcon',    color: 'text-emerald-400' },
-            { label: 'Featured', value: outfits.filter((o) => o.isFeatured).length,        icon: 'SparklesIcon',      color: 'text-purple-400'  },
-            { label: 'This Page',value: outfits.length,                                    icon: 'RectangleGroupIcon', color: 'text-blue-400'   },
+            { label: 'Total',     value: total,                                                      icon: 'ShoppingBagIcon',   color: 'text-yellow-400'  },
+            { label: 'Published', value: outfits.filter((o) => o.status === 'published').length,     icon: 'CheckBadgeIcon',    color: 'text-emerald-400' },
+            { label: 'Draft',     value: outfits.filter((o) => o.status === 'draft').length,         icon: 'DocumentTextIcon',  color: 'text-yellow-300'  },
+            { label: 'Featured',  value: outfits.filter((o) => o.isFeatured).length,                 icon: 'SparklesIcon',      color: 'text-purple-400'  },
           ].map((s) => (
             <div key={s.label} className="glass-card rounded-2xl p-5">
               <Icon name={s.icon as any} size={20} className={s.color} />
@@ -1593,6 +1718,13 @@ export default function OutfitManagementSection() {
             placeholder="Filter by category..."
             className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm w-full md:w-44"
           />
+          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); fetchList(1); }}
+            className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer w-full md:w-36"
+          >
+            <option value="" style={{ background: '#2b1433' }}>All Statuses</option>
+            <option value="published" style={{ background: '#2b1433' }}>Published</option>
+            <option value="draft" style={{ background: '#2b1433' }}>Draft</option>
+          </select>
           <select value={limit} onChange={(e) => fetchList(1, Number(e.target.value))}
             className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
           >
@@ -1603,7 +1735,7 @@ export default function OutfitManagementSection() {
           >
             <Icon name="ArrowPathIcon" size={16} className={loading ? 'animate-spin' : ''} />
           </button>
-          {panelMode === 'add' ? (
+          {panelMode ? (
             <button onClick={closePanel}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 font-semibold font-montserrat text-sm hover:bg-white/20 transition-all"
             >
@@ -1620,7 +1752,7 @@ export default function OutfitManagementSection() {
       </div>
 
       {/* Error */}
-      {panelMode !== 'add' && fetchError && (
+      {!panelMode && fetchError && (
         <div className="glass-card rounded-2xl p-4 border border-red-500/20 bg-red-500/10 flex items-center gap-3">
           <Icon name="ExclamationCircleIcon" size={18} className="text-red-400 shrink-0" />
           <p className="text-red-400 text-sm font-montserrat flex-1">{fetchError}</p>
@@ -1684,20 +1816,33 @@ export default function OutfitManagementSection() {
 
               {/* Footer */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-4 border-t border-white/10">
-                <p className="text-neutral-600 text-xs font-montserrat">* Required fields</p>
+                <div className="flex items-center gap-3">
+                  <p className="text-neutral-600 text-xs font-montserrat">* Required fields</p>
+                  {form.status && (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-montserrat capitalize ${STATUS_COLORS[form.status] || STATUS_COLORS.draft}`}>
+                      {form.status}
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-3 sm:ml-auto">
                   <button type="button" onClick={closePanel}
                     className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
                   >
                     Cancel
                   </button>
-                  <button type="submit" disabled={formLoading}
+                  <button type="button" onClick={handleSaveDraft} disabled={draftLoading || formLoading}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 hover:text-white hover:bg-white/20 font-montserrat text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-white/10"
+                  >
+                    {draftLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
+                    {draftLoading ? 'Saving Draft...' : 'Save as Draft'}
+                  </button>
+                  <button type="submit" disabled={formLoading || draftLoading}
                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {formLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
                     {formLoading
-                      ? (panelMode === 'add' ? 'Creating...' : 'Saving...')
-                      : (panelMode === 'add' ? 'Create Outfit' : 'Save Changes')}
+                      ? (panelMode === 'add' ? 'Publishing...' : 'Saving...')
+                      : (panelMode === 'add' ? 'Publish Outfit' : 'Save & Publish')}
                   </button>
                 </div>
               </div>
@@ -1707,7 +1852,7 @@ export default function OutfitManagementSection() {
       )}
 
       {/* Table */}
-      {panelMode !== 'add' && (
+      {!panelMode && (
         <div className="glass-card rounded-2xl p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
             <h3 className="font-playfair text-xl font-bold text-white">Celebrity Outfits</h3>
@@ -1781,7 +1926,33 @@ export default function OutfitManagementSection() {
                         </td>
                         {/* Status */}
                         <td className="py-3.5 px-3 hidden sm:table-cell">
-                          <div className="flex flex-col gap-1">
+                          <div className="flex flex-col gap-1.5">
+                            <div className="inline-flex rounded-lg overflow-hidden border border-white/10">
+                              <button
+                                onClick={() => handleStatusToggle(o, 'draft')}
+                                disabled={!!busyMap[o.id]}
+                                title="Set to Draft"
+                                className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
+                                  (o.status || 'draft') === 'draft'
+                                    ? 'bg-yellow-500/25 text-yellow-300'
+                                    : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
+                                }`}
+                              >
+                                Draft
+                              </button>
+                              <button
+                                onClick={() => handleStatusToggle(o, 'published')}
+                                disabled={!!busyMap[o.id]}
+                                title="Set to Published"
+                                className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
+                                  o.status === 'published'
+                                    ? 'bg-emerald-500/25 text-emerald-300'
+                                    : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
+                                }`}
+                              >
+                                Published
+                              </button>
+                            </div>
                             <button onClick={() => handleToggle(o)} title={o.isActive ? 'Deactivate' : 'Activate'}
                               className={`w-10 h-5 rounded-full transition-all relative ${o.isActive ? 'bg-emerald-500' : 'bg-white/10'}`}
                             >

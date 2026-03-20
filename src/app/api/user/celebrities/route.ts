@@ -38,23 +38,18 @@ export async function GET(request: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: Record<string, any> = {
-      isActive: true,
-      $or: [{ status: { $exists: false } }, { status: 'published' }],
+      $and: [{ $or: [{ status: { $exists: false } }, { status: 'published' }] }],
     };
 
     if (q) {
-      filter.$and = [
-        {
-          $or: [
-            { name:       { $regex: q, $options: 'i' } },
-            { occupation: { $regex: q, $options: 'i' } },
-            { tags:       { $regex: q, $options: 'i' } },
-            { nationality:{ $regex: q, $options: 'i' } },
-          ],
-        },
-      ];
-      // remove the top-level $or so it doesn't conflict
-      delete filter.$or;
+      filter.$and.push({
+        $or: [
+          { name:       { $regex: q, $options: 'i' } },
+          { occupation: { $regex: q, $options: 'i' } },
+          { tags:       { $regex: q, $options: 'i' } },
+          { nationality:{ $regex: q, $options: 'i' } },
+        ],
+      });
     }
 
     if (category && category !== 'all') {

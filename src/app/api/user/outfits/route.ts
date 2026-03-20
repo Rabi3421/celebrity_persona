@@ -43,16 +43,23 @@ export async function GET(request: NextRequest) {
     const sort       = searchParams.get('sort') || 'latest';
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filter: Record<string, any> = { isActive: true };
+    const filter: Record<string, any> = {
+      $and: [
+        { $or: [{ isActive: { $exists: false } }, { isActive: true }] },
+        { $or: [{ status: { $exists: false } }, { status: 'published' }] },
+      ],
+    };
 
     if (q) {
-      filter.$or = [
-        { title:       { $regex: q, $options: 'i' } },
-        { designer:    { $regex: q, $options: 'i' } },
-        { brand:       { $regex: q, $options: 'i' } },
-        { description: { $regex: q, $options: 'i' } },
-        { tags:        { $regex: q, $options: 'i' } },
-      ];
+      filter.$and.push({
+        $or: [
+          { title:       { $regex: q, $options: 'i' } },
+          { designer:    { $regex: q, $options: 'i' } },
+          { brand:       { $regex: q, $options: 'i' } },
+          { description: { $regex: q, $options: 'i' } },
+          { tags:        { $regex: q, $options: 'i' } },
+        ],
+      });
     }
     if (category && category !== 'all') filter.category = { $regex: category, $options: 'i' };
     if (event    && event    !== 'all') filter.event    = { $regex: event,    $options: 'i' };

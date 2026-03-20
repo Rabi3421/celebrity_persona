@@ -40,6 +40,13 @@ function AppImage({
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
 
+    // Sync when the src prop changes (e.g. thumbnail switching)
+    React.useEffect(() => {
+        setImageSrc(src);
+        setIsLoading(true);
+        setHasError(false);
+    }, [src]);
+
     // More reliable external URL detection
     const isExternal = imageSrc.startsWith('http://') || imageSrc.startsWith('https://');
     const isLocal = imageSrc.startsWith('/') || imageSrc.startsWith('./') || imageSrc.startsWith('data:');

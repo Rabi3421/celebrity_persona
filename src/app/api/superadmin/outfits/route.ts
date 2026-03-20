@@ -30,6 +30,7 @@ async function handler(request: AuthenticatedRequest) {
       const event     = searchParams.get('event') || '';
       const active    = searchParams.get('isActive');
       const featured  = searchParams.get('isFeatured');
+      const status    = searchParams.get('status') || '';
 
       const filter: Record<string, any> = {};
       if (q) filter.$or = [
@@ -46,11 +47,12 @@ async function handler(request: AuthenticatedRequest) {
       if (active   === 'false') filter.isActive   = false;
       if (featured === 'true')  filter.isFeatured = true;
       if (featured === 'false') filter.isFeatured = false;
+      if (status)   filter.status = status;
 
       const [total, docs] = await Promise.all([
         CelebrityOutfit.countDocuments(filter),
         CelebrityOutfit.find(filter)
-          .select('title slug celebrity images event designer brand category color price purchaseLink tags isActive isFeatured likesCount commentsCount createdAt')
+          .select('title slug celebrity images event designer brand category color price purchaseLink tags isActive isFeatured status likesCount commentsCount createdAt')
           .populate('celebrity', 'name slug')
           .sort({ createdAt: -1 })
           .skip((page - 1) * limit)
@@ -83,7 +85,8 @@ async function handler(request: AuthenticatedRequest) {
         return NextResponse.json({ success: false, message: 'Title is required' }, { status: 400 });
       if (!celebrity)
         return NextResponse.json({ success: false, message: 'Celebrity ID is required' }, { status: 400 });
-      if (!Array.isArray(images) || images.length === 0)
+      const isDraft = body.status === 'draft';
+      if (!isDraft && (!Array.isArray(images) || images.length === 0))
         return NextResponse.json({ success: false, message: 'At least one image URL is required' }, { status: 400 });
 
       // Generate unique slug
@@ -95,7 +98,7 @@ async function handler(request: AuthenticatedRequest) {
         title:        title.trim(),
         slug,
         celebrity,
-        images:       images.filter((u: any) => typeof u === 'string' && u.trim()),
+        images:       Array.isArray(images) ? images.filter((u: any) => typeof u === 'string' && u.trim()) : [],
         event:        body.event?.trim()        || undefined,
         designer:     body.designer?.trim()     || undefined,
         description:  body.description?.trim()  || undefined,
@@ -108,6 +111,7 @@ async function handler(request: AuthenticatedRequest) {
         size:         body.size?.trim()         || undefined,
         isActive:     body.isActive  !== false,
         isFeatured:   body.isFeatured === true,
+        status:       body.status === 'draft' ? 'draft' : 'published',
         likesCount:   0,
         commentsCount: 0,
         seo:          body.seo || undefined,

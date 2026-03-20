@@ -30,7 +30,6 @@ export async function GET(
 
     const doc = await Celebrity.findOne({
       slug,
-      isActive: true,
       $or: [{ status: { $exists: false } }, { status: 'published' }],
     })
       .select('-__v')

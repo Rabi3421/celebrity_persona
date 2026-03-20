@@ -44,6 +44,26 @@ function celebName(c: CelebrityOutfit['celebrity']): string {
   return c.name || 'Celebrity';
 }
 
+// ── Full-width About Section ───────────────────────────────────────────────
+function AboutSection({ description }: { description: string }) {
+  const plain = description
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return (
+    <section className="mt-10 mb-2">
+      <h2 className="font-playfair text-xl font-bold text-white mb-3">About this look</h2>
+      <p className="text-neutral-400 text-sm leading-relaxed">{plain}</p>
+    </section>
+  );
+}
+
 interface Props {
   slug: string;
   prefetchedData?: CelebrityOutfit;
@@ -227,7 +247,7 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
         <span className="text-neutral-300 truncate max-w-[200px] md:max-w-xs" aria-current="page">{outfit.title}</span>
       </nav>
 
-      <div className="grid md:grid-cols-2 gap-10 lg:gap-16">
+      <div className="grid md:grid-cols-2 gap-10 lg:gap-16 items-start">
 
         {/* ── Image gallery ─────────────────────────────────────────────── */}
         <div className="space-y-4">
@@ -360,17 +380,6 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
             </div>
           )}
 
-          {/* Description */}
-          {outfit.description && (
-            <div className="glass-card rounded-2xl p-5 border border-white/10">
-              <h2 className="text-sm font-semibold text-neutral-300 mb-2 flex items-center gap-2">
-                <Icon name="InformationCircleIcon" size={16} className="text-primary" />
-                About this look
-              </h2>
-              <p className="text-sm text-neutral-400 leading-relaxed whitespace-pre-line">{outfit.description}</p>
-            </div>
-          )}
-
           {/* Interaction buttons */}
           <div className="flex gap-3">
             {/* Like */}
@@ -436,6 +445,11 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
           </div>
         </div>
       </div>
+
+      {/* ── About this look ───────────────────────────────────────────────── */}
+      {outfit.description && (
+        <AboutSection description={outfit.description} />
+      )}
 
       {/* ── Comments section ──────────────────────────────────────────────── */}
       <section className="mt-14">

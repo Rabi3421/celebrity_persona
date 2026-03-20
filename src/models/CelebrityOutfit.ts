@@ -68,6 +68,7 @@ export interface ICelebrityOutfit extends Document {
   category?: string;
   color?: string;
   size?: string;
+  status: 'draft' | 'published';
   isActive: boolean;
   isFeatured: boolean;
   likesCount: number;
@@ -200,6 +201,11 @@ const celebrityOutfitSchema = new Schema<ICelebrityOutfit>(
       type: String,
       trim: true,
     },
+    status: {
+      type: String,
+      enum: ['draft', 'published'],
+      default: 'published',
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -243,6 +249,7 @@ const celebrityOutfitSchema = new Schema<ICelebrityOutfit>(
 // ── Indexes ───────────────────────────────────────────────────────────────────
 celebrityOutfitSchema.index({ slug: 1 });
 celebrityOutfitSchema.index({ celebrity: 1 });
+celebrityOutfitSchema.index({ status: 1 });
 celebrityOutfitSchema.index({ brand: 1 });
 celebrityOutfitSchema.index({ category: 1 });
 celebrityOutfitSchema.index({ isActive: 1, isFeatured: 1 });
