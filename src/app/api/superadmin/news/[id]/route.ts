@@ -6,8 +6,8 @@ import CelebrityNews from '@/models/CelebrityNews';
 import '@/models/Celebrity';
 
 const ALLOWED_FIELDS = new Set([
-  'title', 'slug', 'content', 'excerpt', 'thumbnail', 'author',
-  'category', 'celebrity', 'tags', 'publishDate', 'featured', 'seo',
+  'title', 'slug', 'content', 'excerpt', 'thumbnail', 'images', 'author',
+  'category', 'celebrity', 'tags', 'publishDate', 'status', 'featured', 'seo',
 ]);
 
 async function handler(request: AuthenticatedRequest, { params }: any) {

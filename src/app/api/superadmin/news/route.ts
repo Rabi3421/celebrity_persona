@@ -27,6 +27,7 @@ async function handler(request: AuthenticatedRequest) {
       const category = searchParams.get('category') || '';
       const author   = searchParams.get('author')   || '';
       const featured = searchParams.get('featured');
+      const status   = searchParams.get('status')   || '';
 
       const filter: Record<string, any> = {};
       if (q) filter.$or = [
@@ -39,11 +40,12 @@ async function handler(request: AuthenticatedRequest) {
       if (author)   filter.author   = { $regex: author,   $options: 'i' };
       if (featured === 'true')  filter.featured = true;
       if (featured === 'false') filter.featured = false;
+      if (status === 'draft' || status === 'published') filter.status = status;
 
       const [total, docs] = await Promise.all([
         CelebrityNews.countDocuments(filter),
         CelebrityNews.find(filter)
-          .select('title slug excerpt thumbnail author category celebrity tags publishDate featured createdAt')
+          .select('title slug excerpt thumbnail images author category celebrity tags publishDate status featured createdAt')
           .sort({ publishDate: -1, createdAt: -1 })
           .skip((page - 1) * limit)
           .limit(limit)
@@ -82,11 +84,13 @@ async function handler(request: AuthenticatedRequest) {
         content:     content.trim(),
         excerpt:     body.excerpt     || undefined,
         thumbnail:   body.thumbnail   || undefined,
+        images:      Array.isArray(body.images) ? body.images : [],
         author:      body.author      || undefined,
         category:    body.category    || undefined,
         celebrity:   body.celebrity   || null,
         tags:        body.tags        || [],
         publishDate: body.publishDate ? new Date(body.publishDate) : new Date(),
+        status:      body.status === 'published' ? 'published' : 'draft',
         featured:    body.featured    ?? false,
         seo:         body.seo         || undefined,
       });
