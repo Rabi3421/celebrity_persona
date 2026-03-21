@@ -354,13 +354,21 @@ export default function MovieManagementSection() {
       const generatedSlug = slugify(d.title || '');
       isSlugEditedRef.current = (d.slug || '') !== generatedSlug;
 
+      // Ensure all array fields are actual arrays (DB may return string for single-value arrays)
+      const toArr = (v: any): string[] => {
+        if (!v) return [];
+        if (Array.isArray(v)) return v;
+        if (typeof v === 'string') return v ? [v] : [];
+        return [];
+      };
+
       setForm({
         id:                  d._id || d.id,
         title:               d.title               || '',
         slug:                d.slug                || '',
         director:            d.director            || '',
         status:              d.status              || '',
-        language:            d.language            || [],
+        language:            toArr(d.language),
         originalLanguage:    d.originalLanguage    || '',
         synopsis:            d.synopsis            || '',
         plotSummary:         d.plotSummary         || '',
@@ -378,35 +386,19 @@ export default function MovieManagementSection() {
         budget:              d.budget              ?? undefined,
         boxOfficeProjection: d.boxOfficeProjection ?? undefined,
         releaseDate:         toDateInputValue(d.releaseDate),
-        cast:                d.cast                || [],
-        genre:               d.genre               || [],
-        regions:             d.regions             || [],
-        subtitles:           d.subtitles           || [],
-        images:              d.images              || [],
-        writers:             d.writers             || [],
-        producers:           d.producers           || [],
-        ticketLinks:         d.ticketLinks         || [],
-        seoData:             d.seoData             || { 
-          metaTitle: '', 
-          metaDescription: '', 
-          keywords: [], 
-          canonicalUrl: '',
-          ogTitle: '',
-          ogDescription: '',
-          ogImage: '',
-          ogType: 'movie',
-          twitterTitle: '',
-          twitterDescription: '',
-          twitterImage: '',
-          twitterCard: 'summary_large_image',
-          structuredData: '',
-          focusKeyword: '',
-          altText: '',
-          imageDescription: '',
-          robots: 'index,follow',
-          priority: 0.8,
-          changeFreq: 'weekly'
-        },
+        cast:                Array.isArray(d.cast) ? d.cast : [],
+        genre:               toArr(d.genre),
+        regions:             toArr(d.regions),
+        subtitles:           toArr(d.subtitles),
+        images:              toArr(d.images),
+        writers:             toArr(d.writers),
+        producers:           toArr(d.producers),
+        ticketLinks:         Array.isArray(d.ticketLinks) ? d.ticketLinks : [],
+        seoData:             d.seoData ? {
+          ...d.seoData,
+          keywords:      toArr(d.seoData.keywords),
+          relatedTopics: toArr(d.seoData.relatedTopics),
+        } : EMPTY_MOVIE_SEO,
       });
       // set duration mode based on loaded value
       if (d.duration && typeof d.duration === 'number' && d.duration >= 60) {
