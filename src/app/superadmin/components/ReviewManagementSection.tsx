@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 import RichTextEditor from '@/components/ui/RichTextEditor';
-import { uploadImage, validateImageFile } from '@/lib/imageUpload';
+import { uploadImage, deleteImage, validateImageFile } from '@/lib/imageUpload';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -244,8 +244,10 @@ export default function ReviewManagementSection() {
   const [formLoading, setFormLoading]       = useState(false);
   const [formApiError, setFormApiError]     = useState('');
   const [loadingDetail, setLoadingDetail]   = useState(false);
-  const [uploading, setUploading]           = useState<Record<string, boolean>>({});
-  const [dragOver, setDragOver]             = useState<Record<string, boolean>>({});
+  const [uploadingPoster,   setUploadingPoster]   = useState(false);
+  const [uploadingBackdrop, setUploadingBackdrop] = useState(false);
+  const [posterDragActive,  setPosterDragActive]  = useState(false);
+  const [backdropDragActive,setBackdropDragActive]= useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // ── helpers ────────────────────────────────────────────────────────────
@@ -285,37 +287,58 @@ export default function ReviewManagementSection() {
   };
 
   // ── image upload ────────────────────────────────────────────────────────
-  const handleImageUpload = async (file: File, type: 'poster' | 'backdrop') => {
-    const err = validateImageFile(file);
-    if (err) { showToast('error', err); return; }
-    setUploading((p) => ({ ...p, [type]: true }));
-    try {
-      const slug = form.slug || form.movieTitle.toLowerCase().replace(/\s+/g, '-') || 'review';
-      const url  = await uploadImage(file, `reviews/${slug}/${type}`);
-      setField(type === 'poster' ? 'poster' : 'backdropImage', url);
-      showToast('success', `${type === 'poster' ? 'Poster' : 'Backdrop'} uploaded`);
-    } catch {
-      showToast('error', `Failed to upload ${type}`);
-    } finally {
-      setUploading((p) => ({ ...p, [type]: false }));
-    }
-  };
+  const reviewSlug = form.slug?.trim() || (form.title?.trim() ? toSlug(form.title.trim()) : 'review');
 
-  const handleDrop = (e: React.DragEvent, type: 'poster' | 'backdrop') => {
-    e.preventDefault();
-    setDragOver((p) => ({ ...p, [type]: false }));
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleImageUpload(file, type);
-  };
-
-  const handleFilePick = (type: 'poster' | 'backdrop') => {
+  const handleSelectPoster = () => {
     const input = document.createElement('input');
     input.type = 'file'; input.accept = 'image/*';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) handleImageUpload(file, type);
+      if (!file) return;
+      const err = validateImageFile(file);
+      if (err) { showToast('error', err); return; }
+      setUploadingPoster(true);
+      try {
+        if (form.poster) await deleteImage(form.poster);
+        const url = await uploadImage(file, `reviews/${reviewSlug}/poster`);
+        setField('poster', url);
+        showToast('success', 'Poster uploaded');
+      } catch { showToast('error', 'Failed to upload poster'); }
+      finally { setUploadingPoster(false); }
     };
     input.click();
+  };
+
+  const handleDeletePoster = async () => {
+    if (!form.poster) return;
+    try { await deleteImage(form.poster); setField('poster', ''); showToast('success', 'Poster removed'); }
+    catch { showToast('error', 'Failed to remove poster'); }
+  };
+
+  const handleSelectBackdrop = () => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const err = validateImageFile(file);
+      if (err) { showToast('error', err); return; }
+      setUploadingBackdrop(true);
+      try {
+        if (form.backdropImage) await deleteImage(form.backdropImage);
+        const url = await uploadImage(file, `reviews/${reviewSlug}/backdrop`);
+        setField('backdropImage', url);
+        showToast('success', 'Backdrop uploaded');
+      } catch { showToast('error', 'Failed to upload backdrop'); }
+      finally { setUploadingBackdrop(false); }
+    };
+    input.click();
+  };
+
+  const handleDeleteBackdrop = async () => {
+    if (!form.backdropImage) return;
+    try { await deleteImage(form.backdropImage); setField('backdropImage', ''); showToast('success', 'Backdrop removed'); }
+    catch { showToast('error', 'Failed to remove backdrop'); }
   };
 
   // ── fetch ──────────────────────────────────────────────────────────────
@@ -801,109 +824,134 @@ export default function ReviewManagementSection() {
       );
 
       // ── IMAGES ─────────────────────────────────────────────────────────
-      case 'images': return (
-        <div className="space-y-8">
+      case 'images': {
+        const canUpload = !!form.title.trim();
+        return (
+        <div className="space-y-6">
 
-          {/* Poster */}
+          {/* Upload path notice */}
+          {!canUpload ? (
+            <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+              <Icon name="ExclamationTriangleIcon" size={16} className="text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-amber-300 text-xs font-montserrat leading-relaxed">
+                <span className="font-semibold">Enter the review title first.</span>{' '}
+                Images will be organised in a dedicated folder once the title is filled.
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20">
+              <Icon name="FolderIcon" size={14} className="text-green-400 shrink-0" />
+              <p className="text-green-300 text-xs font-montserrat truncate">
+                Upload path: <span className="font-semibold">reviews / {reviewSlug}</span>
+              </p>
+            </div>
+          )}
+
+          {/* ── Poster ── */}
           <div>
-            <p className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Icon name="PhotoIcon" size={13} /> Poster
-              <span className="text-neutral-600 normal-case font-normal">· recommended 2:3 (e.g. 800×1200)</span>
-            </p>
-            {form.poster ? (
-              <div className="flex gap-4 items-start">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.poster} alt="poster" className="w-28 h-40 rounded-xl object-cover border border-white/10 shrink-0" />
-                <div className="flex flex-col gap-2 pt-1">
-                  <p className="text-xs text-neutral-400 font-montserrat break-all max-w-xs">{form.poster}</p>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => handleFilePick('poster')}
-                      className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-montserrat hover:bg-white/10 transition-all flex items-center gap-1.5">
-                      <Icon name="ArrowPathIcon" size={12} /> Replace
+            <p className="text-white text-sm font-montserrat font-semibold mb-1">Poster</p>
+            <p className="text-neutral-500 text-xs font-montserrat mb-3">Portrait-orientation cover image shown in listings and cards · recommended 2:3 (e.g. 800×1200)</p>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setPosterDragActive(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setPosterDragActive(false); }}
+              onDrop={(e) => { setPosterDragActive(false); if (canUpload) { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f && f.type.startsWith('image/')) handleSelectPoster(); } }}
+              className={`relative rounded-2xl border-2 overflow-hidden transition-all group ${
+                posterDragActive
+                  ? 'border-yellow-400/60 bg-yellow-500/5'
+                  : form.poster
+                    ? 'border-white/10 hover:border-yellow-500/30'
+                    : 'border-dashed border-white/15 hover:border-yellow-500/40 hover:bg-yellow-500/5'
+              }`}
+            >
+              {uploadingPoster ? (
+                <div className="h-52 flex flex-col items-center justify-center gap-3">
+                  <Icon name="ArrowPathIcon" size={28} className="text-yellow-400 animate-spin" />
+                  <p className="text-yellow-400 text-xs font-montserrat">Uploading…</p>
+                </div>
+              ) : form.poster ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={form.poster} alt="poster" className="w-full max-h-72 object-cover" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                    <button type="button" onClick={handleSelectPoster} disabled={!canUpload}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500 text-black text-xs font-bold font-montserrat hover:bg-yellow-400 transition-all disabled:opacity-50">
+                      <Icon name="ArrowUpTrayIcon" size={13} /> Replace
                     </button>
-                    <button type="button" onClick={() => setField('poster', '')}
-                      className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-montserrat hover:bg-red-500/20 transition-all flex items-center gap-1.5">
-                      <Icon name="TrashIcon" size={12} /> Remove
+                    <button type="button" onClick={handleDeletePoster}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-montserrat hover:bg-red-500/30 hover:text-red-300 transition-all">
+                      <Icon name="TrashIcon" size={13} /> Remove
                     </button>
                   </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                onDrop={(e) => handleDrop(e, 'poster')}
-                onDragOver={(e) => { e.preventDefault(); setDragOver((p) => ({ ...p, poster: true })); }}
-                onDragLeave={() => setDragOver((p) => ({ ...p, poster: false }))}
-                onClick={() => handleFilePick('poster')}
-                className={`relative border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
-                  dragOver.poster ? 'border-yellow-500/70 bg-yellow-500/5' : 'border-white/10 hover:border-yellow-500/40 hover:bg-white/[0.02]'
-                }`}
-              >
-                {uploading.poster ? (
-                  <><Icon name="ArrowPathIcon" size={28} className="text-yellow-500 animate-spin" />
-                  <p className="text-sm font-montserrat text-neutral-400">Uploading…</p></>
-                ) : (
-                  <><Icon name="CloudArrowUpIcon" size={32} className="text-neutral-500" />
-                  <div className="text-center">
-                    <p className="text-sm font-montserrat text-neutral-300">Drop poster here or <span className="text-yellow-400">click to browse</span></p>
-                    <p className="text-xs text-neutral-600 mt-1">PNG, JPG, WebP · max 5 MB</p>
-                  </div></>
-                )}
-              </div>
-            )}
+                </>
+              ) : (
+                <button type="button" onClick={() => canUpload && handleSelectPoster()}
+                  disabled={!canUpload}
+                  className={`w-full h-52 flex flex-col items-center justify-center gap-2 transition-colors ${
+                    canUpload ? 'text-neutral-600 hover:text-yellow-400 cursor-pointer' : 'text-neutral-700 cursor-not-allowed'
+                  }`}
+                >
+                  <Icon name="ArrowUpTrayIcon" size={28} />
+                  <p className="text-xs font-montserrat">Click or drop to upload poster</p>
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Backdrop */}
+          <div className="border-t border-white/10" />
+
+          {/* ── Backdrop ── */}
           <div>
-            <p className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Icon name="PhotoIcon" size={13} /> Backdrop
-              <span className="text-neutral-600 normal-case font-normal">· recommended 16:9 (e.g. 1920×1080)</span>
-            </p>
-            {form.backdropImage ? (
-              <div className="flex gap-4 items-start">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.backdropImage} alt="backdrop" className="w-48 h-28 rounded-xl object-cover border border-white/10 shrink-0" />
-                <div className="flex flex-col gap-2 pt-1">
-                  <p className="text-xs text-neutral-400 font-montserrat break-all max-w-xs">{form.backdropImage}</p>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => handleFilePick('backdrop')}
-                      className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-montserrat hover:bg-white/10 transition-all flex items-center gap-1.5">
-                      <Icon name="ArrowPathIcon" size={12} /> Replace
+            <p className="text-white text-sm font-montserrat font-semibold mb-1">Backdrop</p>
+            <p className="text-neutral-500 text-xs font-montserrat mb-3">Wide landscape image used as page hero / banner background · recommended 16:9 (e.g. 1920×1080)</p>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setBackdropDragActive(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setBackdropDragActive(false); }}
+              onDrop={(e) => { setBackdropDragActive(false); if (canUpload) { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f && f.type.startsWith('image/')) handleSelectBackdrop(); } }}
+              className={`relative rounded-2xl border-2 overflow-hidden transition-all group ${
+                backdropDragActive
+                  ? 'border-yellow-400/60 bg-yellow-500/5'
+                  : form.backdropImage
+                    ? 'border-white/10 hover:border-yellow-500/30'
+                    : 'border-dashed border-white/15 hover:border-yellow-500/40 hover:bg-yellow-500/5'
+              }`}
+            >
+              {uploadingBackdrop ? (
+                <div className="h-44 flex flex-col items-center justify-center gap-3">
+                  <Icon name="ArrowPathIcon" size={28} className="text-yellow-400 animate-spin" />
+                  <p className="text-yellow-400 text-xs font-montserrat">Uploading…</p>
+                </div>
+              ) : form.backdropImage ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={form.backdropImage} alt="backdrop" className="w-full max-h-52 object-cover" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                    <button type="button" onClick={handleSelectBackdrop} disabled={!canUpload}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500 text-black text-xs font-bold font-montserrat hover:bg-yellow-400 transition-all disabled:opacity-50">
+                      <Icon name="ArrowUpTrayIcon" size={13} /> Replace
                     </button>
-                    <button type="button" onClick={() => setField('backdropImage', '')}
-                      className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-montserrat hover:bg-red-500/20 transition-all flex items-center gap-1.5">
-                      <Icon name="TrashIcon" size={12} /> Remove
+                    <button type="button" onClick={handleDeleteBackdrop}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-montserrat hover:bg-red-500/30 hover:text-red-300 transition-all">
+                      <Icon name="TrashIcon" size={13} /> Remove
                     </button>
                   </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                onDrop={(e) => handleDrop(e, 'backdrop')}
-                onDragOver={(e) => { e.preventDefault(); setDragOver((p) => ({ ...p, backdrop: true })); }}
-                onDragLeave={() => setDragOver((p) => ({ ...p, backdrop: false }))}
-                onClick={() => handleFilePick('backdrop')}
-                className={`relative border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
-                  dragOver.backdrop ? 'border-yellow-500/70 bg-yellow-500/5' : 'border-white/10 hover:border-yellow-500/40 hover:bg-white/[0.02]'
-                }`}
-              >
-                {uploading.backdrop ? (
-                  <><Icon name="ArrowPathIcon" size={28} className="text-yellow-500 animate-spin" />
-                  <p className="text-sm font-montserrat text-neutral-400">Uploading…</p></>
-                ) : (
-                  <><Icon name="CloudArrowUpIcon" size={32} className="text-neutral-500" />
-                  <div className="text-center">
-                    <p className="text-sm font-montserrat text-neutral-300">Drop backdrop here or <span className="text-yellow-400">click to browse</span></p>
-                    <p className="text-xs text-neutral-600 mt-1">PNG, JPG, WebP · max 5 MB</p>
-                  </div></>
-                )}
-              </div>
-            )}
+                </>
+              ) : (
+                <button type="button" onClick={() => canUpload && handleSelectBackdrop()}
+                  disabled={!canUpload}
+                  className={`w-full h-44 flex flex-col items-center justify-center gap-2 transition-colors ${
+                    canUpload ? 'text-neutral-600 hover:text-yellow-400 cursor-pointer' : 'text-neutral-700 cursor-not-allowed'
+                  }`}
+                >
+                  <Icon name="ArrowUpTrayIcon" size={28} />
+                  <p className="text-xs font-montserrat">Click or drop to upload backdrop</p>
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Hint */}
-          <p className="text-xs text-neutral-600 font-montserrat">Images are uploaded to Firebase Storage under <code className="text-neutral-400">reviews/&#123;slug&#125;/</code> and the URL is saved automatically.</p>
         </div>
-      );
+        );
+      }
 
       // ── SEO ────────────────────────────────────────────────────────────
       case 'seo': return (
