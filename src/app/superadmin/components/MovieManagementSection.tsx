@@ -576,9 +576,11 @@ export default function MovieManagementSection() {
   const [showRatingInfo, setShowRatingInfo] = useState(false);
 
   // image upload state
-  const [uploading, setUploading] = useState<Record<string, boolean>>({});
-  const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingMap,     setUploadingMap]     = useState<Record<number, boolean>>({});
+  const [uploadingPoster,  setUploadingPoster]  = useState(false);
+  const [uploadingBackdrop,setUploadingBackdrop]= useState(false);
+  const [posterDragActive,  setPosterDragActive]  = useState(false);
+  const [backdropDragActive,setBackdropDragActive]= useState(false);
 
   // celebrity selection state
   const [celebrities, setCelebrities] = useState<any[]>([]);
@@ -650,119 +652,117 @@ export default function MovieManagementSection() {
 
   // ── Image Upload Handlers ──────────────────────────────────────────────────
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
-    if (files.length > 0) {
-      handleFileUpload(files, 'additional');
-    }
-  };
+  const movieSlug = form.slug?.trim() || (form.title?.trim() ? slugify(form.title.trim()) : 'movie');
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      handleFileUpload(files, 'additional');
-    }
-    // Reset input
-    e.target.value = '';
-  };
-
-  const handleSelectImageType = (type: 'poster' | 'backdrop' | 'additional') => {
+  // ── Poster ────────────────────────────────────────────────────────────────
+  const handleSelectPoster = () => {
     const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.multiple = type === 'additional';
-    input.onchange = (e) => {
-      const files = Array.from((e.target as HTMLInputElement).files || []);
-      if (files.length > 0) {
-        handleFileUpload(files, type);
-      }
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const err = validateImageFile(file);
+      if (err) { showToast('error', err); return; }
+      setUploadingPoster(true);
+      try {
+        if (form.poster) await deleteImage(form.poster);
+        const url = await uploadImage(file, `movies/${movieSlug}/poster`);
+        setField('poster', url);
+        showToast('success', 'Poster uploaded');
+      } catch { showToast('error', 'Failed to upload poster'); }
+      finally { setUploadingPoster(false); }
     };
     input.click();
   };
 
-  const handleFileUpload = async (files: File[], type: 'poster' | 'backdrop' | 'additional') => {
-    for (const file of files) {
-      const validation = validateImageFile(file);
-      if (validation) {
-        showToast('error', validation);
-        continue;
-      }
+  const handleDeletePoster = async () => {
+    if (!form.poster) return;
+    try { await deleteImage(form.poster); setField('poster', ''); showToast('success', 'Poster removed'); }
+    catch { showToast('error', 'Failed to remove poster'); }
+  };
 
-      const uploadKey = type === 'additional' ? `additional-${Date.now()}` : type;
-      setUploading(prev => ({ ...prev, [uploadKey]: true }));
-
-      try {
-        const url = await uploadImage(file, 'movies');
-        
-        if (type === 'poster') {
-          if (form.poster) {
-            await deleteImage(form.poster); // Delete old poster
-          }
-          setField('poster', url);
-        } else if (type === 'backdrop') {
-          if (form.backdrop) {
-            await deleteImage(form.backdrop); // Delete old backdrop
-          }
-          setField('backdrop', url);
-        } else {
-          // Additional images
-          const currentImages = form.images || [];
-          setField('images', [...currentImages, url]);
-        }
-
-        showToast('success', `${type} uploaded successfully`);
-      } catch (error) {
-        showToast('error', `Failed to upload ${type}`);
-        console.error('Upload error:', error);
-      } finally {
-        setUploading(prev => ({ ...prev, [uploadKey]: false }));
-      }
+  const handleDropPoster = (e: React.DragEvent) => {
+    e.preventDefault(); setPosterDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const fakeEvent = { target: { files: [file] } } as any;
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*';
+      Object.defineProperty(input, 'files', { value: [file] });
+      handleSelectPoster();
     }
   };
 
-  const handleDeleteImage = async (type: 'poster' | 'backdrop') => {
-    const imageUrl = type === 'poster' ? form.poster : form.backdrop;
-    if (!imageUrl) return;
+  // ── Backdrop ──────────────────────────────────────────────────────────────
+  const handleSelectBackdrop = () => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const err = validateImageFile(file);
+      if (err) { showToast('error', err); return; }
+      setUploadingBackdrop(true);
+      try {
+        if (form.backdrop) await deleteImage(form.backdrop);
+        const url = await uploadImage(file, `movies/${movieSlug}/backdrop`);
+        setField('backdrop', url);
+        showToast('success', 'Backdrop uploaded');
+      } catch { showToast('error', 'Failed to upload backdrop'); }
+      finally { setUploadingBackdrop(false); }
+    };
+    input.click();
+  };
 
+  const handleDeleteBackdrop = async () => {
+    if (!form.backdrop) return;
+    try { await deleteImage(form.backdrop); setField('backdrop', ''); showToast('success', 'Backdrop removed'); }
+    catch { showToast('error', 'Failed to remove backdrop'); }
+  };
+
+  // ── Gallery images ────────────────────────────────────────────────────────
+  const addGalleryImage   = () => setField('images', [...(form.images || []), '']);
+  const removeGalleryImage = (i: number) =>
+    setField('images', (form.images || []).filter((_, idx) => idx !== i));
+  const updateGalleryImage = (i: number, val: string) =>
+    setField('images', (form.images || []).map((x, idx) => idx === i ? val : x));
+
+  const handleSelectGalleryImage = (i: number) => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const err = validateImageFile(file);
+      if (err) { showToast('error', err); return; }
+      setUploadingMap((p) => ({ ...p, [i]: true }));
+      try {
+        const old = (form.images || [])[i];
+        if (old) await deleteImage(old);
+        const url = await uploadImage(file, `movies/${movieSlug}/gallery`);
+        updateGalleryImage(i, url);
+        showToast('success', 'Image uploaded');
+      } catch { showToast('error', 'Failed to upload image'); }
+      finally { setUploadingMap((p) => ({ ...p, [i]: false })); }
+    };
+    input.click();
+  };
+
+  const handleDropGalleryImage = async (e: React.DragEvent, i: number) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    const err = validateImageFile(file);
+    if (err) { showToast('error', err); return; }
+    setUploadingMap((p) => ({ ...p, [i]: true }));
     try {
-      await deleteImage(imageUrl);
-      setField(type, '');
-      showToast('success', `${type} deleted`);
-    } catch (error) {
-      showToast('error', `Failed to delete ${type}`);
-    }
-  };
-
-  const handleReplaceImage = (type: 'poster' | 'backdrop') => {
-    handleSelectImageType(type);
-  };
-
-  const handleDeleteAdditionalImage = async (index: number) => {
-    const images = form.images || [];
-    const imageUrl = images[index];
-    
-    if (imageUrl) {
-      try {
-        await deleteImage(imageUrl);
-        const newImages = images.filter((_, i) => i !== index);
-        setField('images', newImages);
-        showToast('success', 'Image deleted');
-      } catch (error) {
-        showToast('error', 'Failed to delete image');
-      }
-    }
+      const old = (form.images || [])[i];
+      if (old) await deleteImage(old);
+      const url = await uploadImage(file, `movies/${movieSlug}/gallery`);
+      updateGalleryImage(i, url);
+      showToast('success', 'Image uploaded');
+    } catch { showToast('error', 'Failed to upload image'); }
+    finally { setUploadingMap((p) => ({ ...p, [i]: false })); }
   };
 
   // ── Celebrity Management ──────────────────────────────────────────────────
@@ -1485,203 +1485,254 @@ export default function MovieManagementSection() {
       );
 
       // ── IMAGES ─────────────────────────────────────────────────────────
-      case 'images': return (
+      case 'images': {
+        const canUpload = !!form.title.trim();
+        return (
         <div className="space-y-6">
-          {/* Image Upload Area */}
-          <div className="space-y-4">
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-              Movie Images
-            </label>
-            
-            {/* Drag and Drop Zone */}
+
+          {/* Upload path notice */}
+          {!canUpload ? (
+            <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+              <Icon name="ExclamationTriangleIcon" size={16} className="text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-amber-300 text-xs font-montserrat leading-relaxed">
+                <span className="font-semibold">Enter the movie title first.</span>{' '}
+                Images will be organised in a dedicated folder once the title is filled.
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20">
+              <Icon name="FolderIcon" size={14} className="text-green-400 shrink-0" />
+              <p className="text-green-300 text-xs font-montserrat truncate">
+                Upload path: <span className="font-semibold">movies / {movieSlug}</span>
+              </p>
+            </div>
+          )}
+
+          {/* ── Poster ── */}
+          <div>
+            <p className="text-white text-sm font-montserrat font-semibold mb-1">Poster</p>
+            <p className="text-neutral-500 text-xs font-montserrat mb-3">Portrait-orientation cover image shown in listings and cards.</p>
             <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
-              className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-                dragOver 
-                  ? 'border-yellow-400 bg-yellow-500/10' 
-                  : 'border-white/20 hover:border-white/40 bg-white/5'
+              onDragOver={(e) => { e.preventDefault(); setPosterDragActive(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setPosterDragActive(false); }}
+              onDrop={(e) => { setPosterDragActive(false); if (canUpload) handleDropPoster(e); }}
+              className={`relative rounded-2xl border-2 overflow-hidden transition-all group ${
+                posterDragActive
+                  ? 'border-yellow-400/60 bg-yellow-500/5'
+                  : form.poster
+                    ? 'border-white/10 hover:border-yellow-500/30'
+                    : 'border-dashed border-white/15 hover:border-yellow-500/40 hover:bg-yellow-500/5'
               }`}
             >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              
-              <div className="flex flex-col items-center gap-3">
-                <div className="p-4 rounded-full bg-white/10">
-                  <Icon name="ArrowUpTrayIcon" size={32} className="text-neutral-400" />
+              {uploadingPoster ? (
+                <div className="h-52 flex flex-col items-center justify-center gap-3">
+                  <Icon name="ArrowPathIcon" size={28} className="text-yellow-400 animate-spin" />
+                  <p className="text-yellow-400 text-xs font-montserrat">Uploading…</p>
                 </div>
-                <div>
-                  <p className="text-white font-montserrat font-medium">Drop images here or click to select</p>
-                  <p className="text-neutral-500 text-sm font-montserrat mt-1">
-                    Support: JPG, PNG, WebP (max 5MB each)
-                  </p>
-                </div>
-              </div>
+              ) : form.poster ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={form.poster} alt="poster" className="w-full max-h-72 object-cover" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                    <button type="button" onClick={handleSelectPoster} disabled={!canUpload}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500 text-black text-xs font-bold font-montserrat hover:bg-yellow-400 transition-all disabled:opacity-50">
+                      <Icon name="ArrowUpTrayIcon" size={13} /> Replace
+                    </button>
+                    <button type="button" onClick={handleDeletePoster}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-montserrat hover:bg-red-500/30 hover:text-red-300 transition-all">
+                      <Icon name="TrashIcon" size={13} /> Remove
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button type="button" onClick={() => canUpload && handleSelectPoster()}
+                  disabled={!canUpload}
+                  className={`w-full h-52 flex flex-col items-center justify-center gap-2 transition-colors ${
+                    canUpload ? 'text-neutral-600 hover:text-yellow-400 cursor-pointer' : 'text-neutral-700 cursor-not-allowed'
+                  }`}
+                >
+                  <Icon name="ArrowUpTrayIcon" size={28} />
+                  <p className="text-xs font-montserrat">Click or drop to upload poster</p>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Current Images Grid */}
-          <div className="space-y-4">
-            {/* Poster */}
-            <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">
-                Poster Image
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {form.poster ? (
-                  <div className="relative group">
-                    <img 
-                      src={form.poster} 
-                      alt="Poster" 
-                      className="w-full h-48 object-cover rounded-xl border border-white/10" 
-                    />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all rounded-xl flex items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteImage('poster')}
-                        className="p-2 bg-red-500/20 rounded-lg text-red-400 hover:bg-red-500/30"
-                        title="Delete"
-                      >
-                        <Icon name="TrashIcon" size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleReplaceImage('poster')}
-                        className="p-2 bg-blue-500/20 rounded-lg text-blue-400 hover:bg-blue-500/30"
-                        title="Replace"
-                      >
-                        <Icon name="ArrowPathIcon" size={16} />
-                      </button>
-                    </div>
-                    {uploading.poster && (
-                      <div className="absolute inset-0 bg-black/70 rounded-xl flex items-center justify-center">
-                        <Icon name="ArrowPathIcon" size={24} className="text-yellow-400 animate-spin" />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div 
-                    onClick={() => handleSelectImageType('poster')}
-                    className="h-48 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-white/40 transition-all"
-                  >
-                    <Icon name="PhotoIcon" size={32} className="text-neutral-500 mb-2" />
-                    <p className="text-neutral-500 text-sm font-montserrat">Add Poster</p>
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="border-t border-white/10" />
 
-            {/* Backdrop */}
-            <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">
-                Backdrop Image
-              </label>
-              <div className="grid grid-cols-1 gap-4">
-                {form.backdrop ? (
-                  <div className="relative group">
-                    <img 
-                      src={form.backdrop} 
-                      alt="Backdrop" 
-                      className="w-full h-40 object-cover rounded-xl border border-white/10" 
-                    />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all rounded-xl flex items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteImage('backdrop')}
-                        className="p-2 bg-red-500/20 rounded-lg text-red-400 hover:bg-red-500/30"
-                        title="Delete"
-                      >
-                        <Icon name="TrashIcon" size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleReplaceImage('backdrop')}
-                        className="p-2 bg-blue-500/20 rounded-lg text-blue-400 hover:bg-blue-500/30"
-                        title="Replace"
-                      >
-                        <Icon name="ArrowPathIcon" size={16} />
-                      </button>
-                    </div>
-                    {uploading.backdrop && (
-                      <div className="absolute inset-0 bg-black/70 rounded-xl flex items-center justify-center">
-                        <Icon name="ArrowPathIcon" size={24} className="text-yellow-400 animate-spin" />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div 
-                    onClick={() => handleSelectImageType('backdrop')}
-                    className="h-40 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-white/40 transition-all"
-                  >
-                    <Icon name="PhotoIcon" size={32} className="text-neutral-500 mb-2" />
-                    <p className="text-neutral-500 text-sm font-montserrat">Add Backdrop</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Additional Images Gallery */}
-            <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">
-                Additional Images ({(form.images || []).length})
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {(form.images || []).map((img, index) => (
-                  <div key={index} className="relative group">
-                    <img 
-                      src={img} 
-                      alt={`Gallery ${index + 1}`} 
-                      className="w-full h-32 object-cover rounded-xl border border-white/10" 
-                    />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all rounded-xl flex items-center justify-center">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteAdditionalImage(index)}
-                        className="p-2 bg-red-500/20 rounded-lg text-red-400 hover:bg-red-500/30"
-                        title="Delete"
-                      >
-                        <Icon name="TrashIcon" size={16} />
-                      </button>
-                    </div>
-                    {uploading[`additional-${index}`] && (
-                      <div className="absolute inset-0 bg-black/70 rounded-xl flex items-center justify-center">
-                        <Icon name="ArrowPathIcon" size={20} className="text-yellow-400 animate-spin" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-                
-                {/* Add more images button */}
-                <div 
-                  onClick={() => handleSelectImageType('additional')}
-                  className="h-32 border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-white/40 transition-all"
-                >
-                  <Icon name="PlusIcon" size={24} className="text-neutral-500 mb-1" />
-                  <p className="text-neutral-500 text-xs font-montserrat">Add Image</p>
+          {/* ── Backdrop ── */}
+          <div>
+            <p className="text-white text-sm font-montserrat font-semibold mb-1">Backdrop</p>
+            <p className="text-neutral-500 text-xs font-montserrat mb-3">Wide landscape image used as page hero / banner background.</p>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setBackdropDragActive(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setBackdropDragActive(false); }}
+              onDrop={(e) => { setBackdropDragActive(false); if (canUpload) { e.preventDefault(); const file = e.dataTransfer.files?.[0]; if (file && file.type.startsWith('image/')) handleSelectBackdrop(); } }}
+              className={`relative rounded-2xl border-2 overflow-hidden transition-all group ${
+                backdropDragActive
+                  ? 'border-yellow-400/60 bg-yellow-500/5'
+                  : form.backdrop
+                    ? 'border-white/10 hover:border-yellow-500/30'
+                    : 'border-dashed border-white/15 hover:border-yellow-500/40 hover:bg-yellow-500/5'
+              }`}
+            >
+              {uploadingBackdrop ? (
+                <div className="h-44 flex flex-col items-center justify-center gap-3">
+                  <Icon name="ArrowPathIcon" size={28} className="text-yellow-400 animate-spin" />
+                  <p className="text-yellow-400 text-xs font-montserrat">Uploading…</p>
                 </div>
+              ) : form.backdrop ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={form.backdrop} alt="backdrop" className="w-full max-h-52 object-cover" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                    <button type="button" onClick={handleSelectBackdrop} disabled={!canUpload}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500 text-black text-xs font-bold font-montserrat hover:bg-yellow-400 transition-all disabled:opacity-50">
+                      <Icon name="ArrowUpTrayIcon" size={13} /> Replace
+                    </button>
+                    <button type="button" onClick={handleDeleteBackdrop}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-montserrat hover:bg-red-500/30 hover:text-red-300 transition-all">
+                      <Icon name="TrashIcon" size={13} /> Remove
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button type="button" onClick={() => canUpload && handleSelectBackdrop()}
+                  disabled={!canUpload}
+                  className={`w-full h-44 flex flex-col items-center justify-center gap-2 transition-colors ${
+                    canUpload ? 'text-neutral-600 hover:text-yellow-400 cursor-pointer' : 'text-neutral-700 cursor-not-allowed'
+                  }`}
+                >
+                  <Icon name="ArrowUpTrayIcon" size={28} />
+                  <p className="text-xs font-montserrat">Click or drop to upload backdrop</p>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t border-white/10" />
+
+          {/* ── Gallery Images ── */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <div>
+                <p className="text-white text-sm font-montserrat font-semibold">Gallery Images</p>
+                <p className="text-neutral-500 text-xs font-montserrat mt-0.5">Additional stills, BTS photos, or promo images · Upload or paste a URL</p>
               </div>
+              <button type="button" onClick={addGalleryImage}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/20 font-montserrat text-sm font-medium transition-all">
+                <Icon name="PlusIcon" size={14} /> Add Slot
+              </button>
             </div>
 
-            {/* Upload Progress Info */}
-            {Object.values(uploading).some(Boolean) && (
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-                <Icon name="ArrowUpTrayIcon" size={16} className="text-yellow-400 animate-pulse" />
-                <p className="text-yellow-400 text-sm font-montserrat">
-                  Uploading images to Firebase Storage...
-                </p>
+            {(form.images || []).length === 0 ? (
+              <button type="button" onClick={() => canUpload && addGalleryImage()}
+                disabled={!canUpload}
+                className={`mt-3 w-full py-14 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center gap-3 group ${
+                  canUpload
+                    ? 'border-white/10 hover:border-yellow-500/40 hover:bg-yellow-500/5 cursor-pointer'
+                    : 'border-white/5 opacity-40 cursor-not-allowed'
+                }`}
+              >
+                <div className="p-4 rounded-full bg-white/5 group-hover:bg-yellow-500/10 transition-all">
+                  <Icon name="PhotoIcon" size={28} className="text-neutral-600 group-hover:text-yellow-400 transition-colors" />
+                </div>
+                <div className="text-center">
+                  <p className="text-neutral-400 text-sm font-montserrat font-medium group-hover:text-white transition-colors">Click to add first image</p>
+                  <p className="text-neutral-600 text-xs font-montserrat mt-0.5">or drag &amp; drop files onto any image slot</p>
+                </div>
+              </button>
+            ) : (
+              <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {(form.images || []).map((img, i) => {
+                  const isUploading = !!uploadingMap[i];
+                  return (
+                    <div key={i}
+                      onDrop={(e) => handleDropGalleryImage(e, i)}
+                      onDragOver={(e) => e.preventDefault()}
+                      className={`relative rounded-2xl border transition-all overflow-hidden group ${
+                        isUploading
+                          ? 'border-yellow-500/50 bg-yellow-500/5'
+                          : img
+                            ? 'border-white/10 bg-white/3 hover:border-yellow-500/30'
+                            : 'border-dashed border-white/15 bg-white/3 hover:border-yellow-500/40 hover:bg-yellow-500/5'
+                      }`}
+                    >
+                      {/* Primary badge */}
+                      {i === 0 && (
+                        <span className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full bg-yellow-500 text-black text-xs font-bold font-montserrat shadow-lg">
+                          Primary
+                        </span>
+                      )}
+                      {/* Remove */}
+                      {(form.images || []).length > 1 && (
+                        <button type="button" onClick={() => removeGalleryImage(i)}
+                          className="absolute top-3 right-3 z-10 p-1.5 rounded-lg bg-black/60 text-red-400 hover:bg-red-500/20 transition-all opacity-0 group-hover:opacity-100">
+                          <Icon name="TrashIcon" size={13} />
+                        </button>
+                      )}
+                      {/* Preview */}
+                      <div className="relative w-full min-h-44">
+                        {isUploading ? (
+                          <div className="w-full h-44 flex flex-col items-center justify-center gap-3">
+                            <Icon name="ArrowPathIcon" size={28} className="text-yellow-400 animate-spin" />
+                            <p className="text-yellow-400 text-xs font-montserrat font-medium">Uploading…</p>
+                          </div>
+                        ) : img ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={img} alt={`gallery-${i}`} className="w-full h-auto object-contain" />
+                        ) : (
+                          <button type="button" onClick={() => canUpload && handleSelectGalleryImage(i)}
+                            disabled={!canUpload}
+                            className={`w-full h-44 flex flex-col items-center justify-center gap-2 transition-colors ${
+                              canUpload ? 'text-neutral-600 hover:text-yellow-400 cursor-pointer' : 'text-neutral-700 cursor-not-allowed'
+                            }`}
+                          >
+                            <Icon name="ArrowUpTrayIcon" size={28} />
+                            <p className="text-xs font-montserrat">Click or drop to upload</p>
+                          </button>
+                        )}
+                        {/* Replace overlay */}
+                        {img && !isUploading && canUpload && (
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button type="button" onClick={() => handleSelectGalleryImage(i)}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500 text-black text-xs font-bold font-montserrat hover:bg-yellow-400 transition-all">
+                              <Icon name="ArrowUpTrayIcon" size={13} /> Replace
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {/* URL input row */}
+                      <div className="px-3 py-3 border-t border-white/10 bg-black/20 flex items-center gap-2">
+                        <input type="url" value={img}
+                          onChange={(e) => updateGalleryImage(i, e.target.value)}
+                          placeholder="Paste URL or upload above…"
+                          className="flex-1 min-w-0 bg-transparent text-white text-xs font-montserrat placeholder-neutral-600 focus:outline-none truncate"
+                        />
+                        <button type="button" onClick={() => handleSelectGalleryImage(i)}
+                          disabled={isUploading || !canUpload}
+                          className="shrink-0 p-1.5 rounded-lg bg-yellow-500/15 text-yellow-400 hover:bg-yellow-500/30 transition-all disabled:opacity-40">
+                          <Icon name="ArrowUpTrayIcon" size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {/* Add another ghost card */}
+                <button type="button" onClick={addGalleryImage}
+                  className="rounded-2xl border-2 border-dashed border-white/10 hover:border-yellow-500/40 hover:bg-yellow-500/5 transition-all flex flex-col items-center justify-center gap-2 h-full min-h-[220px] text-neutral-600 hover:text-yellow-400 group">
+                  <div className="p-3 rounded-full bg-white/5 group-hover:bg-yellow-500/10 transition-all">
+                    <Icon name="PlusIcon" size={20} />
+                  </div>
+                  <p className="text-xs font-montserrat">Add image</p>
+                </button>
               </div>
             )}
           </div>
+
         </div>
       );
+      }
 
       // ── SEO ────────────────────────────────────────────────────────────
       case 'seo': return (
