@@ -1273,22 +1273,7 @@ export default function MovieManagementSection() {
                         />
                       </div>
 
-                      {/* Manual Image URL Override */}
-                      <div>
-                        <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-                          Custom Image (Optional)
-                        </label>
-                        <input
-                          type="url"
-                          value={member.image || ''}
-                          onChange={(e) => updateCast(i, 'image', e.target.value)}
-                          placeholder="Override celebrity image..."
-                          className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                        />
-                        <p className="text-neutral-500 text-xs mt-1 font-montserrat">
-                          Leave empty to use celebrity's profile image
-                        </p>
-                      </div>
+
                     </div>
                   </div>
                 );
