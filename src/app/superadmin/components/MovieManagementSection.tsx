@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 import { useAuth } from '@/context/AuthContext';
 import { uploadImage, deleteImage, validateImageFile } from '@/lib/imageUpload';
 
@@ -82,7 +83,7 @@ interface MovieFull extends MovieRow {
   seoData?: IMovieSEO;
 }
 
-type FormTab = 'basic' | 'cast' | 'details' | 'images' | 'seo';
+type FormTab = 'basic' | 'content' | 'cast' | 'details' | 'images' | 'seo';
 type PanelMode = 'add' | 'edit' | null;
 type Toast = { type: 'success' | 'error'; message: string } | null;
 
@@ -91,10 +92,11 @@ type Toast = { type: 'success' | 'error'; message: string } | null;
 const PAGE_SIZES = [10, 20, 50];
 
 const TABS: { key: FormTab; label: string; icon: string }[] = [
-  { key: 'basic',   label: 'Basic Info', icon: 'FilmIcon'   },
-  { key: 'cast',    label: 'Cast',       icon: 'UsersIcon'  },
-  { key: 'details', label: 'Details',    icon: 'TagIcon'    },
-  { key: 'images',  label: 'Images',     icon: 'PhotoIcon'  },
+  { key: 'basic',   label: 'Basic Info', icon: 'FilmIcon'            },
+  { key: 'content', label: 'Content',    icon: 'DocumentTextIcon'   },
+  { key: 'cast',    label: 'Cast',       icon: 'UsersIcon'           },
+  { key: 'details', label: 'Details',    icon: 'TagIcon'             },
+  { key: 'images',  label: 'Images',     icon: 'PhotoIcon'           },
   { key: 'seo',     label: 'SEO',        icon: 'MagnifyingGlassIcon' },
 ];
 
@@ -1058,26 +1060,6 @@ export default function MovieManagementSection() {
             )}
           </div>
 
-          {/* Synopsis */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Synopsis</label>
-            <textarea value={form.synopsis || ''} rows={3}
-              onChange={(e) => setField('synopsis', e.target.value)}
-              placeholder="Brief movie overview..."
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-          </div>
-
-          {/* Plot Summary */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Plot Summary</label>
-            <textarea value={form.plotSummary || ''} rows={3}
-              onChange={(e) => setField('plotSummary', e.target.value)}
-              placeholder="Detailed plot description..."
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-          </div>
-
           {/* Toggles */}
           <div className="flex flex-wrap items-center gap-6">
             {(['featured', 'worldwide', 'preOrderAvailable'] as const).map((key) => (
@@ -1092,6 +1074,39 @@ export default function MovieManagementSection() {
                 </button>
               </label>
             ))}
+          </div>
+        </div>
+      );
+
+      // ── CONTENT ────────────────────────────────────────────────────────
+      case 'content': return (
+        <div className="space-y-8">
+          {/* Synopsis */}
+          <div>
+            <div className="mb-3">
+              <h4 className="text-sm font-semibold font-montserrat text-white">Synopsis</h4>
+              <p className="text-xs text-neutral-500 font-montserrat mt-0.5">A brief overview of the movie shown in listings and previews.</p>
+            </div>
+            <RichTextEditor
+              label=""
+              value={form.synopsis || ''}
+              onChange={(val) => setField('synopsis', val)}
+              placeholder="Write a brief movie overview..."
+            />
+          </div>
+
+          {/* Plot Summary */}
+          <div>
+            <div className="mb-3">
+              <h4 className="text-sm font-semibold font-montserrat text-white">Plot Summary</h4>
+              <p className="text-xs text-neutral-500 font-montserrat mt-0.5">A detailed description of the plot — spoilers can be included here.</p>
+            </div>
+            <RichTextEditor
+              label=""
+              value={form.plotSummary || ''}
+              onChange={(val) => setField('plotSummary', val)}
+              placeholder="Write a detailed plot description..."
+            />
           </div>
         </div>
       );
