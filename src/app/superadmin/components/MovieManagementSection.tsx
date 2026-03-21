@@ -52,12 +52,25 @@ interface IMovieSEO {
   changeFreq?: string;
 }
 
+type MovieStatus = 'draft' | 'published' | 'announced' | 'filming' | 'post-production' | 'upcoming' | 'released' | 'cancelled';
+
+const STATUS_COLORS: Record<string, string> = {
+  published:        'bg-emerald-500/20 text-emerald-400',
+  draft:            'bg-yellow-500/20 text-yellow-400',
+  announced:        'bg-blue-500/20 text-blue-400',
+  filming:          'bg-purple-500/20 text-purple-400',
+  'post-production':'bg-indigo-500/20 text-indigo-400',
+  upcoming:         'bg-sky-500/20 text-sky-400',
+  released:         'bg-emerald-500/20 text-emerald-400',
+  cancelled:        'bg-red-500/20 text-red-400',
+};
+
 interface MovieRow {
   id: string;
   title: string;
   slug: string;
   director?: string;
-  status?: string;
+  status?: MovieStatus | string;
   language?: string[];
   releaseDate?: string;
   poster?: string;
@@ -260,6 +273,7 @@ export default function MovieManagementSection() {
   const [form, setForm]               = useState<MovieFull>(EMPTY_FORM);
   const [formErrors, setFormErrors]   = useState<Partial<Record<keyof MovieFull, string>>>({});
   const [formLoading, setFormLoading] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
   const [formApiError, setFormApiError] = useState('');
   const [loadingDetail, setLoadingDetail] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -427,7 +441,7 @@ export default function MovieManagementSection() {
     title:               form.title.trim(),
     slug:                form.slug?.trim()               || undefined,
     director:            form.director?.trim()           || undefined,
-    status:              form.status?.trim()             || undefined,
+    status:              form.status?.trim()             || 'draft',
     language:            form.language && form.language.length ? form.language : undefined,
     originalLanguage:    form.originalLanguage?.trim()   || undefined,
     synopsis:            form.synopsis?.trim()           || undefined,
@@ -465,12 +479,12 @@ export default function MovieManagementSection() {
       const res  = await fetch('/api/superadmin/movies', {
         method:  'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body:    JSON.stringify(buildPayload()),
+        body:    JSON.stringify({ ...buildPayload(), status: 'published' }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Create failed');
       closePanel();
-      showToast('success', `"${form.title.trim()}" created`);
+      showToast('success', `"${form.title.trim()}" published`);
       fetchList(1);
     } catch (err: any) {
       setFormApiError(err.message || 'Create failed');
@@ -488,12 +502,12 @@ export default function MovieManagementSection() {
       const res  = await fetch(`/api/superadmin/movies/${form.id}`, {
         method:  'PUT',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body:    JSON.stringify(buildPayload()),
+        body:    JSON.stringify({ ...buildPayload(), status: 'published' }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Update failed');
       closePanel();
-      showToast('success', `"${form.title.trim()}" updated`);
+      showToast('success', `"${form.title.trim()}" published`);
       fetchList(page);
     } catch (err: any) {
       setFormApiError(err.message || 'Update failed');
@@ -537,6 +551,72 @@ export default function MovieManagementSection() {
       showToast('success', `"${m.title}" ${newVal ? 'featured' : 'unfeatured'}`);
     } catch (err: any) {
       showToast('error', err.message || 'Failed to update');
+    } finally {
+      setBusy(m.id, false);
+    }
+  };
+
+  // ── validate draft (title-only) ──────────────────────────────────────────
+  const validateDraft = () => {
+    const errs: Partial<Record<keyof MovieFull, string>> = {};
+    if (!form.title.trim()) errs.title = 'Title is required to save as draft';
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  // ── save as draft ─────────────────────────────────────────────────────────
+  const handleSaveDraft = async () => {
+    if (!validateDraft()) return;
+    setDraftLoading(true); setFormApiError('');
+    try {
+      const payload = { ...buildPayload(), status: 'draft' as const };
+      let res: Response;
+      if (panelMode === 'edit' && form.id) {
+        res = await fetch(`/api/superadmin/movies/${form.id}`, {
+          method:  'PUT',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch('/api/superadmin/movies', {
+          method:  'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload),
+        });
+      }
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to save draft');
+      if (panelMode === 'add') {
+        setForm((f) => ({ ...f, id: data.data._id || data.data.id, status: 'draft' }));
+        setPanelMode('edit');
+      } else {
+        setForm((f) => ({ ...f, status: 'draft' }));
+      }
+      showToast('success', `"${form.title.trim()}" saved as draft`);
+      fetchList(page);
+    } catch (err: any) {
+      setFormApiError(err.message || 'Failed to save draft');
+    } finally {
+      setDraftLoading(false);
+    }
+  };
+
+  // ── quick status toggle (draft ↔ published) ────────────────────────────────
+  const handleStatusToggle = async (m: MovieRow, newStatus: 'draft' | 'published') => {
+    if (m.status === newStatus) return;
+    setBusy(m.id, true);
+    try {
+      const res  = await fetch(`/api/superadmin/movies/${m.id}`, {
+        method:  'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to update status');
+      setMovies((prev) => prev.map((x) => x.id === m.id ? { ...x, status: newStatus } : x));
+      showToast('success', `"${m.title}" marked as ${newStatus}`);
+    } catch (err: any) {
+      showToast('error', err.message || 'Failed to update status');
     } finally {
       setBusy(m.id, false);
     }
@@ -955,6 +1035,8 @@ export default function MovieManagementSection() {
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
             >
               <option value="">— Select status —</option>
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
               <option value="announced">Announced</option>
               <option value="filming">Filming</option>
               <option value="post-production">Post-production</option>
@@ -2251,13 +2333,13 @@ export default function MovieManagementSection() {
       )}
 
       {/* Stats */}
-      {panelMode !== 'add' && (
+      {!panelMode && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total',     value: total,                                          icon: 'FilmIcon',           color: 'text-yellow-400'  },
-            { label: 'Featured',  value: movies.filter((m) => m.featured).length,        icon: 'SparklesIcon',       color: 'text-purple-400'  },
-            { label: 'This Page', value: movies.length,                                  icon: 'RectangleGroupIcon', color: 'text-blue-400'    },
-            { label: 'Pages',     value: pages,                                           icon: 'BookOpenIcon',       color: 'text-emerald-400' },
+            { label: 'Total',      value: total,                                                         icon: 'FilmIcon',          color: 'text-yellow-400'  },
+            { label: 'Published',  value: movies.filter((m) => m.status === 'published').length,         icon: 'CheckBadgeIcon',    color: 'text-emerald-400' },
+            { label: 'Draft',      value: movies.filter((m) => (m.status || 'draft') === 'draft').length, icon: 'DocumentTextIcon',  color: 'text-yellow-300'  },
+            { label: 'Featured',   value: movies.filter((m) => m.featured).length,                       icon: 'SparklesIcon',      color: 'text-purple-400'  },
           ].map((s) => (
             <div key={s.label} className="glass-card rounded-2xl p-5">
               <Icon name={s.icon as any} size={20} className={s.color} />
@@ -2283,13 +2365,19 @@ export default function MovieManagementSection() {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
             />
           </div>
-          <input
-            type="text" value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && fetchList(1)}
-            placeholder="Filter by status..."
-            className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm w-full md:w-44"
-          />
+          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); fetchList(1); }}
+            className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer w-full md:w-44"
+          >
+            <option value="" style={{ background: '#2b1433' }}>All statuses</option>
+            <option value="published"    style={{ background: '#2b1433' }}>Published</option>
+            <option value="draft"        style={{ background: '#2b1433' }}>Draft</option>
+            <option value="announced"    style={{ background: '#2b1433' }}>Announced</option>
+            <option value="filming"      style={{ background: '#2b1433' }}>Filming</option>
+            <option value="post-production" style={{ background: '#2b1433' }}>Post-production</option>
+            <option value="upcoming"     style={{ background: '#2b1433' }}>Upcoming</option>
+            <option value="released"     style={{ background: '#2b1433' }}>Released</option>
+            <option value="cancelled"    style={{ background: '#2b1433' }}>Cancelled</option>
+          </select>
           <select value={limit} onChange={(e) => fetchList(1, Number(e.target.value))}
             className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
           >
@@ -2317,7 +2405,7 @@ export default function MovieManagementSection() {
       </div>
 
       {/* Error */}
-      {panelMode !== 'add' && fetchError && (
+      {!panelMode && fetchError && (
         <div className="glass-card rounded-2xl p-4 border border-red-500/20 bg-red-500/10 flex items-center gap-3">
           <Icon name="ExclamationCircleIcon" size={18} className="text-red-400 shrink-0" />
           <p className="text-red-400 text-sm font-montserrat flex-1">{fetchError}</p>
@@ -2381,20 +2469,35 @@ export default function MovieManagementSection() {
 
               {/* Footer */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-4 border-t border-white/10">
-                <p className="text-neutral-600 text-xs font-montserrat">* Required fields</p>
+                <div className="flex items-center gap-3">
+                  <p className="text-neutral-600 text-xs font-montserrat">* Required fields</p>
+                  {form.status && (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-montserrat capitalize ${
+                      STATUS_COLORS[form.status] || 'bg-neutral-500/20 text-neutral-400'
+                    }`}>
+                      {form.status}
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-3 sm:ml-auto">
                   <button type="button" onClick={closePanel}
                     className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
                   >
                     Cancel
                   </button>
-                  <button type="submit" disabled={formLoading}
+                  <button type="button" onClick={handleSaveDraft} disabled={draftLoading || formLoading}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-semibold font-montserrat text-sm hover:bg-yellow-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {draftLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
+                    {draftLoading ? 'Saving Draft...' : 'Save as Draft'}
+                  </button>
+                  <button type="submit" disabled={formLoading || draftLoading}
                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {formLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
                     {formLoading
-                      ? (panelMode === 'add' ? 'Creating...' : 'Saving...')
-                      : (panelMode === 'add' ? 'Create Movie' : 'Save Changes')}
+                      ? (panelMode === 'add' ? 'Publishing...' : 'Saving...')
+                      : (panelMode === 'add' ? 'Publish Movie' : 'Save & Publish')}
                   </button>
                 </div>
               </div>
@@ -2404,7 +2507,7 @@ export default function MovieManagementSection() {
       )}
 
       {/* Table */}
-      {panelMode !== 'add' && (
+      {!panelMode && (
         <div className="glass-card rounded-2xl p-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-5">
             <h3 className="font-playfair text-xl font-bold text-white flex-1">Upcoming Movies</h3>
@@ -2465,10 +2568,36 @@ export default function MovieManagementSection() {
                         </td>
                         {/* Status */}
                         <td className="py-3.5 px-3 hidden sm:table-cell">
-                          {m.status
-                            ? <span className="px-2 py-0.5 rounded-lg bg-blue-500/10 text-blue-400 text-xs font-montserrat capitalize">{m.status}</span>
-                            : <span className="text-neutral-600 text-xs font-montserrat">—</span>
-                          }
+                          <div className="flex flex-col gap-1.5">
+                            {m.status ? (
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-montserrat capitalize ${
+                                STATUS_COLORS[m.status] || 'bg-neutral-500/10 text-neutral-400'
+                              }`}>{m.status}</span>
+                            ) : (
+                              <span className="text-neutral-600 text-xs font-montserrat">—</span>
+                            )}
+                            <div className="flex gap-1">
+                              <button type="button"
+                                onClick={() => handleStatusToggle(m, 'draft')}
+                                title="Set to Draft"
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-montserrat font-medium transition-all ${
+                                  (m.status || 'draft') === 'draft'
+                                    ? 'bg-yellow-500/30 text-yellow-300 cursor-default'
+                                    : 'bg-white/5 text-neutral-500 hover:bg-yellow-500/15 hover:text-yellow-400'
+                                }`}
+                              >Draft</button>
+                              <button type="button"
+                                onClick={() => handleStatusToggle(m, 'published')}
+                                title="Set to Published"
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-montserrat font-medium transition-all ${
+                                  m.status === 'published'
+                                    ? 'bg-emerald-500/30 text-emerald-300 cursor-default'
+                                    : 'bg-white/5 text-neutral-500 hover:bg-emerald-500/15 hover:text-emerald-400'
+                                }`}
+                              >Published</button>
+                            </div>
+
+                          </div>
                         </td>
                         {/* Release Date */}
                         <td className="py-3.5 px-3 hidden lg:table-cell">
