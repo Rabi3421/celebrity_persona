@@ -137,7 +137,7 @@ const EMPTY_FORM: ReviewFull = {
   backdropImage: '',
   trailer: '',
   rating: 0,
-  content: ''
+  content: '',
   excerpt: '',
   verdict: '',
   featured: false,
