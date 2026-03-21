@@ -12,6 +12,7 @@ interface IReviewCastMember {
   name: string;
   character?: string;
   image?: string;
+  celebrityId?: string;
 }
 
 interface IMovieDetails {
@@ -251,6 +252,12 @@ export default function ReviewManagementSection() {
   const [backdropDragActive,setBackdropDragActive]= useState(false);
   const [ogImageUpload,     setOgImageUpload]     = useState<UploadSlot>({ uploading: false, progress: 0, error: '' });
   const [twitterImageUpload,setTwitterImageUpload]= useState<UploadSlot>({ uploading: false, progress: 0, error: '' });
+  const [celebrities,          setCelebrities]          = useState<any[]>([]);
+  const [celebritySearch,      setCelebritySearch]      = useState('');
+  const [loadingCelebrities,   setLoadingCelebrities]   = useState(false);
+  const [celebritySearchError, setCelebritySearchError] = useState('');
+  const [activeCastDropdown,   setActiveCastDropdown]   = useState<number | null>(null);
+  const castDropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // ── helpers ────────────────────────────────────────────────────────────
@@ -648,13 +655,58 @@ export default function ReviewManagementSection() {
 
   // ── cast helpers ──────────────────────────────────────────────────────────
   const addCastMember = () =>
-    setMovieField('cast', [...(form.movieDetails?.cast || []), { name: '', character: '', image: '' }]);
+    setMovieField('cast', [...(form.movieDetails?.cast || []), { name: '', character: '', image: '', celebrityId: '' }]);
 
   const updateCast = (i: number, key: keyof IReviewCastMember, val: string) =>
     setMovieField('cast', (form.movieDetails?.cast || []).map((c, idx) => idx === i ? { ...c, [key]: val } : c));
 
   const removeCast = (i: number) =>
     setMovieField('cast', (form.movieDetails?.cast || []).filter((_, idx) => idx !== i));
+
+  const fetchCelebrities = useCallback(async (search = '') => {
+    setLoadingCelebrities(true);
+    setCelebritySearchError('');
+    try {
+      const params = new URLSearchParams({ limit: '20' });
+      if (search.trim()) params.set('query', search.trim());
+      const res = await fetch(`/api/content/celebrities/search?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.success && data.data) { setCelebrities(data.data); }
+      else { setCelebrities([]); setCelebritySearchError(data.message || 'No celebrities found'); }
+    } catch (e) {
+      setCelebrities([]);
+      setCelebritySearchError(e instanceof Error ? e.message : 'Failed to fetch celebrities');
+    } finally { setLoadingCelebrities(false); }
+  }, []);
+
+  useEffect(() => { fetchCelebrities(); }, [fetchCelebrities]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { if (celebritySearch !== '') fetchCelebrities(celebritySearch); }, 300);
+    return () => clearTimeout(t);
+  }, [celebritySearch, fetchCelebrities]);
+
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (activeCastDropdown === null) return;
+      const ref = castDropdownRefs.current[activeCastDropdown];
+      if (ref && !ref.contains(e.target as Node)) setActiveCastDropdown(null);
+    }
+    function onEsc(e: KeyboardEvent) { if (e.key === 'Escape') setActiveCastDropdown(null); }
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onEsc);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onEsc); };
+  }, [activeCastDropdown]);
+
+  const handleSelectCelebrity = (index: number, celeb: any) => {
+    const updated = [...(form.movieDetails?.cast || [])];
+    updated[index] = { ...updated[index], name: celeb.name, image: celeb.profileImage || '', celebrityId: celeb.id };
+    setMovieField('cast', updated);
+    setActiveCastDropdown(null);
+    setCelebritySearch('');
+    setCelebrities([]);
+  };
 
   // ── pagination ────────────────────────────────────────────────────────────
   const pageNumbers = (): (number | '...')[] => {
@@ -1530,39 +1582,87 @@ export default function ReviewManagementSection() {
               </div>
             ) : (
               <div className="space-y-2">
-                {(form.movieDetails?.cast || []).map((member, i) => (
-                  <div key={i} className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-white/5 border border-white/10 relative">
-                    <button type="button" onClick={() => removeCast(i)}
-                      className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
-                    >
-                      <Icon name="XMarkIcon" size={12} />
-                    </button>
-                    <div>
-                      <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Name *</label>
-                      <input type="text" value={member.name}
-                        onChange={(e) => updateCast(i, 'name', e.target.value)}
-                        placeholder="Actor name"
-                        className="w-full px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
-                      />
+                {(form.movieDetails?.cast || []).map((member, i) => {
+                  const isDropdownOpen = activeCastDropdown === i;
+                  return (
+                    <div key={i} className="p-3 rounded-xl bg-white/5 border border-white/10 relative">
+                      <button type="button" onClick={() => removeCast(i)}
+                        className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all z-10"
+                      >
+                        <Icon name="XMarkIcon" size={12} />
+                      </button>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {/* Celebrity picker */}
+                        <div className="relative" ref={(el) => { castDropdownRefs.current[i] = el; }}>
+                          <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Celebrity <span className="text-yellow-400">*</span></label>
+                          <button type="button"
+                            onClick={() => setActiveCastDropdown(isDropdownOpen ? null : i)}
+                            className="w-full text-left px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {member.image && <img src={member.image} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />}
+                              <span className={member.name ? 'text-white truncate' : 'text-neutral-500'}>
+                                {member.name || 'Select celebrity…'}
+                              </span>
+                            </div>
+                            <Icon name={isDropdownOpen ? 'ChevronUpIcon' : 'ChevronDownIcon'} size={13} className="shrink-0 ml-1" />
+                          </button>
+
+                          {isDropdownOpen && (
+                            <div className="absolute z-50 left-0 right-0 mt-1.5 rounded-xl bg-[#060316]/95 border border-white/10 backdrop-blur-sm overflow-hidden">
+                              <div className="p-2 border-b border-white/10">
+                                <div className="relative">
+                                  <Icon name="MagnifyingGlassIcon" size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-neutral-500" />
+                                  <input type="text" value={celebritySearch}
+                                    onChange={(e) => setCelebritySearch(e.target.value)}
+                                    placeholder="Search celebrities…"
+                                    autoFocus
+                                    className="w-full pl-6 pr-6 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
+                                  />
+                                  {loadingCelebrities && <Icon name="ArrowPathIcon" size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 animate-spin" />}
+                                </div>
+                              </div>
+                              <div className="max-h-48 overflow-y-auto">
+                                {celebrities.length > 0 ? celebrities.map((celeb) => (
+                                  <button key={celeb.id} type="button"
+                                    onClick={() => handleSelectCelebrity(i, celeb)}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/10 transition-all text-left"
+                                  >
+                                    {celeb.profileImage
+                                      ? <img src={celeb.profileImage} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                                      : <div className="w-8 h-8 rounded-full bg-neutral-700 shrink-0 flex items-center justify-center"><Icon name="UserIcon" size={14} className="text-neutral-400" /></div>
+                                    }
+                                    <span className="text-white text-xs font-montserrat truncate">{celeb.name}</span>
+                                  </button>
+                                )) : (
+                                  <div className="px-3 py-4 text-xs font-montserrat text-center text-neutral-500">
+                                    {loadingCelebrities
+                                      ? <span className="flex items-center justify-center gap-1.5"><Icon name="ArrowPathIcon" size={12} className="animate-spin" /> Loading…</span>
+                                      : celebritySearchError ? <span className="text-red-400">{celebritySearchError}</span>
+                                      : celebritySearch.trim() ? 'No celebrities found'
+                                      : 'Start typing to search'
+                                    }
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Character */}
+                        <div>
+                          <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Character</label>
+                          <input type="text" value={member.character || ''}
+                            onChange={(e) => updateCast(i, 'character', e.target.value)}
+                            placeholder="Character name"
+                            className="w-full px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Character</label>
-                      <input type="text" value={member.character || ''}
-                        onChange={(e) => updateCast(i, 'character', e.target.value)}
-                        placeholder="Character name"
-                        className="w-full px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Image URL</label>
-                      <input type="url" value={member.image || ''}
-                        onChange={(e) => updateCast(i, 'image', e.target.value)}
-                        placeholder="https://..."
-                        className="w-full px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
