@@ -277,9 +277,9 @@ export default function ReviewManagementSection() {
       .replace(/-+/g, '-')
       .slice(0, 96);
 
-  const handleMovieTitleChange = (val: string) => {
-    setField('movieTitle', val);
-    if (!form.slug || form.slug === toSlug(form.movieTitle)) {
+  const handleTitleChange = (val: string) => {
+    setField('title', val);
+    if (!form.slug || form.slug === toSlug(form.title)) {
       setField('slug', toSlug(val));
     }
   };
@@ -634,7 +634,7 @@ export default function ReviewManagementSection() {
               Review Title <span className="text-yellow-400">*</span>
             </label>
             <input type="text" value={form.title}
-              onChange={(e) => setField('title', e.target.value)}
+              onChange={(e) => handleTitleChange(e.target.value)}
               placeholder="e.g. Kantara Chapter 1: A Cinematic Masterpiece Rooted in Tradition and Myth"
               className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${errBorder('title')}`}
             />
@@ -647,7 +647,7 @@ export default function ReviewManagementSection() {
               Movie Title <span className="text-yellow-400">*</span>
             </label>
             <input type="text" value={form.movieTitle}
-              onChange={(e) => handleMovieTitleChange(e.target.value)}
+              onChange={(e) => setField('movieTitle', e.target.value)}
               placeholder="e.g. Kantara: A Legend – Chapter 1"
               className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${errBorder('movieTitle')}`}
             />
@@ -662,7 +662,7 @@ export default function ReviewManagementSection() {
               placeholder="auto-generated from movie title"
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
             />
-            <p className="text-[10px] text-neutral-600 mt-0.5">Auto-fills from movie title. Edit to override.</p>
+            <p className="text-[10px] text-neutral-600 mt-0.5">Auto-fills from review title. Edit to override.</p>
           </div>
 
           {/* Rating */}
