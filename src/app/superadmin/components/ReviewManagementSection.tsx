@@ -1312,7 +1312,12 @@ export default function ReviewManagementSection() {
                 <input
                   type="number" min="0" max={max} step="0.1"
                   value={form.scores?.[key] ?? ''}
-                  onChange={(e) => setScoreField(key, e.target.value ? parseFloat(e.target.value) : undefined)}
+                  onChange={(e) => {
+                    if (e.target.value === '') { setScoreField(key, undefined); return; }
+                    const v = parseFloat(e.target.value);
+                    if (isNaN(v)) return;
+                    setScoreField(key, parseFloat(Math.min(max, Math.max(0, v)).toFixed(1)));
+                  }}
                   placeholder={placeholder}
                   className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
                 />
