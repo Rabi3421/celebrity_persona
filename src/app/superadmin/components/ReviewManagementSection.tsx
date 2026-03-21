@@ -672,7 +672,11 @@ export default function ReviewManagementSection() {
             </label>
             <div className="flex items-center gap-3">
               <input type="number" min="0" max="10" step="0.1" value={form.rating}
-                onChange={(e) => setField('rating', parseFloat(e.target.value) || 0)}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  if (isNaN(v)) { setField('rating', 0); return; }
+                  setField('rating', Math.min(10, Math.max(0, parseFloat(v.toFixed(1)))));
+                }}
                 className="w-28 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
               />
               <span className={`font-playfair text-2xl font-bold ${ratingColor(form.rating)}`}>{form.rating}</span>
