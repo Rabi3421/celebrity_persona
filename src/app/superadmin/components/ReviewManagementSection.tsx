@@ -84,6 +84,7 @@ interface ReviewRow {
   poster?: string;
   rating: number;
   featured: boolean;
+  status: 'draft' | 'published';
   publishDate?: string;
   excerpt?: string;
   authorName?: string;
@@ -107,6 +108,11 @@ type FormTab = 'basic' | 'content' | 'movie' | 'scores' | 'images' | 'seo';
 type PanelMode = 'add' | 'edit' | null;
 type Toast = { type: 'success' | 'error'; message: string } | null;
 type UploadSlot = { uploading: boolean; progress: number; error: string };
+
+const STATUS_COLORS: Record<string, string> = {
+  published: 'bg-emerald-500/20 text-emerald-400',
+  draft:     'bg-yellow-500/20 text-yellow-400',
+};
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -143,6 +149,7 @@ const EMPTY_FORM: ReviewFull = {
   excerpt: '',
   verdict: '',
   featured: false,
+  status: 'draft' as const,
   publishDate: new Date().toISOString().split('T')[0],
   authorName: '',
   author: EMPTY_AUTHOR,
@@ -244,8 +251,10 @@ export default function ReviewManagementSection() {
   const [form, setForm]                     = useState<ReviewFull>(EMPTY_FORM);
   const [formErrors, setFormErrors]         = useState<Partial<Record<keyof ReviewFull, string>>>({});
   const [formLoading, setFormLoading]       = useState(false);
+  const [draftLoading, setDraftLoading]     = useState(false);
   const [formApiError, setFormApiError]     = useState('');
   const [loadingDetail, setLoadingDetail]   = useState(false);
+  const [statusFilter, setStatusFilter]     = useState('');
   const [uploadingPoster,   setUploadingPoster]   = useState(false);
   const [uploadingBackdrop, setUploadingBackdrop] = useState(false);
   const [posterDragActive,  setPosterDragActive]  = useState(false);
@@ -386,6 +395,7 @@ export default function ReviewManagementSection() {
     try {
       const params = new URLSearchParams({ page: String(p), limit: String(lim) });
       if (searchQuery.trim()) params.set('q', searchQuery.trim());
+      if (statusFilter)       params.set('status', statusFilter);
       const res  = await fetch(`/api/superadmin/reviews?${params}`, { headers: authHeaders() });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || data.error || 'Failed to load');
@@ -397,6 +407,7 @@ export default function ReviewManagementSection() {
         poster:      r.poster,
         rating:      r.rating,
         featured:    r.featured ?? false,
+        status:      (r.status === 'published' ? 'published' : 'draft') as 'draft' | 'published',
         publishDate: r.publishDate,
         excerpt:     r.excerpt,
         authorName:  r.author?.name,
@@ -412,7 +423,7 @@ export default function ReviewManagementSection() {
     } finally {
       setLoading(false);
     }
-  }, [authHeaders, searchQuery, limit]);
+  }, [authHeaders, searchQuery, statusFilter, limit]);
 
   useEffect(() => { fetchList(1); }, [fetchList]);
 
@@ -454,6 +465,7 @@ export default function ReviewManagementSection() {
         excerpt:       d.excerpt       || '',
         verdict:       d.verdict       || '',
         featured:      d.featured      ?? false,
+        status:        (d.status === 'published' ? 'published' : 'draft') as 'draft' | 'published',
         publishDate:   toDateInputValue(d.publishDate),
         authorName:    d.author?.name  || '',
         author: {
@@ -557,6 +569,7 @@ export default function ReviewManagementSection() {
     excerpt:       form.excerpt?.trim()       || undefined,
     verdict:       form.verdict?.trim()       || undefined,
     featured:      form.featured,
+    status:        form.status,
     publishDate:   form.publishDate           || undefined,
     author:        form.author,
     movieDetails:  form.movieDetails,
@@ -648,6 +661,72 @@ export default function ReviewManagementSection() {
       showToast('success', `"${r.title}" ${newVal ? 'featured' : 'unfeatured'}`);
     } catch (err: any) {
       showToast('error', err.message || 'Failed to update');
+    } finally {
+      setBusy(r.id, false);
+    }
+  };
+
+  // ── validate draft (title only) ──────────────────────────────────────────
+  const validateDraft = () => {
+    const errs: Partial<Record<keyof ReviewFull, string>> = {};
+    if (!form.title.trim()) errs.title = 'Title is required to save as draft';
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  // ── save as draft ─────────────────────────────────────────────────────────
+  const handleSaveDraft = async () => {
+    if (!validateDraft()) return;
+    setDraftLoading(true); setFormApiError('');
+    const payload = { ...buildPayload(), status: 'draft' as const };
+    try {
+      let res: Response;
+      if (panelMode === 'edit' && form.id) {
+        res = await fetch(`/api/superadmin/reviews/${form.id}`, {
+          method:  'PUT',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch('/api/superadmin/reviews', {
+          method:  'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload),
+        });
+      }
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || data.error || 'Failed to save draft');
+      if (panelMode === 'add') {
+        setForm((f) => ({ ...f, id: data.data._id || data.data.id, status: 'draft' }));
+        setPanelMode('edit');
+      } else {
+        setForm((f) => ({ ...f, status: 'draft' }));
+      }
+      showToast('success', `Draft saved — "${form.title.trim()}"`);
+      fetchList(page);
+    } catch (err: any) {
+      setFormApiError(err.message || 'Failed to save draft');
+    } finally {
+      setDraftLoading(false);
+    }
+  };
+
+  // ── quick status toggle (draft ↔ published) ───────────────────────────────
+  const handleStatusToggle = async (r: ReviewRow, newStatus: 'draft' | 'published') => {
+    if (r.status === newStatus) return;
+    setBusy(r.id, true);
+    try {
+      const res  = await fetch(`/api/superadmin/reviews/${r.id}`, {
+        method:  'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || data.error || 'Update failed');
+      setReviews((prev) => prev.map((x) => x.id === r.id ? { ...x, status: newStatus } : x));
+      showToast('success', `"${r.title}" set to ${newStatus}`);
+    } catch (err: any) {
+      showToast('error', err.message || 'Failed to update status');
     } finally {
       setBusy(r.id, false);
     }
@@ -1861,20 +1940,33 @@ export default function ReviewManagementSection() {
 
               {/* Footer */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-4 border-t border-white/10">
-                <p className="text-neutral-600 text-xs font-montserrat">* Required fields</p>
+                <div className="flex items-center gap-3">
+                  <p className="text-neutral-600 text-xs font-montserrat">* Required fields</p>
+                  {form.status && (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-montserrat capitalize ${STATUS_COLORS[form.status] || STATUS_COLORS.draft}`}>
+                      {form.status}
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-3 sm:ml-auto">
                   <button type="button" onClick={closePanel}
                     className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
                   >
                     Cancel
                   </button>
-                  <button type="submit" disabled={formLoading}
+                  <button type="button" onClick={handleSaveDraft} disabled={draftLoading || formLoading}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 hover:text-white hover:bg-white/20 font-montserrat text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-white/10"
+                  >
+                    {draftLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
+                    {draftLoading ? 'Saving Draft...' : 'Save as Draft'}
+                  </button>
+                  <button type="submit" disabled={formLoading || draftLoading}
                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {formLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
                     {formLoading
                       ? (panelMode === 'add' ? 'Creating...' : 'Saving...')
-                      : (panelMode === 'add' ? 'Create Review' : 'Save Changes')}
+                      : (panelMode === 'add' ? 'Publish Review' : 'Save & Publish')}
                   </button>
                 </div>
               </div>
@@ -1888,6 +1980,20 @@ export default function ReviewManagementSection() {
         <div className="glass-card rounded-2xl p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
             <h3 className="font-playfair text-xl font-bold text-white">Movie Reviews</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              {(['', 'draft', 'published'] as const).map((s) => (
+                <button key={s} type="button"
+                  onClick={() => { setStatusFilter(s); fetchList(1); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium font-montserrat transition-all ${
+                    statusFilter === s
+                      ? s === 'published' ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/30'
+                        : s === 'draft'   ? 'bg-yellow-500/25 text-yellow-300 border border-yellow-500/30'
+                        : 'bg-white/15 text-white border border-white/20'
+                      : 'bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/5'
+                  }`}
+                >{s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}</button>
+              ))}
+            </div>
             {!loading && (
               <span className="text-neutral-400 text-sm font-montserrat">
                 {total > 0 ? `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total}` : '0 results'}
@@ -1903,6 +2009,7 @@ export default function ReviewManagementSection() {
                   <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden md:table-cell">Movie</th>
                   <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden lg:table-cell">Author</th>
                   <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Rating</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Status</th>
                   <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden lg:table-cell">Published</th>
                   <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Featured</th>
                   <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Actions</th>
@@ -1916,6 +2023,7 @@ export default function ReviewManagementSection() {
                         <td className="py-3.5 px-3 hidden md:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 160 }} /></td>
                         <td className="py-3.5 px-3 hidden lg:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 110 }} /></td>
                         <td className="py-3.5 px-3 hidden sm:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 60 }} /></td>
+                        <td className="py-3.5 px-3 hidden sm:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 80 }} /></td>
                         <td className="py-3.5 px-3 hidden lg:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 80 }} /></td>
                         <td className="py-3.5 px-3 hidden sm:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 55 }} /></td>
                         <td className="py-3.5 px-3"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 70 }} /></td>
@@ -1952,6 +2060,25 @@ export default function ReviewManagementSection() {
                           <span className={`font-playfair text-lg font-bold ${ratingColor(r.rating)}`}>{r.rating}</span>
                           <span className="text-neutral-600 text-xs font-montserrat">/10</span>
                         </td>
+                        {/* Status */}
+                        <td className="py-3.5 px-3 hidden sm:table-cell">
+                          <div className="inline-flex rounded-lg overflow-hidden border border-white/10">
+                            <button onClick={() => handleStatusToggle(r, 'draft')} disabled={!!busyMap[r.id]}
+                              title="Set to Draft"
+                              className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
+                                (r.status || 'published') === 'draft'
+                                  ? 'bg-yellow-500/25 text-yellow-300'
+                                  : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
+                              }`}>Draft</button>
+                            <button onClick={() => handleStatusToggle(r, 'published')} disabled={!!busyMap[r.id]}
+                              title="Set to Published"
+                              className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
+                                r.status === 'published'
+                                  ? 'bg-emerald-500/25 text-emerald-300'
+                                  : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
+                              }`}>Published</button>
+                          </div>
+                        </td>
                         {/* Published */}
                         <td className="py-3.5 px-3 hidden lg:table-cell">
                           <p className="text-neutral-400 text-xs font-montserrat">{formatDate(r.publishDate || r.createdAt)}</p>
@@ -1982,7 +2109,7 @@ export default function ReviewManagementSection() {
 
                 {!loading && !fetchError && reviews.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center">
+                    <td colSpan={8} className="py-16 text-center">
                       <Icon name="DocumentTextIcon" size={40} className="mx-auto mb-3 text-neutral-700" />
                       <p className="text-neutral-500 font-montserrat text-sm">No reviews found</p>
                       <button onClick={openAdd} className="mt-3 text-yellow-400 text-sm font-montserrat hover:underline">

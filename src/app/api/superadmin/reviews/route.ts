@@ -6,7 +6,7 @@ import { withAuth } from '@/lib/authMiddleware';
 const ALLOWED_FIELDS = [
   'title', 'slug', 'movieTitle', 'poster', 'backdropImage', 'trailer',
   'rating', 'content', 'excerpt', 'author', 'movieDetails', 'scores',
-  'publishDate', 'featured', 'pros', 'cons', 'verdict', 'seoData', 'seo',
+  'publishDate', 'featured', 'pros', 'cons', 'verdict', 'seoData', 'seo', 'status',
 ];
 
 async function getHandler(request: NextRequest) {
@@ -19,6 +19,7 @@ async function getHandler(request: NextRequest) {
     const q        = searchParams.get('q')?.trim();
     const featured = searchParams.get('featured');
     const minRating = searchParams.get('minRating');
+    const status   = searchParams.get('status');
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: Record<string, any> = {};
@@ -34,6 +35,7 @@ async function getHandler(request: NextRequest) {
       filter.featured = featured === 'true';
     }
     if (minRating) filter.rating = { $gte: parseFloat(minRating) };
+    if (status) filter.status = status;
 
     const skip  = (page - 1) * limit;
     const total = await MovieReview.countDocuments(filter);
@@ -61,16 +63,18 @@ async function postHandler(request: NextRequest) {
     if (!body.title?.trim()) {
       return NextResponse.json({ success: false, error: 'Title is required' }, { status: 400 });
     }
-    if (!body.movieTitle?.trim()) {
+    // Only enforce these for published reviews
+    const isDraft = body.status === 'draft';
+    if (!isDraft && !body.movieTitle?.trim()) {
       return NextResponse.json({ success: false, error: 'Movie title is required' }, { status: 400 });
     }
-    if (!body.content?.trim()) {
+    if (!isDraft && !body.content?.trim()) {
       return NextResponse.json({ success: false, error: 'Content is required' }, { status: 400 });
     }
-    if (body.rating === undefined || body.rating === null) {
+    if (!isDraft && (body.rating === undefined || body.rating === null)) {
       return NextResponse.json({ success: false, error: 'Rating is required' }, { status: 400 });
     }
-    if (!body.author?.name?.trim()) {
+    if (!isDraft && !body.author?.name?.trim()) {
       return NextResponse.json({ success: false, error: 'Author name is required' }, { status: 400 });
     }
 
