@@ -167,27 +167,7 @@ const EMPTY_FORM: MovieFull = {
   writers: [],
   producers: [],
   ticketLinks: [],
-  seoData: { 
-    metaTitle: '', 
-    metaDescription: '', 
-    keywords: [], 
-    canonicalUrl: '',
-    ogTitle: '',
-    ogDescription: '',
-    ogImage: '',
-    ogType: 'movie',
-    twitterTitle: '',
-    twitterDescription: '',
-    twitterImage: '',
-    twitterCard: 'summary_large_image',
-    structuredData: '',
-    focusKeyword: '',
-    altText: '',
-    imageDescription: '',
-    robots: 'index,follow',
-    priority: 0.8,
-    changeFreq: 'weekly'
-  },
+  seoData: EMPTY_MOVIE_SEO,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -398,6 +378,8 @@ export default function MovieManagementSection() {
           ...d.seoData,
           keywords:      toArr(d.seoData.keywords),
           relatedTopics: toArr(d.seoData.relatedTopics),
+          robotsIndex:   d.seoData.robotsIndex  !== undefined ? d.seoData.robotsIndex  : !String(d.seoData.robots || '').includes('noindex'),
+          robotsFollow:  d.seoData.robotsFollow !== undefined ? d.seoData.robotsFollow : !String(d.seoData.robots || '').includes('nofollow'),
         } : EMPTY_MOVIE_SEO,
       });
       // set duration mode based on loaded value
@@ -459,7 +441,17 @@ export default function MovieManagementSection() {
     writers:             form.writers                    || [],
     producers:           form.producers                  || [],
     ticketLinks:         form.ticketLinks                || [],
-    seoData:             form.seoData,
+    seoData:             form.seoData ? (() => {
+      const { robotsIndex, robotsFollow, ...rest } = form.seoData!;
+      const idx = robotsIndex !== false;
+      const fol = robotsFollow !== false;
+      return {
+        ...rest,
+        robotsIndex: idx,
+        robotsFollow: fol,
+        robots: `${idx ? 'index' : 'noindex'}, ${fol ? 'follow' : 'nofollow'}`,
+      };
+    })() : undefined,
   });
 
   // ── create ───────────────────────────────────────────────────────────────
