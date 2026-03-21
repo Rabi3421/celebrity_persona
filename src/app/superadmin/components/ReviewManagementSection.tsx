@@ -141,7 +141,7 @@ const EMPTY_FORM: ReviewFull = {
   excerpt: '',
   verdict: '',
   featured: false,
-  publishDate: '',
+  publishDate: new Date().toISOString().split('T')[0],
   authorName: '',
   author: EMPTY_AUTHOR,
   movieDetails: {
@@ -373,6 +373,12 @@ export default function ReviewManagementSection() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || data.error || 'Failed to load');
       const d: any = data.data;
+      const toArr = (v: any): string[] => {
+        if (!v) return [];
+        if (Array.isArray(v)) return v.map(String);
+        if (typeof v === 'string') return v ? [v] : [];
+        return [];
+      };
       setForm({
         id:            d._id || d.id,
         title:         d.title         || '',
@@ -393,7 +399,7 @@ export default function ReviewManagementSection() {
           avatar:      d.author?.avatar      || '',
           bio:         d.author?.bio         || '',
           credentials: d.author?.credentials || '',
-          reviewCount: d.author?.reviewCount ?? 0,
+          reviewCount: Number(d.author?.reviewCount ?? 0),
           socialMedia: {
             twitter:   d.author?.socialMedia?.twitter   || '',
             instagram: d.author?.socialMedia?.instagram || '',
@@ -403,9 +409,15 @@ export default function ReviewManagementSection() {
         movieDetails: {
           releaseYear: d.movieDetails?.releaseYear ?? undefined,
           director:    d.movieDetails?.director    || '',
-          writers:     d.movieDetails?.writers     || [],
-          cast:        d.movieDetails?.cast        || [],
-          genre:       d.movieDetails?.genre       || [],
+          writers:     toArr(d.movieDetails?.writers),
+          cast:        Array.isArray(d.movieDetails?.cast)
+                         ? d.movieDetails.cast.map((c: any) =>
+                             typeof c === 'object' && c !== null
+                               ? { name: c.name || '', character: c.character || '', image: c.image || '' }
+                               : { name: String(c), character: '', image: '' }
+                           )
+                         : [],
+          genre:       toArr(d.movieDetails?.genre),
           runtime:     d.movieDetails?.runtime     ?? undefined,
           budget:      d.movieDetails?.budget      || '',
           boxOffice:   d.movieDetails?.boxOffice   || '',
@@ -418,13 +430,13 @@ export default function ReviewManagementSection() {
           imdbRating:          d.scores?.imdbRating          ?? undefined,
           rottenTomatoesScore: d.scores?.rottenTomatoesScore ?? undefined,
         },
-        pros:    d.pros    || [],
-        cons:    d.cons    || [],
+        pros:    toArr(d.pros),
+        cons:    toArr(d.cons),
         // MongoDB doc uses 'seo' field name; form uses 'seoData'
         seoData: {
           metaTitle:           d.seo?.metaTitle           || d.seoData?.metaTitle           || '',
           metaDescription:     d.seo?.metaDescription     || d.seoData?.metaDescription     || '',
-          metaKeywords:        d.seo?.metaKeywords        || d.seoData?.metaKeywords        || d.seoData?.keywords || [],
+          metaKeywords:        toArr(d.seo?.metaKeywords ?? d.seoData?.metaKeywords ?? d.seoData?.keywords),
           canonicalUrl:        d.seo?.canonicalUrl        || d.seoData?.canonicalUrl        || '',
           noindex:             d.seo?.noindex             ?? d.seoData?.noindex             ?? false,
           nofollow:            d.seo?.nofollow            ?? d.seoData?.nofollow            ?? false,
@@ -434,7 +446,7 @@ export default function ReviewManagementSection() {
           ogType:              d.seo?.ogType              || d.seoData?.ogType              || 'article',
           ogSiteName:          d.seo?.ogSiteName          || d.seoData?.ogSiteName          || 'Celebrity Persona',
           ogUrl:               d.seo?.ogUrl               || d.seoData?.ogUrl               || '',
-          ogImages:            d.seo?.ogImages            || d.seoData?.ogImages            || [],
+          ogImages:            toArr(d.seo?.ogImages ?? d.seoData?.ogImages),
           ogLocale:            d.seo?.ogLocale            || d.seoData?.ogLocale            || 'en_US',
           twitterCard:         d.seo?.twitterCard         || d.seoData?.twitterCard         || 'summary_large_image',
           twitterTitle:        d.seo?.twitterTitle        || d.seoData?.twitterTitle        || '',
@@ -460,10 +472,12 @@ export default function ReviewManagementSection() {
   // ── validate ─────────────────────────────────────────────────────────────
   const validate = () => {
     const errs: Partial<Record<keyof ReviewFull, string>> = {};
-    if (!form.title.trim())      errs.title      = 'Title is required';
-    if (!form.movieTitle.trim()) errs.movieTitle = 'Movie title is required';
-    if (!form.content.trim())    errs.content    = 'Review content is required';
-    if (!form.author.name.trim()) errs.authorName = 'Author name is required';
+    if (!form.title.trim())                              errs.title      = 'Title is required';
+    if (!form.movieTitle.trim())                         errs.movieTitle = 'Movie title is required';
+    if (!form.content.trim())                            errs.content    = 'Review content is required';
+    if (!form.author.name.trim())                        errs.authorName = 'Author name is required';
+    if (form.rating === undefined || form.rating === null ||
+        isNaN(form.rating) || form.rating < 0 || form.rating > 10) errs.rating = 'Rating must be between 0 and 10';
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -1291,7 +1305,7 @@ export default function ReviewManagementSection() {
       )}
 
       {/* Stats */}
-      {panelMode !== 'add' && (
+      {!panelMode && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Total',     value: total,                                           icon: 'DocumentTextIcon',   color: 'text-yellow-400'  },
@@ -1333,7 +1347,7 @@ export default function ReviewManagementSection() {
           >
             <Icon name="ArrowPathIcon" size={16} className={loading ? 'animate-spin' : ''} />
           </button>
-          {panelMode === 'add' ? (
+          {panelMode ? (
             <button onClick={closePanel}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 font-semibold font-montserrat text-sm hover:bg-white/20 transition-all"
             >
@@ -1350,7 +1364,7 @@ export default function ReviewManagementSection() {
       </div>
 
       {/* Error */}
-      {panelMode !== 'add' && fetchError && (
+      {!panelMode && fetchError && (
         <div className="glass-card rounded-2xl p-4 border border-red-500/20 bg-red-500/10 flex items-center gap-3">
           <Icon name="ExclamationCircleIcon" size={18} className="text-red-400 shrink-0" />
           <p className="text-red-400 text-sm font-montserrat flex-1">{fetchError}</p>
@@ -1437,7 +1451,7 @@ export default function ReviewManagementSection() {
       )}
 
       {/* Table */}
-      {panelMode !== 'add' && (
+      {!panelMode && (
         <div className="glass-card rounded-2xl p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
             <h3 className="font-playfair text-xl font-bold text-white">Movie Reviews</h3>
