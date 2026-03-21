@@ -25,21 +25,29 @@ interface ITicketLink {
 interface IMovieSEO {
   metaTitle?: string;
   metaDescription?: string;
-  keywords?: string[];
+  focusKeyword?: string;
+  keywords?: string[];        // secondary keywords
   canonicalUrl?: string;
+  robots?: string;
+  robotsIndex?: boolean;
+  robotsFollow?: boolean;
   ogTitle?: string;
   ogDescription?: string;
   ogImage?: string;
   ogType?: string;
+  twitterCard?: string;
   twitterTitle?: string;
   twitterDescription?: string;
   twitterImage?: string;
-  twitterCard?: string;
+  twitterCreator?: string;
+  schemaType?: string;
   structuredData?: string;
-  focusKeyword?: string;
+  authorName?: string;
+  authorUrl?: string;
+  articleSection?: string;
+  relatedTopics?: string[];
   altText?: string;
   imageDescription?: string;
-  robots?: string;
   priority?: number;
   changeFreq?: string;
 }
@@ -90,6 +98,20 @@ type Toast = { type: 'success' | 'error'; message: string } | null;
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PAGE_SIZES = [10, 20, 50];
+
+type UploadSlot = { uploading: boolean; progress: number; error: string };
+const emptySlot = (): UploadSlot => ({ uploading: false, progress: 0, error: '' });
+
+const EMPTY_MOVIE_SEO: IMovieSEO = {
+  metaTitle: '', metaDescription: '', focusKeyword: '', keywords: [],
+  canonicalUrl: '', robots: 'index,follow', robotsIndex: true, robotsFollow: true,
+  ogTitle: '', ogDescription: '', ogImage: '', ogType: 'movie',
+  twitterCard: 'summary_large_image', twitterTitle: '', twitterDescription: '',
+  twitterImage: '', twitterCreator: '',
+  schemaType: 'Movie', structuredData: '',
+  authorName: '', authorUrl: '', articleSection: '', relatedTopics: [],
+  altText: '', imageDescription: '', priority: 0.8, changeFreq: 'weekly',
+};
 
 const TABS: { key: FormTab; label: string; icon: string }[] = [
   { key: 'basic',   label: 'Basic Info', icon: 'FilmIcon'            },
@@ -581,6 +603,8 @@ export default function MovieManagementSection() {
   const [uploadingBackdrop,setUploadingBackdrop]= useState(false);
   const [posterDragActive,  setPosterDragActive]  = useState(false);
   const [backdropDragActive,setBackdropDragActive]= useState(false);
+  const [ogImageUpload,    setOgImageUpload]    = useState<UploadSlot>(emptySlot());
+  const [twitterImageUpload,setTwitterImageUpload]= useState<UploadSlot>(emptySlot());
 
   // celebrity selection state
   const [celebrities, setCelebrities] = useState<any[]>([]);
@@ -718,6 +742,36 @@ export default function MovieManagementSection() {
     if (!form.backdrop) return;
     try { await deleteImage(form.backdrop); setField('backdrop', ''); showToast('success', 'Backdrop removed'); }
     catch { showToast('error', 'Failed to remove backdrop'); }
+  };
+
+  // ── SEO helpers ─────────────────────────────────────────────────────────────
+  const setSeoField = <K extends keyof IMovieSEO>(k: K, v: IMovieSEO[K]) =>
+    setForm((p) => ({ ...p, seoData: { ...(p.seoData || EMPTY_MOVIE_SEO), [k]: v } }));
+
+  const handleOgImageUpload = async (file: File) => {
+    const err = validateImageFile(file);
+    if (err) { setOgImageUpload((p) => ({ ...p, error: err })); return; }
+    setOgImageUpload({ uploading: true, progress: 10, error: '' });
+    try {
+      const url = await uploadImage(file, `movies/${movieSlug}/seo`);
+      setSeoField('ogImage', url);
+      setOgImageUpload({ uploading: false, progress: 100, error: '' });
+    } catch {
+      setOgImageUpload({ uploading: false, progress: 0, error: 'Upload failed' });
+    }
+  };
+
+  const handleTwitterImageUpload = async (file: File) => {
+    const err = validateImageFile(file);
+    if (err) { setTwitterImageUpload((p) => ({ ...p, error: err })); return; }
+    setTwitterImageUpload({ uploading: true, progress: 10, error: '' });
+    try {
+      const url = await uploadImage(file, `movies/${movieSlug}/seo`);
+      setSeoField('twitterImage', url);
+      setTwitterImageUpload({ uploading: false, progress: 100, error: '' });
+    } catch {
+      setTwitterImageUpload({ uploading: false, progress: 0, error: 'Upload failed' });
+    }
   };
 
   // ── Gallery images ────────────────────────────────────────────────────────
@@ -1735,331 +1789,444 @@ export default function MovieManagementSection() {
       }
 
       // ── SEO ────────────────────────────────────────────────────────────
-      case 'seo': return (
-        <div className="space-y-6">
-          {/* Basic Meta Tags */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2">Basic Meta Tags</h4>
-            
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-                  Meta Title <span className="text-yellow-400">*</span>
-                </label>
-                <input 
-                  type="text" 
-                  value={form.seoData?.metaTitle || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, metaTitle: e.target.value })}
-                  placeholder="Amazing Movie Title | Best Movies 2024"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                  maxLength={60}
-                />
-                <p className="text-neutral-500 text-xs mt-1 font-montserrat">
-                  {60 - (form.seoData?.metaTitle?.length || 0)} characters remaining (60 max recommended)
-                </p>
+      case 'seo': {
+        const seo    = form.seoData || EMPTY_MOVIE_SEO;
+        const setSeo = <K extends keyof IMovieSEO>(k: K, v: IMovieSEO[K]) => setSeoField(k, v);
+
+        const metaTitleLen = (seo.metaTitle       || '').length;
+        const metaDescLen  = (seo.metaDescription || '').length;
+        const titleScore   = metaTitleLen === 0 ? 'empty' : metaTitleLen <= 60  ? 'good' : 'long';
+        const descScore    = metaDescLen  === 0 ? 'empty' : metaDescLen  <= 160 ? 'good' : 'long';
+        const scoreColor   = (s: string) =>
+          s === 'good' ? 'text-emerald-400' : s === 'long' ? 'text-amber-400' : 'text-neutral-600';
+        const scoreLabel   = (s: string, len: number, max: number) =>
+          s === 'empty' ? 'Not set' : s === 'good' ? `${len}/${max} ✓ Good` : `${len}/${max} — Too long`;
+
+        const filledCount = [seo.focusKeyword, seo.metaTitle, seo.metaDescription, seo.canonicalUrl,
+          seo.ogTitle, seo.ogImage, seo.twitterTitle, seo.twitterImage, seo.schemaType].filter(Boolean).length;
+        const filledPct = Math.round((filledCount / 9) * 100);
+
+        return (
+          <div className="space-y-7">
+
+            {/* Score bar */}
+            <div className="flex items-center gap-4 px-4 py-3 rounded-2xl bg-yellow-500/5 border border-yellow-500/20">
+              <Icon name="MagnifyingGlassIcon" size={18} className="text-yellow-400 shrink-0" />
+              <div className="flex-1">
+                <p className="text-white text-sm font-montserrat font-semibold">SEO Configuration</p>
+                <p className="text-neutral-500 text-xs font-montserrat mt-0.5">Fill all fields for maximum Google discoverability</p>
               </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-                  Meta Description <span className="text-yellow-400">*</span>
-                </label>
-                <textarea 
-                  value={form.seoData?.metaDescription || ''} 
-                  rows={3}
-                  onChange={(e) => setField('seoData', { ...form.seoData, metaDescription: e.target.value })}
-                  placeholder="Compelling description of the movie that encourages users to click. Include main keywords naturally."
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-                  maxLength={160}
-                />
-                <p className="text-neutral-500 text-xs mt-1 font-montserrat">
-                  {160 - (form.seoData?.metaDescription?.length || 0)} characters remaining (160 max recommended)
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-                  Focus Keyword <span className="text-yellow-400">*</span>
-                </label>
-                <input 
-                  type="text" 
-                  value={form.seoData?.focusKeyword || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, focusKeyword: e.target.value })}
-                  placeholder="main target keyword"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
-                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Primary keyword to rank for</p>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Keywords</label>
-                <textarea
-                  value={joinLines(form.seoData?.keywords)} 
-                  rows={3}
-                  onChange={(e) => setField('seoData', { ...form.seoData, keywords: splitLines(e.target.value) })}
-                  placeholder={"movie name 2024\nactor name movies\nbollywood action movie\nlatest hindi films"}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-                />
-                <p className="text-neutral-500 text-xs mt-1 font-montserrat">One keyword per line. Focus on long-tail keywords</p>
+              <div className="text-right shrink-0">
+                <p className="text-yellow-400 text-xs font-montserrat font-bold">{filledPct}%</p>
+                <p className="text-neutral-600 text-xs font-montserrat">filled</p>
               </div>
             </div>
-          </div>
 
-          {/* Open Graph Tags */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2">Open Graph (Facebook/LinkedIn)</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Title</label>
-                <input 
-                  type="text" 
-                  value={form.seoData?.ogTitle || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, ogTitle: e.target.value })}
-                  placeholder="Title for social media sharing"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Type</label>
-                <select 
-                  value={form.seoData?.ogType || 'movie'}
-                  onChange={(e) => setField('seoData', { ...form.seoData, ogType: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                >
-                  <option value="movie">Movie</option>
-                  <option value="video.movie">Video Movie</option>
-                  <option value="article">Article</option>
-                  <option value="website">Website</option>
-                </select>
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Description</label>
-                <textarea 
-                  value={form.seoData?.ogDescription || ''} 
-                  rows={2}
-                  onChange={(e) => setField('seoData', { ...form.seoData, ogDescription: e.target.value })}
-                  placeholder="Description for social media sharing"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Image URL</label>
-                <input 
-                  type="url" 
-                  value={form.seoData?.ogImage || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, ogImage: e.target.value })}
-                  placeholder="https://example.com/movie-poster.jpg"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
-                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Recommended: 1200x630px, less than 1MB</p>
-              </div>
-            </div>
-          </div>
+            <div className="border-t border-white/8" />
 
-          {/* Twitter Cards */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2">Twitter Cards</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Card Type</label>
-                <select 
-                  value={form.seoData?.twitterCard || 'summary_large_image'}
-                  onChange={(e) => setField('seoData', { ...form.seoData, twitterCard: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                >
-                  <option value="summary">Summary</option>
-                  <option value="summary_large_image">Summary Large Image</option>
-                  <option value="app">App</option>
-                  <option value="player">Player</option>
-                </select>
+            {/* On-Page SEO */}
+            <section>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <p className="text-sm font-semibold text-white font-montserrat">On-Page SEO</p>
               </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Title</label>
-                <input 
-                  type="text" 
-                  value={form.seoData?.twitterTitle || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, twitterTitle: e.target.value })}
-                  placeholder="Title for Twitter sharing"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Description</label>
-                <textarea 
-                  value={form.seoData?.twitterDescription || ''} 
-                  rows={2}
-                  onChange={(e) => setField('seoData', { ...form.seoData, twitterDescription: e.target.value })}
-                  placeholder="Description for Twitter sharing"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Image URL</label>
-                <input 
-                  type="url" 
-                  value={form.seoData?.twitterImage || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, twitterImage: e.target.value })}
-                  placeholder="https://example.com/twitter-image.jpg"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
-                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Recommended: 1200x675px for large image card</p>
-              </div>
-            </div>
-          </div>
+              <p className="text-xs text-neutral-500 font-montserrat mb-4">Directly impacts your Google search snippet.</p>
+              <div className="space-y-4">
 
-          {/* Technical SEO */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2">Technical SEO</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Canonical URL</label>
-                <input 
-                  type="url" 
-                  value={form.seoData?.canonicalUrl || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, canonicalUrl: e.target.value })}
-                  placeholder="https://example.com/movie-slug"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
-                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Preferred URL for this page</p>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Robots Meta</label>
-                <select 
-                  value={form.seoData?.robots || 'index,follow'}
-                  onChange={(e) => setField('seoData', { ...form.seoData, robots: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                >
-                  <option value="index,follow">Index, Follow</option>
-                  <option value="index,nofollow">Index, No Follow</option>
-                  <option value="noindex,follow">No Index, Follow</option>
-                  <option value="noindex,nofollow">No Index, No Follow</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Priority</label>
-                <select 
-                  value={form.seoData?.priority || 0.8}
-                  onChange={(e) => setField('seoData', { ...form.seoData, priority: parseFloat(e.target.value) })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                >
-                  <option value={1.0}>1.0 (Highest)</option>
-                  <option value={0.9}>0.9</option>
-                  <option value={0.8}>0.8 (High)</option>
-                  <option value={0.7}>0.7</option>
-                  <option value={0.6}>0.6 (Medium)</option>
-                  <option value={0.5}>0.5</option>
-                  <option value={0.4}>0.4 (Low)</option>
-                  <option value={0.3}>0.3</option>
-                  <option value={0.2}>0.2</option>
-                  <option value={0.1}>0.1 (Lowest)</option>
-                </select>
-                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Sitemap priority (0.1 - 1.0)</p>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Change Frequency</label>
-                <select 
-                  value={form.seoData?.changeFreq || 'weekly'}
-                  onChange={(e) => setField('seoData', { ...form.seoData, changeFreq: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                >
-                  <option value="always">Always</option>
-                  <option value="hourly">Hourly</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                  <option value="never">Never</option>
-                </select>
-                <p className="text-neutral-500 text-xs mt-1 font-montserrat">How often content changes</p>
-              </div>
-            </div>
-          </div>
+                {/* Focus keyword */}
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Focus Keyword</label>
+                  <input
+                    type="text" value={seo.focusKeyword || ''}
+                    onChange={(e) => setSeo('focusKeyword', e.target.value)}
+                    placeholder="e.g. Dhanush upcoming movie 2026"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">The single phrase you most want to rank for.</p>
+                </div>
 
-          {/* Image SEO */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2">Image SEO</h4>
-            
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Alt Text</label>
-                <input 
-                  type="text" 
-                  value={form.seoData?.altText || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, altText: e.target.value })}
-                  placeholder="Descriptive alt text for poster image"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
-                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Alt text for main poster image</p>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Image Description</label>
-                <textarea 
-                  value={form.seoData?.imageDescription || ''} 
-                  rows={2}
-                  onChange={(e) => setField('seoData', { ...form.seoData, imageDescription: e.target.value })}
-                  placeholder="Detailed description of the movie poster for accessibility"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-                />
-                <p className="text-neutral-500 text-xs mt-1 font-montserrat">Detailed image description for screen readers</p>
-              </div>
-            </div>
-          </div>
+                {/* Meta title */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider">Meta Title</label>
+                    <span className={`text-[10px] font-montserrat ${scoreColor(titleScore)}`}>
+                      {scoreLabel(titleScore, metaTitleLen, 60)}
+                    </span>
+                  </div>
+                  <input
+                    type="text" value={seo.metaTitle || ''}
+                    onChange={(e) => setSeo('metaTitle', e.target.value)}
+                    placeholder={`${form.title || 'Movie Title'} — Celebrity Persona`}
+                    className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${
+                      titleScore === 'long' ? 'border-amber-500/40 focus:border-amber-500/60' :
+                      titleScore === 'good' ? 'border-emerald-500/30 focus:border-emerald-500/60' : 'border-white/10 focus:border-yellow-500/60'
+                    }`}
+                  />
+                  <div className="mt-1.5 h-1 rounded-full bg-white/8 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${
+                      titleScore === 'good' ? 'bg-emerald-500' : titleScore === 'long' ? 'bg-amber-500' : 'bg-neutral-700'
+                    }`} style={{ width: `${Math.min(100, (metaTitleLen / 60) * 100)}%` }} />
+                  </div>
+                </div>
 
-          {/* Structured Data */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-white font-montserrat uppercase tracking-wider border-b border-white/10 pb-2">Structured Data (JSON-LD)</h4>
-            
-            <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Custom Structured Data</label>
-              <textarea 
-                value={form.seoData?.structuredData || ''} 
-                rows={6}
-                onChange={(e) => setField('seoData', { ...form.seoData, structuredData: e.target.value })}
-                placeholder={`{\n  "@context": "https://schema.org",\n  "@type": "Movie",\n  "name": "Movie Title",\n  "director": "Director Name",\n  "actor": ["Actor 1", "Actor 2"]\n}`}
-                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none font-mono"
-              />
-              <div className="flex items-start gap-2 mt-2">
-                <Icon name="InformationCircleIcon" size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
-                <div className="text-neutral-500 text-xs font-montserrat">
-                  <p>Add custom JSON-LD structured data for rich snippets.</p>
-                  <p className="mt-1">Leave empty to auto-generate from movie data.</p>
+                {/* Meta description */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider">Meta Description (140–160 chars)</label>
+                    <span className={`text-[10px] font-montserrat ${scoreColor(descScore)}`}>
+                      {scoreLabel(descScore, metaDescLen, 160)}
+                    </span>
+                  </div>
+                  <textarea
+                    rows={3} value={seo.metaDescription || ''}
+                    onChange={(e) => setSeo('metaDescription', e.target.value)}
+                    placeholder="A short, compelling description for Google search results. Include the focus keyword naturally."
+                    className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all resize-none ${
+                      descScore === 'long' ? 'border-amber-500/40 focus:border-amber-500/60' :
+                      descScore === 'good' ? 'border-emerald-500/30 focus:border-emerald-500/60' : 'border-white/10 focus:border-yellow-500/60'
+                    }`}
+                  />
+                  <div className="mt-1.5 h-1 rounded-full bg-white/8 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${
+                      descScore === 'good' ? 'bg-emerald-500' : descScore === 'long' ? 'bg-amber-500' : 'bg-neutral-700'
+                    }`} style={{ width: `${Math.min(100, (metaDescLen / 160) * 100)}%` }} />
+                  </div>
+                </div>
+
+                {/* Secondary keywords */}
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Secondary Keywords (one per line)</label>
+                  <textarea
+                    rows={3} value={joinLines(seo.keywords)}
+                    onChange={(e) => setSeo('keywords', splitLines(e.target.value))}
+                    placeholder={"upcoming hindi movies 2026\nbollywood action film\nleading actor movie"}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">{(seo.keywords || []).length} keywords</p>
+                </div>
+
+                {/* Canonical URL */}
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Canonical URL</label>
+                  <input
+                    type="url" value={seo.canonicalUrl || ''}
+                    onChange={(e) => setSeo('canonicalUrl', e.target.value)}
+                    placeholder={`https://yoursite.com/upcoming-movies/${form.slug || 'movie-slug'}`}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Prevents duplicate-content penalties. Leave blank to use the page URL.</p>
                 </div>
               </div>
-            </div>
-          </div>
+            </section>
 
-          {/* SEO Tips */}
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <Icon name="LightBulbIcon" size={16} className="text-yellow-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <h5 className="text-yellow-400 font-semibold font-montserrat text-sm mb-2">SEO Best Practices</h5>
-                <ul className="text-neutral-300 text-xs font-montserrat space-y-1">
-                  <li>• Use your focus keyword in title, description, and H1</li>
-                  <li>• Keep titles under 60 characters, descriptions under 160</li>
-                  <li>• Use unique titles and descriptions for each page</li>
-                  <li>• Include emotional triggers and call-to-actions</li>
-                  <li>• Optimize images with descriptive file names and alt text</li>
-                  <li>• Add structured data for rich snippets in search results</li>
-                </ul>
+            <div className="border-t border-white/8" />
+
+            {/* Open Graph */}
+            <section>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-blue-400" />
+                <p className="text-sm font-semibold text-white font-montserrat">Open Graph (Facebook / LinkedIn)</p>
               </div>
-            </div>
-          </div>
-        </div>
-      );
+              <p className="text-xs text-neutral-500 font-montserrat mb-4">Controls how the page looks when shared on social media.</p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Title</label>
+                  <input
+                    type="text" value={seo.ogTitle || ''}
+                    onChange={(e) => setSeo('ogTitle', e.target.value)}
+                    placeholder={seo.metaTitle || `${form.title || 'Movie Title'} — Celebrity Persona`}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Description</label>
+                  <textarea
+                    rows={2} value={seo.ogDescription || ''}
+                    onChange={(e) => setSeo('ogDescription', e.target.value)}
+                    placeholder={seo.metaDescription || 'A compelling description for social sharing…'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Image</label>
+                  <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all mb-2 ${
+                    ogImageUpload.uploading ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+                  }`}>
+                    <input type="file" accept="image/*" className="sr-only" disabled={ogImageUpload.uploading}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleOgImageUpload(f); e.target.value = ''; }}
+                    />
+                    {ogImageUpload.uploading ? (
+                      <><span className="text-yellow-400 text-sm font-montserrat">Uploading…</span>
+                        <div className="ml-auto h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${ogImageUpload.progress}%` }} />
+                        </div>
+                      </>
+                    ) : (
+                      <><span className="text-2xl">🖼️</span>
+                        <div>
+                          <p className="text-sm text-white font-montserrat font-medium">Upload OG Image</p>
+                          <p className="text-xs text-neutral-500 font-montserrat">Uploads to Firebase · 1200 × 630 px recommended</p>
+                        </div>
+                        {seo.ogImage && <span className="ml-auto text-[10px] text-emerald-400 font-montserrat">✓ Set</span>}
+                      </>
+                    )}
+                  </label>
+                  {ogImageUpload.error && <p className="text-red-400 text-xs font-montserrat mb-2">{ogImageUpload.error}</p>}
+                  <input
+                    type="url" value={seo.ogImage || ''}
+                    onChange={(e) => setSeo('ogImage', e.target.value)}
+                    placeholder="Or paste an image URL (https://…)"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                  {seo.ogImage && (
+                    <div className="mt-2 relative rounded-xl overflow-hidden border border-white/10 h-28 bg-black/20">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={seo.ogImage} alt="OG preview" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setSeo('ogImage', '')}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-red-500/80 transition-all">✕</button>
+                    </div>
+                  )}
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to default to the movie poster.</p>
+                </div>
+              </div>
+            </section>
 
+            <div className="border-t border-white/8" />
+
+            {/* Twitter / X Card */}
+            <section>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-sky-400" />
+                <p className="text-sm font-semibold text-white font-montserrat">Twitter / X Card</p>
+              </div>
+              <p className="text-xs text-neutral-500 font-montserrat mb-4">Controls appearance in Twitter / X previews.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">Card Type</label>
+                  <div className="flex gap-3">
+                    {(['summary', 'summary_large_image'] as const).map((type) => (
+                      <button key={type} type="button"
+                        onClick={() => setSeo('twitterCard', type)}
+                        className={`flex-1 px-3 py-2.5 rounded-xl border text-xs font-montserrat font-medium transition-all ${
+                          seo.twitterCard === type
+                            ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
+                            : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:bg-white/10'
+                        }`}>
+                        {type === 'summary' ? '□  Summary' : '▬  Large Image'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Creator Handle</label>
+                  <input
+                    type="text" value={seo.twitterCreator || ''}
+                    onChange={(e) => setSeo('twitterCreator', e.target.value)}
+                    placeholder="@handle"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Title</label>
+                  <input
+                    type="text" value={seo.twitterTitle || ''}
+                    onChange={(e) => setSeo('twitterTitle', e.target.value)}
+                    placeholder={seo.metaTitle || form.title || 'Movie Title'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to inherit Meta Title.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Description</label>
+                  <textarea
+                    rows={2} value={seo.twitterDescription || ''}
+                    onChange={(e) => setSeo('twitterDescription', e.target.value)}
+                    placeholder={seo.metaDescription || 'Description shown in Twitter card preview…'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to inherit Meta Description.</p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Image</label>
+                  <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all mb-2 ${
+                    twitterImageUpload.uploading ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+                  }`}>
+                    <input type="file" accept="image/*" className="sr-only" disabled={twitterImageUpload.uploading}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTwitterImageUpload(f); e.target.value = ''; }}
+                    />
+                    {twitterImageUpload.uploading ? (
+                      <><span className="text-yellow-400 text-sm font-montserrat">Uploading…</span>
+                        <div className="ml-auto h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${twitterImageUpload.progress}%` }} />
+                        </div>
+                      </>
+                    ) : (
+                      <><span className="text-2xl">🐦</span>
+                        <div>
+                          <p className="text-sm text-white font-montserrat font-medium">Upload Twitter Image</p>
+                          <p className="text-xs text-neutral-500 font-montserrat">Uploads to Firebase · min 120×120; large card: 1200×600 px</p>
+                        </div>
+                        {seo.twitterImage && <span className="ml-auto text-[10px] text-emerald-400 font-montserrat">✓ Set</span>}
+                      </>
+                    )}
+                  </label>
+                  {twitterImageUpload.error && <p className="text-red-400 text-xs font-montserrat mb-2">{twitterImageUpload.error}</p>}
+                  <input
+                    type="url" value={seo.twitterImage || ''}
+                    onChange={(e) => setSeo('twitterImage', e.target.value)}
+                    placeholder={seo.ogImage || 'Or paste an image URL (https://…)'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                  {seo.twitterImage && (
+                    <div className="mt-2 relative rounded-xl overflow-hidden border border-white/10 h-28 bg-black/20">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={seo.twitterImage} alt="Twitter image preview" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setSeo('twitterImage', '')}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-red-500/80 transition-all">✕</button>
+                    </div>
+                  )}
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to fall back to OG Image.</p>
+                </div>
+              </div>
+            </section>
+
+            <div className="border-t border-white/8" />
+
+            {/* Structured Data */}
+            <section>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-purple-400" />
+                <p className="text-sm font-semibold text-white font-montserrat">Structured Data (Schema.org)</p>
+              </div>
+              <p className="text-xs text-neutral-500 font-montserrat mb-4">Enables rich results and enhanced snippets in Google.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Schema Type</label>
+                  <select
+                    value={seo.schemaType || 'Movie'}
+                    onChange={(e) => setSeo('schemaType', e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer"
+                  >
+                    {['Movie', 'VideoObject', 'CreativeWork', 'Article'].map((t) => (
+                      <option key={t} value={t} style={{ background: '#2b1433' }}>{t}</option>
+                    ))}
+                  </select>
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Use Movie for theatrical releases, VideoObject for streaming.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Genre / Section</label>
+                  <input
+                    type="text" value={seo.articleSection || ''}
+                    onChange={(e) => setSeo('articleSection', e.target.value)}
+                    placeholder="Action, Drama, Thriller…"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Director / Author Name</label>
+                  <input
+                    type="text" value={seo.authorName || ''}
+                    onChange={(e) => setSeo('authorName', e.target.value)}
+                    placeholder="e.g. S.S. Rajamouli"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Director / Author URL</label>
+                  <input
+                    type="url" value={seo.authorUrl || ''}
+                    onChange={(e) => setSeo('authorUrl', e.target.value)}
+                    placeholder="https://example.com/directors/ss-rajamouli"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Related Topics (one per line)</label>
+                  <textarea
+                    rows={3} value={joinLines(seo.relatedTopics)}
+                    onChange={(e) => setSeo('relatedTopics', splitLines(e.target.value))}
+                    placeholder={"Prabhas\nDeepika Padukone\nfuturistic Hindi film"}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Used for semantic SEO connections.</p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Custom JSON-LD (optional)</label>
+                  <textarea
+                    rows={5} value={seo.structuredData || ''}
+                    onChange={(e) => setSeo('structuredData', e.target.value)}
+                    placeholder={'{\n  "@context": "https://schema.org",\n  "@type": "Movie",\n  "name": "Movie Title"\n}'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none font-mono"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to auto-generate from movie data.</p>
+                </div>
+              </div>
+            </section>
+
+            <div className="border-t border-white/8" />
+
+            {/* Robots / Crawlability */}
+            <section>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-red-400" />
+                <p className="text-sm font-semibold text-white font-montserrat">Robots / Crawlability</p>
+              </div>
+              <p className="text-xs text-neutral-500 font-montserrat mb-4">Controls what Googlebot and other crawlers are allowed to do on this page.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  seo.robotsIndex !== false ? 'bg-emerald-500/8 border-emerald-500/25' : 'bg-red-500/8 border-red-500/20'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold font-montserrat text-white">Index this page</p>
+                      <p className="text-xs text-neutral-500 font-montserrat mt-0.5">Allow Google to include it in search results</p>
+                    </div>
+                    <button type="button" onClick={() => setSeo('robotsIndex', !(seo.robotsIndex !== false))}
+                      className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${
+                        seo.robotsIndex !== false ? 'bg-emerald-500' : 'bg-white/10'
+                      }`}>
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+                        seo.robotsIndex !== false ? 'left-5' : 'left-0.5'
+                      }`} />
+                    </button>
+                  </div>
+                  <p className={`text-[10px] font-montserrat mt-2 font-semibold ${
+                    seo.robotsIndex !== false ? 'text-emerald-400' : 'text-red-400'
+                  }`}>{seo.robotsIndex !== false ? 'index' : 'noindex'}</p>
+                </div>
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  seo.robotsFollow !== false ? 'bg-emerald-500/8 border-emerald-500/25' : 'bg-amber-500/8 border-amber-500/20'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold font-montserrat text-white">Follow links</p>
+                      <p className="text-xs text-neutral-500 font-montserrat mt-0.5">Allow crawlers to follow links on this page</p>
+                    </div>
+                    <button type="button" onClick={() => setSeo('robotsFollow', !(seo.robotsFollow !== false))}
+                      className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${
+                        seo.robotsFollow !== false ? 'bg-emerald-500' : 'bg-white/10'
+                      }`}>
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+                        seo.robotsFollow !== false ? 'left-5' : 'left-0.5'
+                      }`} />
+                    </button>
+                  </div>
+                  <p className={`text-[10px] font-montserrat mt-2 font-semibold ${
+                    seo.robotsFollow !== false ? 'text-emerald-400' : 'text-amber-400'
+                  }`}>{seo.robotsFollow !== false ? 'follow' : 'nofollow'}</p>
+                </div>
+              </div>
+              <div className="mt-3 px-3 py-2 rounded-xl bg-black/30 border border-white/8">
+                <p className="text-[10px] text-neutral-500 font-montserrat">Generated tag preview:</p>
+                <code className="text-xs text-yellow-300/80 font-mono">
+                  {`<meta name="robots" content="${seo.robotsIndex !== false ? 'index' : 'noindex'}, ${seo.robotsFollow !== false ? 'follow' : 'nofollow'}" />`}
+                </code>
+              </div>
+            </section>
+
+          </div>
+        );
+      }
       default: return null;
     }
   };
