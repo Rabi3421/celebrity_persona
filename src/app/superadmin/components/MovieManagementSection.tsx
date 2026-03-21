@@ -2380,7 +2380,7 @@ export default function MovieManagementSection() {
           >
             <Icon name="ArrowPathIcon" size={16} className={loading ? 'animate-spin' : ''} />
           </button>
-          {panelMode === 'add' ? (
+          {panelMode ? (
             <button onClick={closePanel}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 font-semibold font-montserrat text-sm hover:bg-white/20 transition-all"
             >
