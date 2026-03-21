@@ -2569,34 +2569,37 @@ export default function MovieManagementSection() {
                         {/* Status */}
                         <td className="py-3.5 px-3 hidden sm:table-cell">
                           <div className="flex flex-col gap-1.5">
-                            {m.status ? (
+                            {m.status && m.status !== 'draft' && m.status !== 'published' && (
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-montserrat capitalize ${
                                 STATUS_COLORS[m.status] || 'bg-neutral-500/10 text-neutral-400'
                               }`}>{m.status}</span>
-                            ) : (
-                              <span className="text-neutral-600 text-xs font-montserrat">—</span>
                             )}
-                            <div className="flex gap-1">
-                              <button type="button"
+                            <div className="inline-flex rounded-lg overflow-hidden border border-white/10">
+                              <button
                                 onClick={() => handleStatusToggle(m, 'draft')}
+                                disabled={!!busyMap[m.id]}
                                 title="Set to Draft"
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-montserrat font-medium transition-all ${
+                                className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
                                   (m.status || 'draft') === 'draft'
-                                    ? 'bg-yellow-500/30 text-yellow-300 cursor-default'
-                                    : 'bg-white/5 text-neutral-500 hover:bg-yellow-500/15 hover:text-yellow-400'
+                                    ? 'bg-yellow-500/25 text-yellow-300'
+                                    : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
                                 }`}
-                              >Draft</button>
-                              <button type="button"
+                              >
+                                Draft
+                              </button>
+                              <button
                                 onClick={() => handleStatusToggle(m, 'published')}
+                                disabled={!!busyMap[m.id]}
                                 title="Set to Published"
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-montserrat font-medium transition-all ${
+                                className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
                                   m.status === 'published'
-                                    ? 'bg-emerald-500/30 text-emerald-300 cursor-default'
-                                    : 'bg-white/5 text-neutral-500 hover:bg-emerald-500/15 hover:text-emerald-400'
+                                    ? 'bg-emerald-500/25 text-emerald-300'
+                                    : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
                                 }`}
-                              >Published</button>
+                              >
+                                Published
+                              </button>
                             </div>
-
                           </div>
                         </td>
                         {/* Release Date */}
