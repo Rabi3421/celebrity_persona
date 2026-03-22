@@ -101,6 +101,7 @@ export interface IMovieReview extends Document {
   scores?: IScores;
   publishDate?: Date;
   featured: boolean;
+  status: 'draft' | 'published';
   stats?: IReviewStats;
   pros?: string[];
   cons?: string[];
@@ -255,6 +256,7 @@ const movieReviewSchema = new Schema<IMovieReview>(
     scores:       { type: scoresSchema },
     publishDate:  { type: Date },
     featured:     { type: Boolean, default: false },
+    status:       { type: String, enum: ['draft', 'published'], default: 'published' },
     stats:        { type: statsSchema, default: {} },
     pros:         [{ type: String }],
     cons:         [{ type: String }],

@@ -57,11 +57,13 @@ export interface ICelebrityNews extends Document {
   content: string;
   excerpt?: string;
   thumbnail?: string;
+  images?: string[];
   author?: string;
   category?: string;
   celebrity?: mongoose.Types.ObjectId | null;
   tags?: string[];
   publishDate?: Date;
+  status: 'draft' | 'published';
   featured: boolean;
   likes: mongoose.Types.ObjectId[];
   saves: mongoose.Types.ObjectId[];
@@ -155,6 +157,10 @@ const celebrityNewsSchema = new Schema<ICelebrityNews>(
       type: String,
       trim: true,
     },
+    images: {
+      type: [String],
+      default: [],
+    },
     author: {
       type: String,
       trim: true,
@@ -175,6 +181,11 @@ const celebrityNewsSchema = new Schema<ICelebrityNews>(
     publishDate: {
       type: Date,
     },
+    status: {
+      type: String,
+      enum: ['draft', 'published'],
+      default: 'draft',
+    },
     featured: {
       type: Boolean,
       default: false,
@@ -194,6 +205,7 @@ const celebrityNewsSchema = new Schema<ICelebrityNews>(
 // ── Indexes ───────────────────────────────────────────────────────────────────
 celebrityNewsSchema.index({ celebrity: 1 });
 celebrityNewsSchema.index({ category: 1 });
+celebrityNewsSchema.index({ status: 1 });
 celebrityNewsSchema.index({ publishDate: -1 });
 celebrityNewsSchema.index({ featured: 1 });
 celebrityNewsSchema.index(

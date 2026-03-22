@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withApiKey } from '@/lib/apiKeyMiddleware';
 import dbConnect from '@/lib/mongodb';
 import Celebrity from '@/models/Celebrity';
+import { normalizeStoredNetWorth } from '@/lib/netWorth';
 
 export async function GET(request: NextRequest) {
   return withApiKey(request, async (req) => {
@@ -58,7 +59,10 @@ export async function GET(request: NextRequest) {
         version: 'v1',
         resource: 'celebrities',
         pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-        data: celebrities,
+        data: celebrities.map((celebrity: any) => ({
+          ...celebrity,
+          netWorth: normalizeStoredNetWorth(celebrity.netWorth),
+        })),
       });
     } catch (error) {
       console.error('v1/celebrities error:', error);

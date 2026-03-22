@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Celebrity from '@/models/Celebrity';
+import { normalizeStoredNetWorth } from '@/lib/netWorth';
 
 // ── API Key guard ─────────────────────────────────────────────────────────────
 function isAuthorized(req: NextRequest): boolean {
@@ -37,23 +38,18 @@ export async function GET(request: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: Record<string, any> = {
-      isActive: true,
-      $or: [{ status: { $exists: false } }, { status: 'published' }],
+      $and: [{ $or: [{ status: { $exists: false } }, { status: 'published' }] }],
     };
 
     if (q) {
-      filter.$and = [
-        {
-          $or: [
-            { name:       { $regex: q, $options: 'i' } },
-            { occupation: { $regex: q, $options: 'i' } },
-            { tags:       { $regex: q, $options: 'i' } },
-            { nationality:{ $regex: q, $options: 'i' } },
-          ],
-        },
-      ];
-      // remove the top-level $or so it doesn't conflict
-      delete filter.$or;
+      filter.$and.push({
+        $or: [
+          { name:       { $regex: q, $options: 'i' } },
+          { occupation: { $regex: q, $options: 'i' } },
+          { tags:       { $regex: q, $options: 'i' } },
+          { nationality:{ $regex: q, $options: 'i' } },
+        ],
+      });
     }
 
     if (category && category !== 'all') {
@@ -98,7 +94,7 @@ export async function GET(request: NextRequest) {
       isVerified:   d.isVerified   || false,
       popularityScore: d.popularityScore || 0,
       viewCount:    d.viewCount    || 0,
-      netWorth:     d.netWorth     || '',
+      netWorth:     normalizeStoredNetWorth(d.netWorth) || '',
       nationality:  d.nationality  || '',
       yearsActive:  d.yearsActive  || '',
       // count movies

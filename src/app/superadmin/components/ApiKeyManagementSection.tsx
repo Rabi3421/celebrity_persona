@@ -463,17 +463,18 @@ export default function ApiKeyManagementSection() {
       </div>
 
       {/* Tab switcher */}
-      <div className="flex gap-2 p-1 bg-white/5 rounded-xl w-fit border border-white/10">
+      <div className="flex gap-2 p-1 bg-white/5 rounded-xl w-fit max-w-full border border-white/10">
         {([['keys', 'KeyIcon', 'API Keys & Usage'], ['payments', 'CreditCardIcon', 'Payments & Orders']] as const).map(([id, icon, label]) => (
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 px-3 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
               tab === id ? 'bg-primary text-black font-semibold' : 'text-neutral-400 hover:text-white'
             }`}
           >
             <Icon name={icon} size={15} />
-            {label}
+            <span className="hidden xs:inline sm:inline">{label}</span>
+            <span className="xs:hidden sm:hidden">{id === 'keys' ? 'Keys' : 'Payments'}</span>
           </button>
         ))}
       </div>
@@ -574,13 +575,13 @@ export default function ApiKeyManagementSection() {
                   <thead>
                     <tr className="border-b border-white/10 bg-white/[0.03]">
                       <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">User</th>
-                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">Plan</th>
-                      <th className="text-right px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">Month Used</th>
-                      <th className="text-right px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">Remaining</th>
-                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold w-32">Usage %</th>
-                      <th className="text-right px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">All-time</th>
-                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">7-day chart</th>
-                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">Last Used</th>
+                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold hidden sm:table-cell">Plan</th>
+                      <th className="text-right px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold hidden md:table-cell">Month Used</th>
+                      <th className="text-right px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold hidden sm:table-cell">Remaining</th>
+                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold w-32 hidden md:table-cell">Usage %</th>
+                      <th className="text-right px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold hidden lg:table-cell">All-time</th>
+                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold hidden lg:table-cell">7-day chart</th>
+                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold hidden md:table-cell">Last Used</th>
                       <th className="px-4 py-3" />
                       <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">Actions</th>
                     </tr>
@@ -614,28 +615,28 @@ export default function ApiKeyManagementSection() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden sm:table-cell">
                             <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold capitalize ${PLAN_COLORS[k.planId]}`}>
                               {k.planId}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-4 py-3 text-right hidden md:table-cell">
                             <span className="text-white text-xs font-mono">{k.monthUsed}</span>
                             <span className="text-neutral-600 text-[11px]">/{k.totalQuota}</span>
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-4 py-3 text-right hidden sm:table-cell">
                             <span className={`text-xs font-mono font-semibold ${k.remaining === 0 ? 'text-red-400' : k.remaining < k.totalQuota * 0.1 ? 'text-amber-400' : 'text-accent'}`}>
                               {k.remaining}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden md:table-cell">
                             <QuotaBar percent={k.percentUsed} />
                           </td>
-                          <td className="px-4 py-3 text-right text-xs text-neutral-400 font-mono">{k.totalHits.toLocaleString()}</td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 text-right text-xs text-neutral-400 font-mono hidden lg:table-cell">{k.totalHits.toLocaleString()}</td>
+                          <td className="px-4 py-3 hidden lg:table-cell">
                             <MiniBar data={k.last7Days} />
                           </td>
-                          <td className="px-4 py-3 text-xs text-neutral-500">{fmtDate(k.lastUsedAt)}</td>
+                          <td className="px-4 py-3 text-xs text-neutral-500 hidden md:table-cell">{fmtDate(k.lastUsedAt)}</td>
                           <td className="px-4 py-3">
                             <Icon
                               name={expandedKey === k.keyId ? 'ChevronUpIcon' : 'ChevronDownIcon'}
@@ -785,12 +786,12 @@ export default function ApiKeyManagementSection() {
                   <thead>
                     <tr className="border-b border-white/10 bg-white/[0.03]">
                       <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">User</th>
-                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">Plan</th>
-                      <th className="text-right px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">Amount</th>
+                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold hidden sm:table-cell">Plan</th>
+                      <th className="text-right px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold hidden sm:table-cell">Amount</th>
                       <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">Status</th>
-                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">Razorpay Order ID</th>
-                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">Payment ID</th>
-                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">Date</th>
+                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold hidden lg:table-cell">Razorpay Order ID</th>
+                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold hidden lg:table-cell">Payment ID</th>
+                      <th className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold hidden md:table-cell">Date</th>
                       <th className="px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold text-center">Action</th>
                     </tr>
                   </thead>
@@ -812,26 +813,26 @@ export default function ApiKeyManagementSection() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden sm:table-cell">
                             <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold capitalize ${PLAN_COLORS[p.planId]}`}>
                               {p.planLabel}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right text-white font-mono text-xs font-semibold">₹{p.amountINR}</td>
+                          <td className="px-4 py-3 text-right text-white font-mono text-xs font-semibold hidden sm:table-cell">₹{p.amountINR}</td>
                           <td className="px-4 py-3">
                             <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold capitalize ${STATUS_COLORS[p.status]}`}>
                               {p.status === 'created' ? 'abandoned' : p.status}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden lg:table-cell">
                             <span className="text-[11px] font-mono text-neutral-400 truncate max-w-[120px] block">{p.razorpayOrderId}</span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden lg:table-cell">
                             <span className={`text-[11px] font-mono ${p.razorpayPaymentId ? 'text-accent' : 'text-neutral-600'}`}>
                               {p.razorpayPaymentId || '—'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-[11px] text-neutral-500">{fmtDateTime(p.createdAt)}</td>
+                          <td className="px-4 py-3 text-[11px] text-neutral-500 hidden md:table-cell">{fmtDateTime(p.createdAt)}</td>
                           <td className="px-4 py-3 text-center">
                             {p.status === 'paid' && (
                               <button

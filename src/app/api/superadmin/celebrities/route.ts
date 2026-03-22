@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
 import dbConnect from '@/lib/mongodb';
 import Celebrity from '@/models/Celebrity';
+import { normalizeStoredNetWorth } from '@/lib/netWorth';
 
 async function handler(request: AuthenticatedRequest) {
   try {
@@ -27,7 +28,7 @@ async function handler(request: AuthenticatedRequest) {
       const [total, docs] = await Promise.all([
         Celebrity.countDocuments(filter),
         Celebrity.find(filter)
-          .select('name slug nationality occupation profileImage status isActive isFeatured isVerified contentQuality popularity createdAt')
+          .select('name slug nationality occupation profileImage status isFeatured isVerified popularity createdAt')
           .sort({ createdAt: -1 })
           .skip((page - 1) * limit)
           .limit(limit)
@@ -92,7 +93,7 @@ async function handler(request: AuthenticatedRequest) {
         siblings:         Array.isArray(body.siblings)         ? body.siblings         : [],
         relatives:        Array.isArray(body.relatives)        ? body.relatives        : [],
         education:        Array.isArray(body.education)        ? body.education        : [],
-        netWorth:         body.netWorth?.trim()         || undefined,
+        netWorth:         normalizeStoredNetWorth(body.netWorth) || undefined,
         introduction:     introduction?.trim()          || '',
         earlyLife:        body.earlyLife?.trim()        || undefined,
         career:           body.career?.trim()           || undefined,
@@ -102,6 +103,11 @@ async function handler(request: AuthenticatedRequest) {
         philanthropy:     Array.isArray(body.philanthropy)     ? body.philanthropy     : [],
         trivia:           Array.isArray(body.trivia)           ? body.trivia           : [],
         works:            Array.isArray(body.works)            ? body.works            : [],
+        movies:           Array.isArray(body.movies)           ? body.movies           : [],
+        webSeries:        Array.isArray(body.webSeries)        ? body.webSeries        : [],
+        tvShows:          Array.isArray(body.tvShows)          ? body.tvShows          : [],
+        awards:           Array.isArray(body.awards)           ? body.awards           : [],
+        marriages:        Array.isArray(body.marriages)        ? body.marriages        : [],
         quotes:           Array.isArray(body.quotes)           ? body.quotes           : [],
         tags:             Array.isArray(body.tags)             ? body.tags             : [],
         categories:       Array.isArray(body.categories)       ? body.categories       : [],
@@ -109,9 +115,7 @@ async function handler(request: AuthenticatedRequest) {
         profileImage:     profileImage?.trim()         || '',
         coverImage:       body.coverImage?.trim()      || undefined,
         galleryImages:    Array.isArray(body.galleryImages)    ? body.galleryImages    : [],
-        status:           ['draft', 'published', 'archived'].includes(s) ? s : 'draft',
-        contentQuality:   ['draft', 'review', 'published', 'archived'].includes(body.contentQuality) ? body.contentQuality : 'draft',
-        isActive:         body.isActive  !== undefined ? Boolean(body.isActive)  : true,
+        status:           ['draft', 'published'].includes(s) ? s : 'draft',
         isFeatured:       body.isFeatured !== undefined ? Boolean(body.isFeatured) : false,
         isVerified:       body.isVerified !== undefined ? Boolean(body.isVerified) : false,
         socialMedia: {
@@ -120,6 +124,9 @@ async function handler(request: AuthenticatedRequest) {
           facebook:  body.socialMedia?.facebook  || '',
           youtube:   body.socialMedia?.youtube   || '',
           tiktok:    body.socialMedia?.tiktok    || '',
+          threads:   body.socialMedia?.threads   || '',
+          imdb:      body.socialMedia?.imdb      || '',
+          wikipedia: body.socialMedia?.wikipedia || '',
           website:   body.socialMedia?.website   || '',
         },
         seo: {
@@ -132,6 +139,9 @@ async function handler(request: AuthenticatedRequest) {
           ogDescription:     body.seo?.ogDescription     || '',
           ogImages:          Array.isArray(body.seo?.ogImages)    ? body.seo.ogImages    : [],
           twitterCard:       body.seo?.twitterCard       || 'summary_large_image',
+          twitterTitle:      body.seo?.twitterTitle      || '',
+          twitterDescription: body.seo?.twitterDescription || '',
+          twitterImage:      body.seo?.twitterImage      || '',
           twitterCreator:    body.seo?.twitterCreator    || '',
           schemaType:        body.seo?.schemaType        || 'Person',
           noindex:           body.seo?.noindex           ?? false,
@@ -144,7 +154,6 @@ async function handler(request: AuthenticatedRequest) {
         },
         relatedCelebrities: [],
         newsArticles:       [],
-        movies:             [],
       });
 
       const obj: any = celebrity.toObject();

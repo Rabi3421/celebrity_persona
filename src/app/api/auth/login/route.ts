@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     user.lastLogin = new Date();
     await user.save();
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         message: 'Login successful',
@@ -53,10 +53,21 @@ export async function POST(request: NextRequest) {
           lastLogin: user.lastLogin,
         },
         accessToken,
-        refreshToken,
+        // refreshToken is NOT sent to the client — it lives only in the httpOnly cookie
       },
       { status: 200 }
     );
+
+    // Store refresh token in httpOnly cookie — JS cannot read this
+    response.cookies.set('cp_refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Login error:', error);
     return NextResponse.json(

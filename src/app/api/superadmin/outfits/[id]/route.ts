@@ -8,7 +8,7 @@ import '@/models/Celebrity'; // ensure Celebrity schema is registered for popula
 const ALLOWED_FIELDS = new Set([
   'title', 'slug', 'celebrity', 'images', 'event', 'designer',
   'description', 'tags', 'purchaseLink', 'price', 'brand',
-  'category', 'color', 'size', 'isActive', 'isFeatured', 'seo',
+  'category', 'color', 'size', 'isActive', 'isFeatured', 'status', 'seo',
 ]);
 
 async function handler(request: AuthenticatedRequest, { params }: any) {

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 import RichTextEditor from '@/components/ui/RichTextEditor';
-import { uploadImage, validateImageFile } from '@/lib/imageUpload';
+import { uploadImage, deleteImage, validateImageFile } from '@/lib/imageUpload';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -12,6 +12,7 @@ interface IReviewCastMember {
   name: string;
   character?: string;
   image?: string;
+  celebrityId?: string;
 }
 
 interface IMovieDetails {
@@ -83,6 +84,7 @@ interface ReviewRow {
   poster?: string;
   rating: number;
   featured: boolean;
+  status: 'draft' | 'published';
   publishDate?: string;
   excerpt?: string;
   authorName?: string;
@@ -105,6 +107,12 @@ interface ReviewFull extends ReviewRow {
 type FormTab = 'basic' | 'content' | 'movie' | 'scores' | 'images' | 'seo';
 type PanelMode = 'add' | 'edit' | null;
 type Toast = { type: 'success' | 'error'; message: string } | null;
+type UploadSlot = { uploading: boolean; progress: number; error: string };
+
+const STATUS_COLORS: Record<string, string> = {
+  published: 'bg-emerald-500/20 text-emerald-400',
+  draft:     'bg-yellow-500/20 text-yellow-400',
+};
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -136,12 +144,13 @@ const EMPTY_FORM: ReviewFull = {
   poster: '',
   backdropImage: '',
   trailer: '',
-  rating: 7,
+  rating: 0,
   content: '',
   excerpt: '',
   verdict: '',
   featured: false,
-  publishDate: '',
+  status: 'draft' as const,
+  publishDate: new Date().toISOString().split('T')[0],
   authorName: '',
   author: EMPTY_AUTHOR,
   movieDetails: {
@@ -242,10 +251,22 @@ export default function ReviewManagementSection() {
   const [form, setForm]                     = useState<ReviewFull>(EMPTY_FORM);
   const [formErrors, setFormErrors]         = useState<Partial<Record<keyof ReviewFull, string>>>({});
   const [formLoading, setFormLoading]       = useState(false);
+  const [draftLoading, setDraftLoading]     = useState(false);
   const [formApiError, setFormApiError]     = useState('');
   const [loadingDetail, setLoadingDetail]   = useState(false);
-  const [uploading, setUploading]           = useState<Record<string, boolean>>({});
-  const [dragOver, setDragOver]             = useState<Record<string, boolean>>({});
+  const [statusFilter, setStatusFilter]     = useState('');
+  const [uploadingPoster,   setUploadingPoster]   = useState(false);
+  const [uploadingBackdrop, setUploadingBackdrop] = useState(false);
+  const [posterDragActive,  setPosterDragActive]  = useState(false);
+  const [backdropDragActive,setBackdropDragActive]= useState(false);
+  const [ogImageUpload,     setOgImageUpload]     = useState<UploadSlot>({ uploading: false, progress: 0, error: '' });
+  const [twitterImageUpload,setTwitterImageUpload]= useState<UploadSlot>({ uploading: false, progress: 0, error: '' });
+  const [celebrities,          setCelebrities]          = useState<any[]>([]);
+  const [celebritySearch,      setCelebritySearch]      = useState('');
+  const [loadingCelebrities,   setLoadingCelebrities]   = useState(false);
+  const [celebritySearchError, setCelebritySearchError] = useState('');
+  const [activeCastDropdown,   setActiveCastDropdown]   = useState<number | null>(null);
+  const castDropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // ── helpers ────────────────────────────────────────────────────────────
@@ -277,45 +298,95 @@ export default function ReviewManagementSection() {
       .replace(/-+/g, '-')
       .slice(0, 96);
 
-  const handleMovieTitleChange = (val: string) => {
-    setField('movieTitle', val);
-    if (!form.slug || form.slug === toSlug(form.movieTitle)) {
+  const handleTitleChange = (val: string) => {
+    setField('title', val);
+    if (!form.slug || form.slug === toSlug(form.title)) {
       setField('slug', toSlug(val));
     }
   };
 
   // ── image upload ────────────────────────────────────────────────────────
-  const handleImageUpload = async (file: File, type: 'poster' | 'backdrop') => {
+  const reviewSlug = form.slug?.trim() || (form.title?.trim() ? toSlug(form.title.trim()) : 'review');
+
+  const handleSelectPoster = () => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const err = validateImageFile(file);
+      if (err) { showToast('error', err); return; }
+      setUploadingPoster(true);
+      try {
+        if (form.poster) await deleteImage(form.poster);
+        const url = await uploadImage(file, `reviews/${reviewSlug}/poster`);
+        setField('poster', url);
+        showToast('success', 'Poster uploaded');
+      } catch { showToast('error', 'Failed to upload poster'); }
+      finally { setUploadingPoster(false); }
+    };
+    input.click();
+  };
+
+  const handleDeletePoster = async () => {
+    if (!form.poster) return;
+    try { await deleteImage(form.poster); setField('poster', ''); showToast('success', 'Poster removed'); }
+    catch { showToast('error', 'Failed to remove poster'); }
+  };
+
+  const handleSelectBackdrop = () => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const err = validateImageFile(file);
+      if (err) { showToast('error', err); return; }
+      setUploadingBackdrop(true);
+      try {
+        if (form.backdropImage) await deleteImage(form.backdropImage);
+        const url = await uploadImage(file, `reviews/${reviewSlug}/backdrop`);
+        setField('backdropImage', url);
+        showToast('success', 'Backdrop uploaded');
+      } catch { showToast('error', 'Failed to upload backdrop'); }
+      finally { setUploadingBackdrop(false); }
+    };
+    input.click();
+  };
+
+  const handleDeleteBackdrop = async () => {
+    if (!form.backdropImage) return;
+    try { await deleteImage(form.backdropImage); setField('backdropImage', ''); showToast('success', 'Backdrop removed'); }
+    catch { showToast('error', 'Failed to remove backdrop'); }
+  };
+
+  const setSeoField = <K extends keyof IReviewSEO>(k: K, v: IReviewSEO[K]) =>
+    setForm((p) => ({ ...p, seoData: { ...(p.seoData || {}), [k]: v } }));
+
+  const handleOgImageUpload = async (file: File) => {
     const err = validateImageFile(file);
-    if (err) { showToast('error', err); return; }
-    setUploading((p) => ({ ...p, [type]: true }));
+    if (err) { setOgImageUpload((p) => ({ ...p, error: err })); return; }
+    setOgImageUpload({ uploading: true, progress: 10, error: '' });
     try {
-      const slug = form.slug || form.movieTitle.toLowerCase().replace(/\s+/g, '-') || 'review';
-      const url  = await uploadImage(file, `reviews/${slug}/${type}`);
-      setField(type === 'poster' ? 'poster' : 'backdropImage', url);
-      showToast('success', `${type === 'poster' ? 'Poster' : 'Backdrop'} uploaded`);
+      const url = await uploadImage(file, `reviews/${reviewSlug}/seo`);
+      setForm((p) => ({ ...p, seoData: { ...(p.seoData || {}), ogImages: [url] } }));
+      setOgImageUpload({ uploading: false, progress: 100, error: '' });
     } catch {
-      showToast('error', `Failed to upload ${type}`);
-    } finally {
-      setUploading((p) => ({ ...p, [type]: false }));
+      setOgImageUpload({ uploading: false, progress: 0, error: 'Upload failed' });
     }
   };
 
-  const handleDrop = (e: React.DragEvent, type: 'poster' | 'backdrop') => {
-    e.preventDefault();
-    setDragOver((p) => ({ ...p, [type]: false }));
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleImageUpload(file, type);
-  };
-
-  const handleFilePick = (type: 'poster' | 'backdrop') => {
-    const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) handleImageUpload(file, type);
-    };
-    input.click();
+  const handleTwitterImageUpload = async (file: File) => {
+    const err = validateImageFile(file);
+    if (err) { setTwitterImageUpload((p) => ({ ...p, error: err })); return; }
+    setTwitterImageUpload({ uploading: true, progress: 10, error: '' });
+    try {
+      const url = await uploadImage(file, `reviews/${reviewSlug}/seo`);
+      setSeoField('twitterImage', url);
+      setTwitterImageUpload({ uploading: false, progress: 100, error: '' });
+    } catch {
+      setTwitterImageUpload({ uploading: false, progress: 0, error: 'Upload failed' });
+    }
   };
 
   // ── fetch ──────────────────────────────────────────────────────────────
@@ -324,6 +395,7 @@ export default function ReviewManagementSection() {
     try {
       const params = new URLSearchParams({ page: String(p), limit: String(lim) });
       if (searchQuery.trim()) params.set('q', searchQuery.trim());
+      if (statusFilter)       params.set('status', statusFilter);
       const res  = await fetch(`/api/superadmin/reviews?${params}`, { headers: authHeaders() });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || data.error || 'Failed to load');
@@ -335,6 +407,7 @@ export default function ReviewManagementSection() {
         poster:      r.poster,
         rating:      r.rating,
         featured:    r.featured ?? false,
+        status:      (r.status === 'published' ? 'published' : 'draft') as 'draft' | 'published',
         publishDate: r.publishDate,
         excerpt:     r.excerpt,
         authorName:  r.author?.name,
@@ -350,7 +423,7 @@ export default function ReviewManagementSection() {
     } finally {
       setLoading(false);
     }
-  }, [authHeaders, searchQuery, limit]);
+  }, [authHeaders, searchQuery, statusFilter, limit]);
 
   useEffect(() => { fetchList(1); }, [fetchList]);
 
@@ -373,6 +446,12 @@ export default function ReviewManagementSection() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || data.error || 'Failed to load');
       const d: any = data.data;
+      const toArr = (v: any): string[] => {
+        if (!v) return [];
+        if (Array.isArray(v)) return v.map(String);
+        if (typeof v === 'string') return v ? [v] : [];
+        return [];
+      };
       setForm({
         id:            d._id || d.id,
         title:         d.title         || '',
@@ -381,11 +460,12 @@ export default function ReviewManagementSection() {
         poster:        d.poster        || '',
         backdropImage: d.backdropImage || '',
         trailer:       d.trailer       || '',
-        rating:        d.rating        ?? 7,
+        rating:        d.rating        ?? 0,
         content:       d.content       || '',
         excerpt:       d.excerpt       || '',
         verdict:       d.verdict       || '',
         featured:      d.featured      ?? false,
+        status:        (d.status === 'published' ? 'published' : 'draft') as 'draft' | 'published',
         publishDate:   toDateInputValue(d.publishDate),
         authorName:    d.author?.name  || '',
         author: {
@@ -393,7 +473,7 @@ export default function ReviewManagementSection() {
           avatar:      d.author?.avatar      || '',
           bio:         d.author?.bio         || '',
           credentials: d.author?.credentials || '',
-          reviewCount: d.author?.reviewCount ?? 0,
+          reviewCount: Number(d.author?.reviewCount ?? 0),
           socialMedia: {
             twitter:   d.author?.socialMedia?.twitter   || '',
             instagram: d.author?.socialMedia?.instagram || '',
@@ -403,9 +483,15 @@ export default function ReviewManagementSection() {
         movieDetails: {
           releaseYear: d.movieDetails?.releaseYear ?? undefined,
           director:    d.movieDetails?.director    || '',
-          writers:     d.movieDetails?.writers     || [],
-          cast:        d.movieDetails?.cast        || [],
-          genre:       d.movieDetails?.genre       || [],
+          writers:     toArr(d.movieDetails?.writers),
+          cast:        Array.isArray(d.movieDetails?.cast)
+                         ? d.movieDetails.cast.map((c: any) =>
+                             typeof c === 'object' && c !== null
+                               ? { name: c.name || '', character: c.character || '', image: c.image || '' }
+                               : { name: String(c), character: '', image: '' }
+                           )
+                         : [],
+          genre:       toArr(d.movieDetails?.genre),
           runtime:     d.movieDetails?.runtime     ?? undefined,
           budget:      d.movieDetails?.budget      || '',
           boxOffice:   d.movieDetails?.boxOffice   || '',
@@ -418,13 +504,13 @@ export default function ReviewManagementSection() {
           imdbRating:          d.scores?.imdbRating          ?? undefined,
           rottenTomatoesScore: d.scores?.rottenTomatoesScore ?? undefined,
         },
-        pros:    d.pros    || [],
-        cons:    d.cons    || [],
+        pros:    toArr(d.pros),
+        cons:    toArr(d.cons),
         // MongoDB doc uses 'seo' field name; form uses 'seoData'
         seoData: {
           metaTitle:           d.seo?.metaTitle           || d.seoData?.metaTitle           || '',
           metaDescription:     d.seo?.metaDescription     || d.seoData?.metaDescription     || '',
-          metaKeywords:        d.seo?.metaKeywords        || d.seoData?.metaKeywords        || d.seoData?.keywords || [],
+          metaKeywords:        toArr(d.seo?.metaKeywords ?? d.seoData?.metaKeywords ?? d.seoData?.keywords),
           canonicalUrl:        d.seo?.canonicalUrl        || d.seoData?.canonicalUrl        || '',
           noindex:             d.seo?.noindex             ?? d.seoData?.noindex             ?? false,
           nofollow:            d.seo?.nofollow            ?? d.seoData?.nofollow            ?? false,
@@ -434,7 +520,7 @@ export default function ReviewManagementSection() {
           ogType:              d.seo?.ogType              || d.seoData?.ogType              || 'article',
           ogSiteName:          d.seo?.ogSiteName          || d.seoData?.ogSiteName          || 'Celebrity Persona',
           ogUrl:               d.seo?.ogUrl               || d.seoData?.ogUrl               || '',
-          ogImages:            d.seo?.ogImages            || d.seoData?.ogImages            || [],
+          ogImages:            toArr(d.seo?.ogImages ?? d.seoData?.ogImages),
           ogLocale:            d.seo?.ogLocale            || d.seoData?.ogLocale            || 'en_US',
           twitterCard:         d.seo?.twitterCard         || d.seoData?.twitterCard         || 'summary_large_image',
           twitterTitle:        d.seo?.twitterTitle        || d.seoData?.twitterTitle        || '',
@@ -460,10 +546,12 @@ export default function ReviewManagementSection() {
   // ── validate ─────────────────────────────────────────────────────────────
   const validate = () => {
     const errs: Partial<Record<keyof ReviewFull, string>> = {};
-    if (!form.title.trim())      errs.title      = 'Title is required';
-    if (!form.movieTitle.trim()) errs.movieTitle = 'Movie title is required';
-    if (!form.content.trim())    errs.content    = 'Review content is required';
-    if (!form.author.name.trim()) errs.authorName = 'Author name is required';
+    if (!form.title.trim())                              errs.title      = 'Title is required';
+    if (!form.movieTitle.trim())                         errs.movieTitle = 'Movie title is required';
+    if (!form.content.trim())                            errs.content    = 'Review content is required';
+    if (!form.author.name.trim())                        errs.authorName = 'Author name is required';
+    if (form.rating === undefined || form.rating === null ||
+        isNaN(form.rating) || form.rating < 0 || form.rating > 10) errs.rating = 'Rating must be between 0 and 10';
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -481,6 +569,7 @@ export default function ReviewManagementSection() {
     excerpt:       form.excerpt?.trim()       || undefined,
     verdict:       form.verdict?.trim()       || undefined,
     featured:      form.featured,
+    status:        form.status,
     publishDate:   form.publishDate           || undefined,
     author:        form.author,
     movieDetails:  form.movieDetails,
@@ -577,15 +666,126 @@ export default function ReviewManagementSection() {
     }
   };
 
+  // ── validate draft (title only) ──────────────────────────────────────────
+  const validateDraft = () => {
+    const errs: Partial<Record<keyof ReviewFull, string>> = {};
+    if (!form.title.trim()) errs.title = 'Title is required to save as draft';
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  // ── save as draft ─────────────────────────────────────────────────────────
+  const handleSaveDraft = async () => {
+    if (!validateDraft()) return;
+    setDraftLoading(true); setFormApiError('');
+    const payload = { ...buildPayload(), status: 'draft' as const };
+    try {
+      let res: Response;
+      if (panelMode === 'edit' && form.id) {
+        res = await fetch(`/api/superadmin/reviews/${form.id}`, {
+          method:  'PUT',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch('/api/superadmin/reviews', {
+          method:  'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload),
+        });
+      }
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || data.error || 'Failed to save draft');
+      if (panelMode === 'add') {
+        setForm((f) => ({ ...f, id: data.data._id || data.data.id, status: 'draft' }));
+        setPanelMode('edit');
+      } else {
+        setForm((f) => ({ ...f, status: 'draft' }));
+      }
+      showToast('success', `Draft saved — "${form.title.trim()}"`);
+      fetchList(page);
+    } catch (err: any) {
+      setFormApiError(err.message || 'Failed to save draft');
+    } finally {
+      setDraftLoading(false);
+    }
+  };
+
+  // ── quick status toggle (draft ↔ published) ───────────────────────────────
+  const handleStatusToggle = async (r: ReviewRow, newStatus: 'draft' | 'published') => {
+    if (r.status === newStatus) return;
+    setBusy(r.id, true);
+    try {
+      const res  = await fetch(`/api/superadmin/reviews/${r.id}`, {
+        method:  'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || data.error || 'Update failed');
+      setReviews((prev) => prev.map((x) => x.id === r.id ? { ...x, status: newStatus } : x));
+      showToast('success', `"${r.title}" set to ${newStatus}`);
+    } catch (err: any) {
+      showToast('error', err.message || 'Failed to update status');
+    } finally {
+      setBusy(r.id, false);
+    }
+  };
+
   // ── cast helpers ──────────────────────────────────────────────────────────
   const addCastMember = () =>
-    setMovieField('cast', [...(form.movieDetails?.cast || []), { name: '', character: '', image: '' }]);
+    setMovieField('cast', [...(form.movieDetails?.cast || []), { name: '', character: '', image: '', celebrityId: '' }]);
 
   const updateCast = (i: number, key: keyof IReviewCastMember, val: string) =>
     setMovieField('cast', (form.movieDetails?.cast || []).map((c, idx) => idx === i ? { ...c, [key]: val } : c));
 
   const removeCast = (i: number) =>
     setMovieField('cast', (form.movieDetails?.cast || []).filter((_, idx) => idx !== i));
+
+  const fetchCelebrities = useCallback(async (search = '') => {
+    setLoadingCelebrities(true);
+    setCelebritySearchError('');
+    try {
+      const params = new URLSearchParams({ limit: '20' });
+      if (search.trim()) params.set('query', search.trim());
+      const res = await fetch(`/api/content/celebrities/search?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.success && data.data) { setCelebrities(data.data); }
+      else { setCelebrities([]); setCelebritySearchError(data.message || 'No celebrities found'); }
+    } catch (e) {
+      setCelebrities([]);
+      setCelebritySearchError(e instanceof Error ? e.message : 'Failed to fetch celebrities');
+    } finally { setLoadingCelebrities(false); }
+  }, []);
+
+  useEffect(() => { fetchCelebrities(); }, [fetchCelebrities]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { if (celebritySearch !== '') fetchCelebrities(celebritySearch); }, 300);
+    return () => clearTimeout(t);
+  }, [celebritySearch, fetchCelebrities]);
+
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (activeCastDropdown === null) return;
+      const ref = castDropdownRefs.current[activeCastDropdown];
+      if (ref && !ref.contains(e.target as Node)) setActiveCastDropdown(null);
+    }
+    function onEsc(e: KeyboardEvent) { if (e.key === 'Escape') setActiveCastDropdown(null); }
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onEsc);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onEsc); };
+  }, [activeCastDropdown]);
+
+  const handleSelectCelebrity = (index: number, celeb: any) => {
+    const updated = [...(form.movieDetails?.cast || [])];
+    updated[index] = { ...updated[index], name: celeb.name, image: celeb.profileImage || '', celebrityId: celeb.id };
+    setMovieField('cast', updated);
+    setActiveCastDropdown(null);
+    setCelebritySearch('');
+    setCelebrities([]);
+  };
 
   // ── pagination ────────────────────────────────────────────────────────────
   const pageNumbers = (): (number | '...')[] => {
@@ -620,7 +820,7 @@ export default function ReviewManagementSection() {
               Review Title <span className="text-yellow-400">*</span>
             </label>
             <input type="text" value={form.title}
-              onChange={(e) => setField('title', e.target.value)}
+              onChange={(e) => handleTitleChange(e.target.value)}
               placeholder="e.g. Kantara Chapter 1: A Cinematic Masterpiece Rooted in Tradition and Myth"
               className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${errBorder('title')}`}
             />
@@ -633,7 +833,7 @@ export default function ReviewManagementSection() {
               Movie Title <span className="text-yellow-400">*</span>
             </label>
             <input type="text" value={form.movieTitle}
-              onChange={(e) => handleMovieTitleChange(e.target.value)}
+              onChange={(e) => setField('movieTitle', e.target.value)}
               placeholder="e.g. Kantara: A Legend – Chapter 1"
               className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${errBorder('movieTitle')}`}
             />
@@ -648,7 +848,7 @@ export default function ReviewManagementSection() {
               placeholder="auto-generated from movie title"
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
             />
-            <p className="text-[10px] text-neutral-600 mt-0.5">Auto-fills from movie title. Edit to override.</p>
+            <p className="text-[10px] text-neutral-600 mt-0.5">Auto-fills from review title. Edit to override.</p>
           </div>
 
           {/* Rating */}
@@ -658,7 +858,11 @@ export default function ReviewManagementSection() {
             </label>
             <div className="flex items-center gap-3">
               <input type="number" min="0" max="10" step="0.1" value={form.rating}
-                onChange={(e) => setField('rating', parseFloat(e.target.value) || 0)}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  if (isNaN(v)) { setField('rating', 0); return; }
+                  setField('rating', Math.min(10, Math.max(0, parseFloat(v.toFixed(1)))));
+                }}
                 className="w-28 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
               />
               <span className={`font-playfair text-2xl font-bold ${ratingColor(form.rating)}`}>{form.rating}</span>
@@ -783,252 +987,521 @@ export default function ReviewManagementSection() {
       );
 
       // ── IMAGES ─────────────────────────────────────────────────────────
-      case 'images': return (
-        <div className="space-y-8">
-
-          {/* Poster */}
-          <div>
-            <p className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Icon name="PhotoIcon" size={13} /> Poster
-              <span className="text-neutral-600 normal-case font-normal">· recommended 2:3 (e.g. 800×1200)</span>
-            </p>
-            {form.poster ? (
-              <div className="flex gap-4 items-start">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.poster} alt="poster" className="w-28 h-40 rounded-xl object-cover border border-white/10 shrink-0" />
-                <div className="flex flex-col gap-2 pt-1">
-                  <p className="text-xs text-neutral-400 font-montserrat break-all max-w-xs">{form.poster}</p>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => handleFilePick('poster')}
-                      className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-montserrat hover:bg-white/10 transition-all flex items-center gap-1.5">
-                      <Icon name="ArrowPathIcon" size={12} /> Replace
-                    </button>
-                    <button type="button" onClick={() => setField('poster', '')}
-                      className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-montserrat hover:bg-red-500/20 transition-all flex items-center gap-1.5">
-                      <Icon name="TrashIcon" size={12} /> Remove
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                onDrop={(e) => handleDrop(e, 'poster')}
-                onDragOver={(e) => { e.preventDefault(); setDragOver((p) => ({ ...p, poster: true })); }}
-                onDragLeave={() => setDragOver((p) => ({ ...p, poster: false }))}
-                onClick={() => handleFilePick('poster')}
-                className={`relative border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
-                  dragOver.poster ? 'border-yellow-500/70 bg-yellow-500/5' : 'border-white/10 hover:border-yellow-500/40 hover:bg-white/[0.02]'
-                }`}
-              >
-                {uploading.poster ? (
-                  <><Icon name="ArrowPathIcon" size={28} className="text-yellow-500 animate-spin" />
-                  <p className="text-sm font-montserrat text-neutral-400">Uploading…</p></>
-                ) : (
-                  <><Icon name="CloudArrowUpIcon" size={32} className="text-neutral-500" />
-                  <div className="text-center">
-                    <p className="text-sm font-montserrat text-neutral-300">Drop poster here or <span className="text-yellow-400">click to browse</span></p>
-                    <p className="text-xs text-neutral-600 mt-1">PNG, JPG, WebP · max 5 MB</p>
-                  </div></>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Backdrop */}
-          <div>
-            <p className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Icon name="PhotoIcon" size={13} /> Backdrop
-              <span className="text-neutral-600 normal-case font-normal">· recommended 16:9 (e.g. 1920×1080)</span>
-            </p>
-            {form.backdropImage ? (
-              <div className="flex gap-4 items-start">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.backdropImage} alt="backdrop" className="w-48 h-28 rounded-xl object-cover border border-white/10 shrink-0" />
-                <div className="flex flex-col gap-2 pt-1">
-                  <p className="text-xs text-neutral-400 font-montserrat break-all max-w-xs">{form.backdropImage}</p>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => handleFilePick('backdrop')}
-                      className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-montserrat hover:bg-white/10 transition-all flex items-center gap-1.5">
-                      <Icon name="ArrowPathIcon" size={12} /> Replace
-                    </button>
-                    <button type="button" onClick={() => setField('backdropImage', '')}
-                      className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-montserrat hover:bg-red-500/20 transition-all flex items-center gap-1.5">
-                      <Icon name="TrashIcon" size={12} /> Remove
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                onDrop={(e) => handleDrop(e, 'backdrop')}
-                onDragOver={(e) => { e.preventDefault(); setDragOver((p) => ({ ...p, backdrop: true })); }}
-                onDragLeave={() => setDragOver((p) => ({ ...p, backdrop: false }))}
-                onClick={() => handleFilePick('backdrop')}
-                className={`relative border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
-                  dragOver.backdrop ? 'border-yellow-500/70 bg-yellow-500/5' : 'border-white/10 hover:border-yellow-500/40 hover:bg-white/[0.02]'
-                }`}
-              >
-                {uploading.backdrop ? (
-                  <><Icon name="ArrowPathIcon" size={28} className="text-yellow-500 animate-spin" />
-                  <p className="text-sm font-montserrat text-neutral-400">Uploading…</p></>
-                ) : (
-                  <><Icon name="CloudArrowUpIcon" size={32} className="text-neutral-500" />
-                  <div className="text-center">
-                    <p className="text-sm font-montserrat text-neutral-300">Drop backdrop here or <span className="text-yellow-400">click to browse</span></p>
-                    <p className="text-xs text-neutral-600 mt-1">PNG, JPG, WebP · max 5 MB</p>
-                  </div></>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Hint */}
-          <p className="text-xs text-neutral-600 font-montserrat">Images are uploaded to Firebase Storage under <code className="text-neutral-400">reviews/&#123;slug&#125;/</code> and the URL is saved automatically.</p>
-        </div>
-      );
-
-      // ── SEO ────────────────────────────────────────────────────────────
-      case 'seo': return (
+      case 'images': {
+        const canUpload = !!form.title.trim();
+        return (
         <div className="space-y-6">
 
-          {/* Core */}
+          {/* Upload path notice */}
+          {!canUpload ? (
+            <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+              <Icon name="ExclamationTriangleIcon" size={16} className="text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-amber-300 text-xs font-montserrat leading-relaxed">
+                <span className="font-semibold">Enter the review title first.</span>{' '}
+                Images will be organised in a dedicated folder once the title is filled.
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20">
+              <Icon name="FolderIcon" size={14} className="text-green-400 shrink-0" />
+              <p className="text-green-300 text-xs font-montserrat truncate">
+                Upload path: <span className="font-semibold">reviews / {reviewSlug}</span>
+              </p>
+            </div>
+          )}
+
+          {/* ── Poster ── */}
           <div>
-            <p className="text-[11px] text-neutral-500 font-montserrat uppercase tracking-wider mb-3">Core SEO</p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Focus Keyword</label>
-                <input type="text" value={form.seoData?.focusKeyword || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, focusKeyword: e.target.value })}
-                  placeholder="e.g. Thamma movie review"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
+            <p className="text-white text-sm font-montserrat font-semibold mb-1">Poster</p>
+            <p className="text-neutral-500 text-xs font-montserrat mb-3">Portrait-orientation cover image shown in listings and cards · recommended 2:3 (e.g. 800×1200)</p>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setPosterDragActive(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setPosterDragActive(false); }}
+              onDrop={(e) => { setPosterDragActive(false); if (canUpload) { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f && f.type.startsWith('image/')) handleSelectPoster(); } }}
+              className={`relative rounded-2xl border-2 overflow-hidden transition-all group ${
+                posterDragActive
+                  ? 'border-yellow-400/60 bg-yellow-500/5'
+                  : form.poster
+                    ? 'border-white/10 hover:border-yellow-500/30'
+                    : 'border-dashed border-white/15 hover:border-yellow-500/40 hover:bg-yellow-500/5'
+              }`}
+            >
+              {uploadingPoster ? (
+                <div className="h-52 flex flex-col items-center justify-center gap-3">
+                  <Icon name="ArrowPathIcon" size={28} className="text-yellow-400 animate-spin" />
+                  <p className="text-yellow-400 text-xs font-montserrat">Uploading…</p>
+                </div>
+              ) : form.poster ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={form.poster} alt="poster" className="w-full max-h-72 object-cover" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                    <button type="button" onClick={handleSelectPoster} disabled={!canUpload}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500 text-black text-xs font-bold font-montserrat hover:bg-yellow-400 transition-all disabled:opacity-50">
+                      <Icon name="ArrowUpTrayIcon" size={13} /> Replace
+                    </button>
+                    <button type="button" onClick={handleDeletePoster}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-montserrat hover:bg-red-500/30 hover:text-red-300 transition-all">
+                      <Icon name="TrashIcon" size={13} /> Remove
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button type="button" onClick={() => canUpload && handleSelectPoster()}
+                  disabled={!canUpload}
+                  className={`w-full h-52 flex flex-col items-center justify-center gap-2 transition-colors ${
+                    canUpload ? 'text-neutral-600 hover:text-yellow-400 cursor-pointer' : 'text-neutral-700 cursor-not-allowed'
+                  }`}
+                >
+                  <Icon name="ArrowUpTrayIcon" size={28} />
+                  <p className="text-xs font-montserrat">Click or drop to upload poster</p>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t border-white/10" />
+
+          {/* ── Backdrop ── */}
+          <div>
+            <p className="text-white text-sm font-montserrat font-semibold mb-1">Backdrop</p>
+            <p className="text-neutral-500 text-xs font-montserrat mb-3">Wide landscape image used as page hero / banner background · recommended 16:9 (e.g. 1920×1080)</p>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setBackdropDragActive(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setBackdropDragActive(false); }}
+              onDrop={(e) => { setBackdropDragActive(false); if (canUpload) { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f && f.type.startsWith('image/')) handleSelectBackdrop(); } }}
+              className={`relative rounded-2xl border-2 overflow-hidden transition-all group ${
+                backdropDragActive
+                  ? 'border-yellow-400/60 bg-yellow-500/5'
+                  : form.backdropImage
+                    ? 'border-white/10 hover:border-yellow-500/30'
+                    : 'border-dashed border-white/15 hover:border-yellow-500/40 hover:bg-yellow-500/5'
+              }`}
+            >
+              {uploadingBackdrop ? (
+                <div className="h-44 flex flex-col items-center justify-center gap-3">
+                  <Icon name="ArrowPathIcon" size={28} className="text-yellow-400 animate-spin" />
+                  <p className="text-yellow-400 text-xs font-montserrat">Uploading…</p>
+                </div>
+              ) : form.backdropImage ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={form.backdropImage} alt="backdrop" className="w-full max-h-52 object-cover" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                    <button type="button" onClick={handleSelectBackdrop} disabled={!canUpload}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500 text-black text-xs font-bold font-montserrat hover:bg-yellow-400 transition-all disabled:opacity-50">
+                      <Icon name="ArrowUpTrayIcon" size={13} /> Replace
+                    </button>
+                    <button type="button" onClick={handleDeleteBackdrop}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-montserrat hover:bg-red-500/30 hover:text-red-300 transition-all">
+                      <Icon name="TrashIcon" size={13} /> Remove
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button type="button" onClick={() => canUpload && handleSelectBackdrop()}
+                  disabled={!canUpload}
+                  className={`w-full h-44 flex flex-col items-center justify-center gap-2 transition-colors ${
+                    canUpload ? 'text-neutral-600 hover:text-yellow-400 cursor-pointer' : 'text-neutral-700 cursor-not-allowed'
+                  }`}
+                >
+                  <Icon name="ArrowUpTrayIcon" size={28} />
+                  <p className="text-xs font-montserrat">Click or drop to upload backdrop</p>
+                </button>
+              )}
+            </div>
+          </div>
+
+        </div>
+        );
+      }
+
+      // ── SEO ────────────────────────────────────────────────────────────
+      // ── SEO ───────────────────────────────────────────────────────────
+      case 'seo': {
+        const seo = form.seoData || {};
+        const ogImage = (seo.ogImages || [])[0] || '';
+
+        const metaTitleLen = (seo.metaTitle       || '').length;
+        const metaDescLen  = (seo.metaDescription || '').length;
+        const titleScore   = metaTitleLen === 0 ? 'empty' : metaTitleLen <= 60  ? 'good' : 'long';
+        const descScore    = metaDescLen  === 0 ? 'empty' : metaDescLen  <= 160 ? 'good' : 'long';
+        const scoreColor   = (s: string) =>
+          s === 'good' ? 'text-emerald-400' : s === 'long' ? 'text-amber-400' : 'text-neutral-600';
+        const scoreLabel   = (s: string, len: number, max: number) =>
+          s === 'empty' ? 'Not set' : s === 'good' ? `${len}/${max} ✓ Good` : `${len}/${max} — Too long`;
+
+        const filledCount = [seo.focusKeyword, seo.metaTitle, seo.metaDescription, seo.canonicalUrl,
+          seo.ogTitle, ogImage, seo.twitterTitle, seo.twitterImage, seo.schemaType].filter(Boolean).length;
+        const filledPct = Math.round((filledCount / 9) * 100);
+
+        return (
+          <div className="space-y-7">
+
+            {/* Score bar */}
+            <div className="flex items-center gap-4 px-4 py-3 rounded-2xl bg-yellow-500/5 border border-yellow-500/20">
+              <Icon name="MagnifyingGlassIcon" size={18} className="text-yellow-400 shrink-0" />
+              <div className="flex-1">
+                <p className="text-white text-sm font-montserrat font-semibold">SEO Configuration</p>
+                <p className="text-neutral-500 text-xs font-montserrat mt-0.5">Fill all fields for maximum Google discoverability</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="text-right shrink-0">
+                <p className="text-yellow-400 text-xs font-montserrat font-bold">{filledPct}%</p>
+                <p className="text-neutral-600 text-xs font-montserrat">filled</p>
+              </div>
+            </div>
+
+            <div className="border-t border-white/8" />
+
+            {/* On-Page SEO */}
+            <section>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <p className="text-sm font-semibold text-white font-montserrat">On-Page SEO</p>
+              </div>
+              <p className="text-xs text-neutral-500 font-montserrat mb-4">Directly impacts your Google search snippet.</p>
+              <div className="space-y-4">
+
                 <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Meta Title</label>
-                  <input type="text" value={form.seoData?.metaTitle || ''}
-                    onChange={(e) => setField('seoData', { ...form.seoData, metaTitle: e.target.value })}
-                    placeholder="SEO page title (55–60 chars)"
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Focus Keyword</label>
+                  <input type="text" value={seo.focusKeyword || ''}
+                    onChange={(e) => setSeoField('focusKeyword', e.target.value)}
+                    placeholder="e.g. Kantara Chapter 1 review"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
                   />
-                  <p className="text-[10px] text-neutral-600 mt-0.5">{(form.seoData?.metaTitle || '').length}/60</p>
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">The single phrase you most want to rank for.</p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider">Meta Title</label>
+                    <span className={`text-[10px] font-montserrat ${scoreColor(titleScore)}`}>
+                      {scoreLabel(titleScore, metaTitleLen, 60)}
+                    </span>
+                  </div>
+                  <input type="text" value={seo.metaTitle || ''}
+                    onChange={(e) => setSeoField('metaTitle', e.target.value)}
+                    placeholder={`${form.title || 'Review Title'} — Celebrity Persona`}
+                    className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${
+                      titleScore === 'long' ? 'border-amber-500/40 focus:border-amber-500/60' :
+                      titleScore === 'good' ? 'border-emerald-500/30 focus:border-emerald-500/60' : 'border-white/10 focus:border-yellow-500/60'
+                    }`}
+                  />
+                  <div className="mt-1.5 h-1 rounded-full bg-white/8 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${
+                      titleScore === 'good' ? 'bg-emerald-500' : titleScore === 'long' ? 'bg-amber-500' : 'bg-neutral-700'
+                    }`} style={{ width: `${Math.min(100, (metaTitleLen / 60) * 100)}%` }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider">Meta Description (140–160 chars)</label>
+                    <span className={`text-[10px] font-montserrat ${scoreColor(descScore)}`}>
+                      {scoreLabel(descScore, metaDescLen, 160)}
+                    </span>
+                  </div>
+                  <textarea rows={3} value={seo.metaDescription || ''}
+                    onChange={(e) => setSeoField('metaDescription', e.target.value)}
+                    placeholder="A short, compelling description for Google search results. Include the focus keyword naturally."
+                    className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all resize-none ${
+                      descScore === 'long' ? 'border-amber-500/40 focus:border-amber-500/60' :
+                      descScore === 'good' ? 'border-emerald-500/30 focus:border-emerald-500/60' : 'border-white/10 focus:border-yellow-500/60'
+                    }`}
+                  />
+                  <div className="mt-1.5 h-1 rounded-full bg-white/8 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${
+                      descScore === 'good' ? 'bg-emerald-500' : descScore === 'long' ? 'bg-amber-500' : 'bg-neutral-700'
+                    }`} style={{ width: `${Math.min(100, (metaDescLen / 160) * 100)}%` }} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Meta Keywords (one per line)</label>
+                  <textarea rows={3} value={joinLines(seo.metaKeywords)}
+                    onChange={(e) => setSeoField('metaKeywords', splitLines(e.target.value))}
+                    placeholder={"Kantara review\nRishab Shetty\nIndian action drama 2022"}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">{(seo.metaKeywords || []).length} keywords</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Canonical URL</label>
+                  <input type="url" value={seo.canonicalUrl || ''}
+                    onChange={(e) => setSeoField('canonicalUrl', e.target.value)}
+                    placeholder={`https://celebritypersona.com/reviews/${form.slug || 'review-slug'}`}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Prevents duplicate-content penalties. Leave blank to use the page URL.</p>
+                </div>
+              </div>
+            </section>
+
+            <div className="border-t border-white/8" />
+
+            {/* Open Graph */}
+            <section>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-blue-400" />
+                <p className="text-sm font-semibold text-white font-montserrat">Open Graph (Facebook / LinkedIn)</p>
+              </div>
+              <p className="text-xs text-neutral-500 font-montserrat mb-4">Controls how the page looks when shared on social media.</p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Title</label>
+                  <input type="text" value={seo.ogTitle || ''}
+                    onChange={(e) => setSeoField('ogTitle', e.target.value)}
+                    placeholder={seo.metaTitle || form.title || 'Review Title'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Canonical URL</label>
-                  <input type="url" value={form.seoData?.canonicalUrl || ''}
-                    onChange={(e) => setField('seoData', { ...form.seoData, canonicalUrl: e.target.value })}
-                    placeholder="https://celebritypersona.com/reviews/..."
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Description</label>
+                  <textarea rows={2} value={seo.ogDescription || ''}
+                    onChange={(e) => setSeoField('ogDescription', e.target.value)}
+                    placeholder={seo.metaDescription || 'A compelling description for social sharing…'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Image</label>
+                  <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all mb-2 ${
+                    ogImageUpload.uploading ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+                  }`}>
+                    <input type="file" accept="image/*" className="sr-only" disabled={ogImageUpload.uploading}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleOgImageUpload(f); e.target.value = ''; }}
+                    />
+                    {ogImageUpload.uploading ? (
+                      <><span className="text-yellow-400 text-sm font-montserrat">Uploading…</span>
+                        <div className="ml-auto h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${ogImageUpload.progress}%` }} />
+                        </div>
+                      </>
+                    ) : (
+                      <><span className="text-2xl">🖼️</span>
+                        <div>
+                          <p className="text-sm text-white font-montserrat font-medium">Upload OG Image</p>
+                          <p className="text-xs text-neutral-500 font-montserrat">Uploads to Firebase · 1200 × 630 px recommended</p>
+                        </div>
+                        {ogImage && <span className="ml-auto text-[10px] text-emerald-400 font-montserrat">✓ Set</span>}
+                      </>
+                    )}
+                  </label>
+                  {ogImageUpload.error && <p className="text-red-400 text-xs font-montserrat mb-2">{ogImageUpload.error}</p>}
+                  <input type="url" value={ogImage}
+                    onChange={(e) => setForm((p) => ({ ...p, seoData: { ...(p.seoData || {}), ogImages: e.target.value ? [e.target.value] : [] } }))}
+                    placeholder="Or paste an image URL (https://…)"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                  {ogImage && (
+                    <div className="mt-2 relative rounded-xl overflow-hidden border border-white/10 h-28 bg-black/20">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={ogImage} alt="OG preview" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setForm((p) => ({ ...p, seoData: { ...(p.seoData || {}), ogImages: [] } }))}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-red-500/80 transition-all">✕</button>
+                    </div>
+                  )}
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to default to the review poster.</p>
+                </div>
+              </div>
+            </section>
+
+            <div className="border-t border-white/8" />
+
+            {/* Twitter / X Card */}
+            <section>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-sky-400" />
+                <p className="text-sm font-semibold text-white font-montserrat">Twitter / X Card</p>
+              </div>
+              <p className="text-xs text-neutral-500 font-montserrat mb-4">Controls appearance in Twitter / X previews.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">Card Type</label>
+                  <div className="flex gap-3">
+                    {(['summary', 'summary_large_image'] as const).map((type) => (
+                      <button key={type} type="button"
+                        onClick={() => setSeoField('twitterCard', type)}
+                        className={`flex-1 px-3 py-2.5 rounded-xl border text-xs font-montserrat font-medium transition-all ${
+                          seo.twitterCard === type
+                            ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
+                            : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:bg-white/10'
+                        }`}>
+                        {type === 'summary' ? '□  Summary' : '▬  Large Image'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Creator Handle</label>
+                  <input type="text" value={seo.twitterCreator || ''}
+                    onChange={(e) => setSeoField('twitterCreator', e.target.value)}
+                    placeholder="@handle"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Title</label>
+                  <input type="text" value={seo.twitterTitle || ''}
+                    onChange={(e) => setSeoField('twitterTitle', e.target.value)}
+                    placeholder={seo.metaTitle || form.title || 'Review Title'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to inherit Meta Title.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Description</label>
+                  <textarea rows={2} value={seo.twitterDescription || ''}
+                    onChange={(e) => setSeoField('twitterDescription', e.target.value)}
+                    placeholder={seo.metaDescription || 'Description shown in Twitter card preview…'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to inherit Meta Description.</p>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Meta Description</label>
-                  <textarea value={form.seoData?.metaDescription || ''} rows={2}
-                    onChange={(e) => setField('seoData', { ...form.seoData, metaDescription: e.target.value })}
-                    placeholder="SEO meta description (150–160 chars)"
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Image</label>
+                  <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all mb-2 ${
+                    twitterImageUpload.uploading ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+                  }`}>
+                    <input type="file" accept="image/*" className="sr-only" disabled={twitterImageUpload.uploading}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTwitterImageUpload(f); e.target.value = ''; }}
+                    />
+                    {twitterImageUpload.uploading ? (
+                      <><span className="text-yellow-400 text-sm font-montserrat">Uploading…</span>
+                        <div className="ml-auto h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${twitterImageUpload.progress}%` }} />
+                        </div>
+                      </>
+                    ) : (
+                      <><span className="text-2xl">🐦</span>
+                        <div>
+                          <p className="text-sm text-white font-montserrat font-medium">Upload Twitter Image</p>
+                          <p className="text-xs text-neutral-500 font-montserrat">Uploads to Firebase · min 120×120; large card: 1200×600 px</p>
+                        </div>
+                        {seo.twitterImage && <span className="ml-auto text-[10px] text-emerald-400 font-montserrat">✓ Set</span>}
+                      </>
+                    )}
+                  </label>
+                  {twitterImageUpload.error && <p className="text-red-400 text-xs font-montserrat mb-2">{twitterImageUpload.error}</p>}
+                  <input type="url" value={seo.twitterImage || ''}
+                    onChange={(e) => setSeoField('twitterImage', e.target.value)}
+                    placeholder={ogImage || 'Or paste an image URL (https://…)'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
                   />
-                  <p className="text-[10px] text-neutral-600 mt-0.5">{(form.seoData?.metaDescription || '').length}/160</p>
+                  {seo.twitterImage && (
+                    <div className="mt-2 relative rounded-xl overflow-hidden border border-white/10 h-28 bg-black/20">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={seo.twitterImage} alt="Twitter image preview" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setSeoField('twitterImage', '')}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-red-500/80 transition-all">✕</button>
+                    </div>
+                  )}
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to fall back to OG Image.</p>
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Meta Keywords (one per line)</label>
-                  <textarea value={(form.seoData?.metaKeywords || []).join('\n')} rows={3}
-                    onChange={(e) => setField('seoData', { ...form.seoData, metaKeywords: splitLines(e.target.value) })}
-                    placeholder={"Thamma review\nAyushmann Khurrana\nHorror comedy 2025"}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-                  />
-                </div>
+              </div>
+            </section>
+
+            <div className="border-t border-white/8" />
+
+            {/* Structured Data */}
+            <section>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-purple-400" />
+                <p className="text-sm font-semibold text-white font-montserrat">Structured Data (Schema.org)</p>
+              </div>
+              <p className="text-xs text-neutral-500 font-montserrat mb-4">Enables rich results and enhanced snippets in Google.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Robots</label>
-                  <select value={form.seoData?.robots || 'index,follow'}
-                    onChange={(e) => setField('seoData', { ...form.seoData, robots: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#1a1330] border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer"
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Schema Type</label>
+                  <select value={seo.schemaType || 'Review'}
+                    onChange={(e) => setSeoField('schemaType', e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer"
                   >
-                    <option value="index,follow">index, follow</option>
-                    <option value="noindex,follow">noindex, follow</option>
-                    <option value="index,nofollow">index, nofollow</option>
-                    <option value="noindex,nofollow">noindex, nofollow</option>
+                    {['Review', 'Movie', 'Article', 'NewsArticle', 'CreativeWork'].map((t) => (
+                      <option key={t} value={t} style={{ background: '#2b1433' }}>{t}</option>
+                    ))}
+                  </select>
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Review for movie reviews, Movie for the film itself.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Structured Data Depth</label>
+                  <select value={seo.structuredDataDepth || 'minimal'}
+                    onChange={(e) => setSeoField('structuredDataDepth', e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer"
+                  >
+                    {['minimal', 'standard', 'full'].map((d) => (
+                      <option key={d} value={d} style={{ background: '#2b1433' }}>{d}</option>
+                    ))}
                   </select>
                 </div>
               </div>
-            </div>
-          </div>
+            </section>
 
-          {/* Open Graph */}
-          <div>
-            <p className="text-[11px] text-neutral-500 font-montserrat uppercase tracking-wider mb-3 border-t border-white/5 pt-4">Open Graph</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">OG Title</label>
-                <input type="text" value={form.seoData?.ogTitle || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, ogTitle: e.target.value })}
-                  placeholder="Leave blank to use Meta Title"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">OG URL</label>
-                <input type="url" value={form.seoData?.ogUrl || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, ogUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">OG Description</label>
-                <textarea value={form.seoData?.ogDescription || ''} rows={2}
-                  onChange={(e) => setField('seoData', { ...form.seoData, ogDescription: e.target.value })}
-                  placeholder="Leave blank to use Meta Description"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-                />
-              </div>
-            </div>
-          </div>
+            <div className="border-t border-white/8" />
 
-          {/* Twitter Card */}
-          <div>
-            <p className="text-[11px] text-neutral-500 font-montserrat uppercase tracking-wider mb-3 border-t border-white/5 pt-4">Twitter Card</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Twitter Title</label>
-                <input type="text" value={form.seoData?.twitterTitle || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, twitterTitle: e.target.value })}
-                  placeholder="Leave blank to use Meta Title"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
+            {/* Robots / Crawlability */}
+            <section>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-red-400" />
+                <p className="text-sm font-semibold text-white font-montserrat">Robots / Crawlability</p>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Twitter Image URL</label>
-                <input type="url" value={form.seoData?.twitterImage || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, twitterImage: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
+              <p className="text-xs text-neutral-500 font-montserrat mb-4">Controls what Googlebot and other crawlers are allowed to do on this page.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  !seo.noindex ? 'bg-emerald-500/8 border-emerald-500/25' : 'bg-red-500/8 border-red-500/20'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold font-montserrat text-white">Index this page</p>
+                      <p className="text-xs text-neutral-500 font-montserrat mt-0.5">Allow Google to include it in search results</p>
+                    </div>
+                    <button type="button" onClick={() => setSeoField('noindex', !seo.noindex)}
+                      className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${
+                        !seo.noindex ? 'bg-emerald-500' : 'bg-white/10'
+                      }`}>
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+                        !seo.noindex ? 'left-5' : 'left-0.5'
+                      }`} />
+                    </button>
+                  </div>
+                  <p className={`text-[10px] font-montserrat mt-2 font-semibold ${
+                    !seo.noindex ? 'text-emerald-400' : 'text-red-400'
+                  }`}>{!seo.noindex ? 'index' : 'noindex'}</p>
+                </div>
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  !seo.nofollow ? 'bg-emerald-500/8 border-emerald-500/25' : 'bg-amber-500/8 border-amber-500/20'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold font-montserrat text-white">Follow links</p>
+                      <p className="text-xs text-neutral-500 font-montserrat mt-0.5">Allow crawlers to follow links on this page</p>
+                    </div>
+                    <button type="button" onClick={() => setSeoField('nofollow', !seo.nofollow)}
+                      className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${
+                        !seo.nofollow ? 'bg-emerald-500' : 'bg-white/10'
+                      }`}>
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+                        !seo.nofollow ? 'left-5' : 'left-0.5'
+                      }`} />
+                    </button>
+                  </div>
+                  <p className={`text-[10px] font-montserrat mt-2 font-semibold ${
+                    !seo.nofollow ? 'text-emerald-400' : 'text-amber-400'
+                  }`}>{!seo.nofollow ? 'follow' : 'nofollow'}</p>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Twitter Creator</label>
-                <input type="text" value={form.seoData?.twitterCreator || ''}
-                  onChange={(e) => setField('seoData', { ...form.seoData, twitterCreator: e.target.value })}
-                  placeholder="@handle"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
+              <div className="mt-3 px-3 py-2 rounded-xl bg-black/30 border border-white/8">
+                <p className="text-[10px] text-neutral-500 font-montserrat">Generated tag preview:</p>
+                <code className="text-xs text-yellow-300/80 font-mono">
+                  {`<meta name="robots" content="${!seo.noindex ? 'index' : 'noindex'}, ${!seo.nofollow ? 'follow' : 'nofollow'}" />`}
+                </code>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Twitter Card Type</label>
-                <select value={form.seoData?.twitterCard || 'summary_large_image'}
-                  onChange={(e) => setField('seoData', { ...form.seoData, twitterCard: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-[#1a1330] border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer"
-                >
-                  <option value="summary_large_image">summary_large_image</option>
-                  <option value="summary">summary</option>
-                  <option value="app">app</option>
-                  <option value="player">player</option>
-                </select>
-              </div>
-            </div>
+            </section>
+
           </div>
-        </div>
-      );
+        );
+      }
 
       // ── CONTENT / REVIEW TEXT ──────────────────────────────────────────
       case 'content': return (
@@ -1188,39 +1661,87 @@ export default function ReviewManagementSection() {
               </div>
             ) : (
               <div className="space-y-2">
-                {(form.movieDetails?.cast || []).map((member, i) => (
-                  <div key={i} className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-white/5 border border-white/10 relative">
-                    <button type="button" onClick={() => removeCast(i)}
-                      className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
-                    >
-                      <Icon name="XMarkIcon" size={12} />
-                    </button>
-                    <div>
-                      <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Name *</label>
-                      <input type="text" value={member.name}
-                        onChange={(e) => updateCast(i, 'name', e.target.value)}
-                        placeholder="Actor name"
-                        className="w-full px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
-                      />
+                {(form.movieDetails?.cast || []).map((member, i) => {
+                  const isDropdownOpen = activeCastDropdown === i;
+                  return (
+                    <div key={i} className="p-3 rounded-xl bg-white/5 border border-white/10 relative">
+                      <button type="button" onClick={() => removeCast(i)}
+                        className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all z-10"
+                      >
+                        <Icon name="XMarkIcon" size={12} />
+                      </button>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {/* Celebrity picker */}
+                        <div className="relative" ref={(el) => { castDropdownRefs.current[i] = el; }}>
+                          <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Celebrity <span className="text-yellow-400">*</span></label>
+                          <button type="button"
+                            onClick={() => setActiveCastDropdown(isDropdownOpen ? null : i)}
+                            className="w-full text-left px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {member.image && <img src={member.image} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />}
+                              <span className={member.name ? 'text-white truncate' : 'text-neutral-500'}>
+                                {member.name || 'Select celebrity…'}
+                              </span>
+                            </div>
+                            <Icon name={isDropdownOpen ? 'ChevronUpIcon' : 'ChevronDownIcon'} size={13} className="shrink-0 ml-1" />
+                          </button>
+
+                          {isDropdownOpen && (
+                            <div className="absolute z-50 left-0 right-0 mt-1.5 rounded-xl bg-[#060316]/95 border border-white/10 backdrop-blur-sm overflow-hidden">
+                              <div className="p-2 border-b border-white/10">
+                                <div className="relative">
+                                  <Icon name="MagnifyingGlassIcon" size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-neutral-500" />
+                                  <input type="text" value={celebritySearch}
+                                    onChange={(e) => setCelebritySearch(e.target.value)}
+                                    placeholder="Search celebrities…"
+                                    autoFocus
+                                    className="w-full pl-6 pr-6 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
+                                  />
+                                  {loadingCelebrities && <Icon name="ArrowPathIcon" size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 animate-spin" />}
+                                </div>
+                              </div>
+                              <div className="max-h-48 overflow-y-auto">
+                                {celebrities.length > 0 ? celebrities.map((celeb) => (
+                                  <button key={celeb.id} type="button"
+                                    onClick={() => handleSelectCelebrity(i, celeb)}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/10 transition-all text-left"
+                                  >
+                                    {celeb.profileImage
+                                      ? <img src={celeb.profileImage} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                                      : <div className="w-8 h-8 rounded-full bg-neutral-700 shrink-0 flex items-center justify-center"><Icon name="UserIcon" size={14} className="text-neutral-400" /></div>
+                                    }
+                                    <span className="text-white text-xs font-montserrat truncate">{celeb.name}</span>
+                                  </button>
+                                )) : (
+                                  <div className="px-3 py-4 text-xs font-montserrat text-center text-neutral-500">
+                                    {loadingCelebrities
+                                      ? <span className="flex items-center justify-center gap-1.5"><Icon name="ArrowPathIcon" size={12} className="animate-spin" /> Loading…</span>
+                                      : celebritySearchError ? <span className="text-red-400">{celebritySearchError}</span>
+                                      : celebritySearch.trim() ? 'No celebrities found'
+                                      : 'Start typing to search'
+                                    }
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Character */}
+                        <div>
+                          <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Character</label>
+                          <input type="text" value={member.character || ''}
+                            onChange={(e) => updateCast(i, 'character', e.target.value)}
+                            placeholder="Character name"
+                            className="w-full px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Character</label>
-                      <input type="text" value={member.character || ''}
-                        onChange={(e) => updateCast(i, 'character', e.target.value)}
-                        placeholder="Character name"
-                        className="w-full px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-medium text-neutral-500 mb-1 font-montserrat uppercase tracking-wider">Image URL</label>
-                      <input type="url" value={member.image || ''}
-                        onChange={(e) => updateCast(i, 'image', e.target.value)}
-                        placeholder="https://..."
-                        className="w-full px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1246,7 +1767,12 @@ export default function ReviewManagementSection() {
                 <input
                   type="number" min="0" max={max} step="0.1"
                   value={form.scores?.[key] ?? ''}
-                  onChange={(e) => setScoreField(key, e.target.value ? parseFloat(e.target.value) : undefined)}
+                  onChange={(e) => {
+                    if (e.target.value === '') { setScoreField(key, undefined); return; }
+                    const v = parseFloat(e.target.value);
+                    if (isNaN(v)) return;
+                    setScoreField(key, parseFloat(Math.min(max, Math.max(0, v)).toFixed(1)));
+                  }}
                   placeholder={placeholder}
                   className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
                 />
@@ -1291,7 +1817,7 @@ export default function ReviewManagementSection() {
       )}
 
       {/* Stats */}
-      {panelMode !== 'add' && (
+      {!panelMode && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Total',     value: total,                                           icon: 'DocumentTextIcon',   color: 'text-yellow-400'  },
@@ -1333,7 +1859,7 @@ export default function ReviewManagementSection() {
           >
             <Icon name="ArrowPathIcon" size={16} className={loading ? 'animate-spin' : ''} />
           </button>
-          {panelMode === 'add' ? (
+          {panelMode ? (
             <button onClick={closePanel}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 font-semibold font-montserrat text-sm hover:bg-white/20 transition-all"
             >
@@ -1350,7 +1876,7 @@ export default function ReviewManagementSection() {
       </div>
 
       {/* Error */}
-      {panelMode !== 'add' && fetchError && (
+      {!panelMode && fetchError && (
         <div className="glass-card rounded-2xl p-4 border border-red-500/20 bg-red-500/10 flex items-center gap-3">
           <Icon name="ExclamationCircleIcon" size={18} className="text-red-400 shrink-0" />
           <p className="text-red-400 text-sm font-montserrat flex-1">{fetchError}</p>
@@ -1362,13 +1888,13 @@ export default function ReviewManagementSection() {
       {panelMode && (
         <div ref={panelRef} className="glass-card rounded-2xl border border-yellow-500/20 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-yellow-500/10">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-4 border-b border-white/10">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="p-2.5 rounded-xl bg-yellow-500/10 shrink-0">
                 <Icon name={panelMode === 'add' ? 'PlusCircleIcon' : 'PencilSquareIcon'} size={20} className="text-yellow-400" />
               </div>
-              <div>
-                <h3 className="font-playfair text-lg font-bold text-white">
+              <div className="min-w-0">
+                <h3 className="font-playfair text-base sm:text-lg font-bold text-white truncate">
                   {panelMode === 'add' ? 'Add Movie Review' : `Editing — ${form.title || '...'}`}
                 </h3>
                 <p className="text-neutral-500 text-xs font-montserrat">
@@ -1376,7 +1902,7 @@ export default function ReviewManagementSection() {
                 </p>
               </div>
             </div>
-            <button onClick={closePanel} className="p-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all">
+            <button onClick={closePanel} className="self-end sm:self-auto p-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all">
               <Icon name="XMarkIcon" size={18} />
             </button>
           </div>
@@ -1413,21 +1939,34 @@ export default function ReviewManagementSection() {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-white/10">
-                <p className="text-neutral-600 text-xs font-montserrat">* Required fields</p>
-                <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-4 border-t border-white/10">
+                <div className="flex items-center gap-3">
+                  <p className="text-neutral-600 text-xs font-montserrat">* Required fields</p>
+                  {form.status && (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-montserrat capitalize ${STATUS_COLORS[form.status] || STATUS_COLORS.draft}`}>
+                      {form.status}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-3 sm:ml-auto">
                   <button type="button" onClick={closePanel}
-                    className="px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
+                    className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
                   >
                     Cancel
                   </button>
-                  <button type="submit" disabled={formLoading}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  <button type="button" onClick={handleSaveDraft} disabled={draftLoading || formLoading}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 hover:text-white hover:bg-white/20 font-montserrat text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-white/10"
+                  >
+                    {draftLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
+                    {draftLoading ? 'Saving Draft...' : 'Save as Draft'}
+                  </button>
+                  <button type="submit" disabled={formLoading || draftLoading}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {formLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
                     {formLoading
                       ? (panelMode === 'add' ? 'Creating...' : 'Saving...')
-                      : (panelMode === 'add' ? 'Create Review' : 'Save Changes')}
+                      : (panelMode === 'add' ? 'Publish Review' : 'Save & Publish')}
                   </button>
                 </div>
               </div>
@@ -1437,10 +1976,24 @@ export default function ReviewManagementSection() {
       )}
 
       {/* Table */}
-      {panelMode !== 'add' && (
+      {!panelMode && (
         <div className="glass-card rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
             <h3 className="font-playfair text-xl font-bold text-white">Movie Reviews</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              {(['', 'draft', 'published'] as const).map((s) => (
+                <button key={s} type="button"
+                  onClick={() => { setStatusFilter(s); fetchList(1); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium font-montserrat transition-all ${
+                    statusFilter === s
+                      ? s === 'published' ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/30'
+                        : s === 'draft'   ? 'bg-yellow-500/25 text-yellow-300 border border-yellow-500/30'
+                        : 'bg-white/15 text-white border border-white/20'
+                      : 'bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/5'
+                  }`}
+                >{s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}</button>
+              ))}
+            </div>
             {!loading && (
               <span className="text-neutral-400 text-sm font-montserrat">
                 {total > 0 ? `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total}` : '0 results'}
@@ -1452,20 +2005,28 @@ export default function ReviewManagementSection() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/10">
-                  {['Review', 'Movie', 'Author', 'Rating', 'Published', 'Featured', 'Actions'].map((h) => (
-                    <th key={h} className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">{h}</th>
-                  ))}
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Review</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden md:table-cell">Movie</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden lg:table-cell">Author</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Rating</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Status</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden lg:table-cell">Published</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Featured</th>
+                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading
                   ? skeletonRows.map((_, i) => (
                       <tr key={i} className="border-b border-white/5">
-                        {[200, 160, 110, 60, 80, 55, 70].map((w, j) => (
-                          <td key={j} className="py-3.5 px-3">
-                            <div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: w }} />
-                          </td>
-                        ))}
+                        <td className="py-3.5 px-3"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 200 }} /></td>
+                        <td className="py-3.5 px-3 hidden md:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 160 }} /></td>
+                        <td className="py-3.5 px-3 hidden lg:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 110 }} /></td>
+                        <td className="py-3.5 px-3 hidden sm:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 60 }} /></td>
+                        <td className="py-3.5 px-3 hidden sm:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 80 }} /></td>
+                        <td className="py-3.5 px-3 hidden lg:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 80 }} /></td>
+                        <td className="py-3.5 px-3 hidden sm:table-cell"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 55 }} /></td>
+                        <td className="py-3.5 px-3"><div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: 70 }} /></td>
                       </tr>
                     ))
                   : reviews.map((r) => (
@@ -1487,24 +2048,43 @@ export default function ReviewManagementSection() {
                           </div>
                         </td>
                         {/* Movie */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden md:table-cell">
                           <p className="text-neutral-300 text-sm font-montserrat line-clamp-1 max-w-[160px]">{r.movieTitle}</p>
                         </td>
                         {/* Author */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden lg:table-cell">
                           <p className="text-neutral-400 text-sm font-montserrat">{r.authorName || '—'}</p>
                         </td>
                         {/* Rating */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden sm:table-cell">
                           <span className={`font-playfair text-lg font-bold ${ratingColor(r.rating)}`}>{r.rating}</span>
                           <span className="text-neutral-600 text-xs font-montserrat">/10</span>
                         </td>
+                        {/* Status */}
+                        <td className="py-3.5 px-3 hidden sm:table-cell">
+                          <div className="inline-flex rounded-lg overflow-hidden border border-white/10">
+                            <button onClick={() => handleStatusToggle(r, 'draft')} disabled={!!busyMap[r.id]}
+                              title="Set to Draft"
+                              className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
+                                (r.status || 'published') === 'draft'
+                                  ? 'bg-yellow-500/25 text-yellow-300'
+                                  : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
+                              }`}>Draft</button>
+                            <button onClick={() => handleStatusToggle(r, 'published')} disabled={!!busyMap[r.id]}
+                              title="Set to Published"
+                              className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
+                                r.status === 'published'
+                                  ? 'bg-emerald-500/25 text-emerald-300'
+                                  : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
+                              }`}>Published</button>
+                          </div>
+                        </td>
                         {/* Published */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden lg:table-cell">
                           <p className="text-neutral-400 text-xs font-montserrat">{formatDate(r.publishDate || r.createdAt)}</p>
                         </td>
                         {/* Featured */}
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 hidden sm:table-cell">
                           <button onClick={() => handleToggleFeatured(r)} title={r.featured ? 'Unfeature' : 'Feature'}
                             className={`w-10 h-5 rounded-full transition-all relative ${r.featured ? 'bg-yellow-500' : 'bg-white/10'}`}
                           >
@@ -1529,7 +2109,7 @@ export default function ReviewManagementSection() {
 
                 {!loading && !fetchError && reviews.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center">
+                    <td colSpan={8} className="py-16 text-center">
                       <Icon name="DocumentTextIcon" size={40} className="mx-auto mb-3 text-neutral-700" />
                       <p className="text-neutral-500 font-montserrat text-sm">No reviews found</p>
                       <button onClick={openAdd} className="mt-3 text-yellow-400 text-sm font-montserrat hover:underline">

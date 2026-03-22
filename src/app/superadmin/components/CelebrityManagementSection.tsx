@@ -3,12 +3,55 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import { buildNetWorthString, parseNetWorthString } from '@/lib/netWorth';
 import { useAuth } from '@/context/AuthContext';
 import { uploadImage, deleteImage } from '@/lib/imageUpload';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
+
+interface CelebrityMovie {
+  _id?: string;
+  name: string;
+  role: string;
+  year: string;
+  director: string;
+  genre: string;
+  description: string;
+}
+
+interface CelebrityWebSeries {
+  _id?: string;
+  name: string;
+  role: string;
+  seasons: string;
+  year: string;
+  platform: string;
+  genre: string;
+  description: string;
+}
+
+interface CelebrityTvShow {
+  _id?: string;
+  name: string;
+  role: string;
+  seasons: string;
+  year: string;
+  channel: string;
+  genre: string;
+  description: string;
+}
+
+interface CelebrityAward {
+  _id?: string;
+  title: string;
+  category: string;
+  year: string;
+  organization: string;
+  work: string;
+  description: string;
+}
 
 interface CelebrityRow {
   id: string;
@@ -17,8 +60,7 @@ interface CelebrityRow {
   nationality?: string;
   occupation?: string[];
   profileImage?: string;
-  status?: 'draft' | 'published' | 'archived';
-  isActive: boolean;
+  status?: 'draft' | 'published';
   isFeatured?: boolean;
   isVerified?: boolean;
   popularity?: number;
@@ -60,19 +102,26 @@ interface CelebrityFull extends CelebrityRow {
   philanthropy?: string[];
   trivia?: string[];
   works?: string[];
+  movies?: CelebrityMovie[];
+  webSeries?: CelebrityWebSeries[];
+  tvShows?: CelebrityTvShow[];
+  awards?: CelebrityAward[];
   quotes?: string[];
   tags?: string[];
   categories?: string[];
   language?: string;
   coverImage?: string;
   galleryImages?: string[];
-  contentQuality?: 'draft' | 'review' | 'published' | 'archived';
+  // contentQuality removed — only status: draft | published is used
   socialMedia?: {
     instagram?: string;
     twitter?: string;
     facebook?: string;
     youtube?: string;
     tiktok?: string;
+    threads?: string;
+    imdb?: string;
+    wikipedia?: string;
     website?: string;
   };
   seo?: {
@@ -85,6 +134,9 @@ interface CelebrityFull extends CelebrityRow {
     ogDescription?: string;
     ogImage?: string;
     twitterCard?: 'summary' | 'summary_large_image';
+    twitterTitle?: string;
+    twitterDescription?: string;
+    twitterImage?: string;
     twitterCreator?: string;
     schemaType?: string;
     breadcrumbTitle?: string;
@@ -93,9 +145,10 @@ interface CelebrityFull extends CelebrityRow {
     articleSection?: string;
     readingTime?: string;
   };
+  marriages?: { name?: string; marriedYear?: string; divorcedYear?: string; currentlyMarried?: boolean }[];
 }
 
-type FormTab = 'basic' | 'intro' | 'earlyLife' | 'career' | 'personalLife' | 'achievements' | 'controversies' | 'social' | 'meta' | 'images';
+type FormTab = 'basic' | 'biography' | 'social' | 'movies' | 'webSeries' | 'tvShows' | 'awards' | 'meta' | 'images';
 type Toast   = { type: 'success' | 'error'; message: string } | null;
 type PanelMode = 'add' | 'edit' | null;
 
@@ -107,15 +160,16 @@ const EMPTY_FORM: CelebrityFull = {
   netWorth: '', introduction: '', earlyLife: '', career: '', personalLife: '',
   netWorthAmount: '', netWorthUnit: 'USD',
   achievements: [], controversies: [], achievementsHtml: '', controversiesHtml: '',
-  philanthropy: [], trivia: [], works: [],
+  philanthropy: [], trivia: [], works: [], movies: [], webSeries: [], tvShows: [], awards: [],
+  marriages: [],
   quotes: [], tags: [], categories: [], language: 'en', profileImage: '',
   coverImage: '', galleryImages: [],
-  status: 'draft', contentQuality: 'draft', isActive: true, isFeatured: false, isVerified: false,
-  socialMedia: { instagram: '', twitter: '', facebook: '', youtube: '', tiktok: '', website: '' },
+  status: 'draft', isFeatured: false, isVerified: false,
+  socialMedia: { instagram: '', twitter: '', facebook: '', youtube: '', tiktok: '', threads: '', imdb: '', wikipedia: '', website: '' },
   seo: {
     metaTitle: '', metaDescription: '', focusKeyword: '', keywords: [],
     canonicalUrl: '', ogTitle: '', ogDescription: '', ogImage: '',
-    twitterCard: 'summary_large_image', twitterCreator: '',
+    twitterCard: 'summary_large_image', twitterTitle: '', twitterDescription: '', twitterImage: '', twitterCreator: '',
     schemaType: 'Person', breadcrumbTitle: '',
     robotsIndex: true, robotsFollow: true,
     articleSection: '', readingTime: '',
@@ -124,21 +178,19 @@ const EMPTY_FORM: CelebrityFull = {
 
 const STATUS_COLORS: Record<string, string> = {
   published: 'bg-emerald-500/20 text-emerald-400',
-  draft:     'bg-neutral-500/20 text-neutral-400',
-  archived:  'bg-red-500/20 text-red-400',
+  draft:     'bg-yellow-500/20 text-yellow-400',
 };
 
 const TABS: { key: FormTab; label: string; icon: string }[] = [
-  { key: 'basic',          label: 'Basic',         icon: 'IdentificationIcon'        },
-  { key: 'intro',          label: 'Intro',         icon: 'DocumentTextIcon'          },
-  { key: 'earlyLife',      label: 'Early Life',    icon: 'BookOpenIcon'              },
-  { key: 'career',         label: 'Career',        icon: 'BriefcaseIcon'             },
-  { key: 'personalLife',   label: 'Personal',      icon: 'UserCircleIcon'            },
-  { key: 'achievements',   label: 'Achievements',  icon: 'SparklesIcon'              },
-  { key: 'controversies',  label: 'Controversies', icon: 'ExclamationTriangleIcon'   },
-  { key: 'social',         label: 'Social',        icon: 'GlobeAltIcon'              },
-  { key: 'meta',           label: 'Meta',          icon: 'TagIcon'                   },
-  { key: 'images',         label: 'Images',        icon: 'PhotoIcon'                 },
+  { key: 'basic',      label: 'Basic',     icon: 'IdentificationIcon' },
+  { key: 'social',     label: 'Social',    icon: 'GlobeAltIcon'       },
+  { key: 'biography',  label: 'Biography', icon: 'BookOpenIcon'       },
+  { key: 'images',     label: 'Images',    icon: 'PhotoIcon'          },
+  { key: 'movies',     label: 'Movies',    icon: 'FilmIcon'           },
+  { key: 'webSeries',  label: 'Web Series', icon: 'TvIcon'            },
+  { key: 'tvShows',    label: 'TV Shows',  icon: 'PlayCircleIcon'     },
+  { key: 'awards',     label: 'Awards',    icon: 'TrophyIcon'         },
+  { key: 'meta',       label: 'Meta',      icon: 'TagIcon'            },
 ];
 
 const PAGE_SIZES = [10, 20, 50];
@@ -182,28 +234,8 @@ const computeAge = (born?: string) => {
   return age >= 0 ? age : undefined;
 };
 
-const computeNetWorthString = (amount?: string, unit?: string) => {
-  if (!amount) return '';
-  const a = String(amount).trim();
-  if (!a) return '';
-  if (!unit) unit = 'USD';
-  if (unit === 'INR') return `₹${a}`;
-  if (unit === 'M') return `$${a}M`;
-  if (unit === 'B') return `$${a}B`;
-  return (unit === 'USD') ? `$${a}` : `${a} ${unit}`;
-};
-
-const parseNetWorth = (raw?: string) => {
-  const r = String(raw || '').trim();
-  if (!r) return { amount: '', unit: 'USD' };
-  const num = r.replace(/[^0-9.]/g, '');
-  if (r.includes('₹') || /inr/i.test(r) || /rs\.?/i.test(r)) return { amount: num, unit: 'INR' };
-  if (/[mM]\b/.test(r)) return { amount: num, unit: 'M' };
-  if (/[bB]\b/.test(r)) return { amount: num, unit: 'B' };
-  if (r.includes('$') || /usd/i.test(r)) return { amount: num, unit: 'USD' };
-  // fallback: numeric only
-  return { amount: num, unit: 'USD' };
-};
+const computeNetWorthString = buildNetWorthString;
+const parseNetWorth = parseNetWorthString;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
@@ -212,181 +244,237 @@ const parseNetWorth = (raw?: string) => {
 function LabeledInput({ label, value, onChange, placeholder, type = 'text', hint }:
   { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; hint?: string }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+        className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
       />
       {hint && <p className="text-neutral-600 text-xs mt-1 font-montserrat">{hint}</p>}
     </div>
   );
 }
 
+function parseHeight(value: string): { unit: 'cm'|'in'|'ft'; cm: string; inch: string; feet: string } {
+  const v = (value || '').trim();
+  if (!v) return { unit: 'cm', cm: '', inch: '', feet: '' };
+  const mCm = v.match(/(\d+(?:\.\d+)?)\s*cm/i);
+  const mFt = v.match(/(\d+)\s*ft(?:\s*(\d+)\s*in)?/i);
+  const mIn = v.match(/(\d+(?:\.\d+)?)\s*in(?:ches)?/i);
+  if (mCm) return { unit: 'cm', cm: mCm[1], inch: '', feet: '' };
+  if (mFt) return { unit: 'ft', cm: '', feet: mFt[1] || '', inch: mFt[2] || '' };
+  if (mIn) return { unit: 'in', cm: '', inch: mIn[1], feet: '' };
+  const num = (v.match(/\d+(?:\.\d+)?/) || [''])[0];
+  return { unit: 'cm', cm: num || '', inch: '', feet: '' };
+}
+
+function buildHeight(unit: 'cm'|'in'|'ft', cm: string, inch: string, feet: string): string {
+  if (unit === 'cm') return cm ? `${cm} cm` : '';
+  if (unit === 'in') return inch ? `${inch} in` : '';
+  const f = feet || ''; const i = inch || '';
+  return `${f}${f && i ? ' ft ' : f ? ' ft' : ''}${i ? `${i} in` : ''}`.trim();
+}
+
 function HeightInput({ label, value, onChange, placeholder }:
   { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
-  const [unit, setUnit] = useState<'cm'|'in'|'ft'>('cm');
-  const [cm, setCm] = useState('');
-  const [inch, setInch] = useState('');
-  const [feet, setFeet] = useState('');
+  const parsed = parseHeight(value);
+  const [unit, setUnit] = useState<'cm'|'in'|'ft'>(parsed.unit);
+  const [cm, setCm] = useState(parsed.cm);
+  const [inch, setInch] = useState(parsed.inch);
+  const [feet, setFeet] = useState(parsed.feet);
 
+  // Sync from parent value when it changes externally (e.g. on edit load)
+  const prevValue = useRef(value);
   useEffect(() => {
-    const v = (value || '').trim();
-    if (!v) { setUnit('cm'); setCm(''); setFeet(''); setInch(''); return; }
-    const mCm = v.match(/(\d+(?:\.\d+)?)\s*cm/i);
-    const mFt = v.match(/(\d+)\s*ft(?:\s*(\d+)\s*in)?/i);
-    const mIn = v.match(/(\d+(?:\.\d+)?)\s*in(?:ches)?/i);
-    if (mCm) { setUnit('cm'); setCm(mCm[1]); setFeet(''); setInch(''); return; }
-    if (mFt) { setUnit('ft'); setFeet(mFt[1] || ''); setInch(mFt[2] || ''); setCm(''); return; }
-    if (mIn) { setUnit('in'); setInch(mIn[1]); setFeet(''); setCm(''); return; }
-    // fallback: try numeric as cm
-    const num = (v.match(/\d+(?:\.\d+)?/) || [''])[0];
-    setUnit('cm'); setCm(num || ''); setFeet(''); setInch('');
+    if (value === prevValue.current) return;
+    prevValue.current = value;
+    const p = parseHeight(value);
+    setUnit(p.unit); setCm(p.cm); setInch(p.inch); setFeet(p.feet);
   }, [value]);
 
-  useEffect(() => {
-    let out = '';
-    if (unit === 'cm') { if (cm) out = `${cm} cm`; }
-    else if (unit === 'in') { if (inch) out = `${inch} in`; }
-    else { const f = feet || ''; const i = inch || ''; out = `${f}${f && i ? ' ft ' : f ? ' ft' : ''}${i ? ` ${i} in` : ''}`.trim(); }
-    onChange(out);
-  }, [unit, cm, feet, inch]);
+  const inputClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
 
-  const inputClass = "w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
+  const handleUnitChange = (newUnit: 'cm'|'in'|'ft') => {
+    setUnit(newUnit);
+    onChange(buildHeight(newUnit, cm, inch, feet));
+  };
+  const handleCmChange = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setCm(s); onChange(buildHeight(unit, s, inch, feet)); };
+  const handleInchChange = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setInch(s); onChange(buildHeight(unit, cm, s, feet)); };
+  const handleFeetChange = (v: string) => { const s = v.replace(/[^0-9]/g, ''); setFeet(s); onChange(buildHeight(unit, cm, inch, s)); };
+  const handleFeetInchChange = (v: string) => { const s = v.replace(/[^0-9]/g, ''); setInch(s); onChange(buildHeight(unit, cm, s, feet)); };
 
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
-      <div className="grid grid-cols-3 gap-2 items-center">
-        <select value={unit} onChange={(e) => setUnit(e.target.value as any)} className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
+        <select value={unit} onChange={(e) => handleUnitChange(e.target.value as any)} className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
           <option value="cm" style={{ color: '#111' }}>cm</option>
           <option value="in" style={{ color: '#111' }}>in</option>
           <option value="ft" style={{ color: '#111' }}>ft + in</option>
         </select>
         {unit === 'ft' ? (
           <>
-            <input type="number" value={feet} onChange={(e) => setFeet(e.target.value.replace(/[^0-9]/g, ''))} placeholder="ft" className={`${inputClass} col-span-1`} />
-            <input type="number" value={inch} onChange={(e) => setInch(e.target.value.replace(/[^0-9]/g, ''))} placeholder="in" className={`${inputClass} col-span-1`} />
+            <input type="number" value={feet} onChange={(e) => handleFeetChange(e.target.value)} placeholder="ft" className={`${inputClass} col-span-1`} />
+            <input type="number" value={inch} onChange={(e) => handleFeetInchChange(e.target.value)} placeholder="in" className={`${inputClass} col-span-1`} />
           </>
         ) : (
-          <input type="text" value={unit === 'cm' ? cm : inch} onChange={(e) => unit === 'cm' ? setCm(e.target.value.replace(/[^0-9.]/g, '')) : setInch(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={placeholder} className={`${inputClass} col-span-2`} />
+          <input type="text" value={unit === 'cm' ? cm : inch} onChange={(e) => unit === 'cm' ? handleCmChange(e.target.value) : handleInchChange(e.target.value)} placeholder={placeholder} className={`${inputClass} sm:col-span-2`} />
         )}
       </div>
     </div>
   );
 }
 
+function parseWeight(value: string): { unit: 'kg'|'lb'; val: string } {
+  const v = (value || '').trim();
+  if (!v) return { unit: 'kg', val: '' };
+  const mKg = v.match(/(\d+(?:\.\d+)?)\s*kg/i);
+  const mLb = v.match(/(\d+(?:\.\d+)?)\s*(?:lb|lbs|pound|pounds)/i);
+  if (mKg) return { unit: 'kg', val: mKg[1] };
+  if (mLb) return { unit: 'lb', val: mLb[1] };
+  const num = (v.match(/\d+(?:\.\d+)?/) || [''])[0];
+  return { unit: 'kg', val: num || '' };
+}
+
 function WeightInput({ label, value, onChange, placeholder }:
   { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
-  const [unit, setUnit] = useState<'kg'|'lb'>('kg');
-  const [val, setVal] = useState('');
+  const parsed = parseWeight(value);
+  const [unit, setUnit] = useState<'kg'|'lb'>(parsed.unit);
+  const [val, setVal] = useState(parsed.val);
 
+  const prevValue = useRef(value);
   useEffect(() => {
-    const v = (value || '').trim();
-    if (!v) { setUnit('kg'); setVal(''); return; }
-    const mKg = v.match(/(\d+(?:\.\d+)?)\s*kg/i);
-    const mLb = v.match(/(\d+(?:\.\d+)?)\s*(?:lb|lbs|pound|pounds)/i);
-    if (mKg) { setUnit('kg'); setVal(mKg[1]); return; }
-    if (mLb) { setUnit('lb'); setVal(mLb[1]); return; }
-    const num = (v.match(/\d+(?:\.\d+)?/) || [''])[0]; setUnit('kg'); setVal(num || '');
+    if (value === prevValue.current) return;
+    prevValue.current = value;
+    const p = parseWeight(value);
+    setUnit(p.unit); setVal(p.val);
   }, [value]);
 
-  useEffect(() => { onChange(val ? `${val} ${unit}` : ''); }, [unit, val]);
+  const inputClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
 
-  const inputClass = "w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
+  const handleUnitChange = (newUnit: 'kg'|'lb') => { setUnit(newUnit); onChange(val ? `${val} ${newUnit}` : ''); };
+  const handleValChange = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setVal(s); onChange(s ? `${s} ${unit}` : ''); };
 
   return (
-    <div>
+    <div className="min-w-0 mt-4">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
-      <div className="grid grid-cols-3 gap-2 items-center">
-        <select value={unit} onChange={(e) => setUnit(e.target.value as any)} className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
+        <select value={unit} onChange={(e) => handleUnitChange(e.target.value as any)} className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
           <option value="kg" style={{ color: '#111' }}>kg</option>
           <option value="lb" style={{ color: '#111' }}>lb</option>
         </select>
-        <input type="text" value={val} onChange={(e) => setVal(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={placeholder} className={`${inputClass} col-span-2`} />
+        <input type="text" value={val} onChange={(e) => handleValChange(e.target.value)} placeholder={placeholder} className={`${inputClass} sm:col-span-2`} />
       </div>
     </div>
   );
 }
 
+function parseBodyMeasurements(value: string): { gender: 'Boy'|'Girl'; unit: 'cm'|'in'; chest: string; waist: string; hips: string; bust: string } {
+  const v = (value || '').trim();
+  if (!v) return { gender: 'Boy', unit: 'cm', chest: '', waist: '', hips: '', bust: '' };
+  const detectedUnit: 'cm'|'in' = /\bin\b|inches/i.test(v) ? 'in' : 'cm';
+  if (/girl|female|bust/i.test(v)) {
+    return {
+      gender: 'Girl', unit: detectedUnit, chest: '',
+      bust:  v.match(/bust[:\s]*(\d+(?:\.\d+)?)/i)?.[1]  || '',
+      waist: v.match(/waist[:\s]*(\d+(?:\.\d+)?)/i)?.[1] || '',
+      hips:  v.match(/hips[:\s]*(\d+(?:\.\d+)?)/i)?.[1]  || '',
+    };
+  }
+  return {
+    gender: 'Boy', unit: detectedUnit, bust: '',
+    chest: v.match(/chest[:\s]*(\d+(?:\.\d+)?)/i)?.[1] || '',
+    waist: v.match(/waist[:\s]*(\d+(?:\.\d+)?)/i)?.[1] || '',
+    hips:  v.match(/hips[:\s]*(\d+(?:\.\d+)?)/i)?.[1]  || '',
+  };
+}
+
+function buildBodyMeasurements(gender: 'Boy'|'Girl', unit: 'cm'|'in', chest: string, waist: string, hips: string, bust: string): string {
+  const u = unit;
+  const parts: string[] = [];
+  if (gender === 'Boy') {
+    if (chest) parts.push(`Chest:${chest}${u}`);
+    if (waist) parts.push(`Waist:${waist}${u}`);
+    if (hips)  parts.push(`Hips:${hips}${u}`);
+  } else {
+    if (bust)  parts.push(`Bust:${bust}${u}`);
+    if (waist) parts.push(`Waist:${waist}${u}`);
+    if (hips)  parts.push(`Hips:${hips}${u}`);
+  }
+  const out = parts.join(', ');
+  const prefix = gender === 'Boy' ? 'BoyMeasurements' : 'GirlMeasurements';
+  return out ? `${prefix}| ${out}` : '';
+}
+
 function BodyMeasurementsInput({ label, value, onChange }:
   { label: string; value: string; onChange: (v: string) => void }) {
-  const [gender, setGender] = useState<'Boy'|'Girl'>('Boy');
-  const [chest, setChest] = useState('');
-  const [waist, setWaist] = useState('');
-  const [hips, setHips] = useState('');
-  // removed inseam/dress per request
-  const [bust, setBust] = useState('');
+  const parsed = parseBodyMeasurements(value);
+  const [gender, setGender] = useState<'Boy'|'Girl'>(parsed.gender);
+  const [unit, setUnit] = useState<'cm'|'in'>(parsed.unit);
+  const [chest, setChest] = useState(parsed.chest);
+  const [waist, setWaist] = useState(parsed.waist);
+  const [hips, setHips] = useState(parsed.hips);
+  const [bust, setBust] = useState(parsed.bust);
 
+  // Sync from parent when value changes externally (e.g. on edit load)
+  const prevValue = useRef(value);
   useEffect(() => {
-    const v = (value || '').trim();
-    if (!v) { setGender('Boy'); setChest(''); setWaist(''); setHips(''); setBust(''); return; }
-    if (/girl|female|bust/i.test(v)) {
-      setGender('Girl');
-      const mBust = v.match(/bust[:\s]*(\d+(?:\.\d+)?)/i);
-      const mWaist = v.match(/waist[:\s]*(\d+(?:\.\d+)?)/i);
-      const mHips = v.match(/hips[:\s]*(\d+(?:\.\d+)?)/i);
-      setBust(mBust?.[1] || ''); setWaist(mWaist?.[1] || ''); setHips(mHips?.[1] || '');
-      setChest('');
-    } else {
-      setGender('Boy');
-      const mChest = v.match(/chest[:\s]*(\d+(?:\.\d+)?)/i);
-      const mWaist = v.match(/waist[:\s]*(\d+(?:\.\d+)?)/i);
-      const mHips = v.match(/hips[:\s]*(\d+(?:\.\d+)?)/i);
-      setChest(mChest?.[1] || ''); setWaist(mWaist?.[1] || ''); setHips(mHips?.[1] || '');
-      setBust('');
-    }
+    if (value === prevValue.current) return;
+    prevValue.current = value;
+    const p = parseBodyMeasurements(value);
+    setGender(p.gender); setUnit(p.unit); setChest(p.chest); setWaist(p.waist); setHips(p.hips); setBust(p.bust);
   }, [value]);
 
-  useEffect(() => {
-    let out = '';
-    if (gender === 'Boy') {
-      const parts = [] as string[];
-      if (chest) parts.push(`Chest:${chest}`);
-      if (waist) parts.push(`Waist:${waist}`);
-      if (hips) parts.push(`Hips:${hips}`);
-      out = parts.join(', ');
-    } else {
-      const parts = [] as string[];
-      if (bust) parts.push(`Bust:${bust}`);
-      if (waist) parts.push(`Waist:${waist}`);
-      if (hips) parts.push(`Hips:${hips}`);
-      out = parts.join(', ');
-    }
-    const final = out ? `${finalizeGender(gender)}| ${out}` : '';
-    onChange(final);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gender, chest, waist, hips, bust]);
+  const handleGenderChange = (g: 'Boy'|'Girl') => { setGender(g); onChange(buildBodyMeasurements(g, unit, chest, waist, hips, bust)); };
+  const handleUnitChange   = (u: 'cm'|'in')    => { setUnit(u);   onChange(buildBodyMeasurements(gender, u, chest, waist, hips, bust)); };
+  const handleChest = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setChest(s); onChange(buildBodyMeasurements(gender, unit, s, waist, hips, bust)); };
+  const handleWaist = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setWaist(s); onChange(buildBodyMeasurements(gender, unit, chest, s, hips, bust)); };
+  const handleHips  = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setHips(s);  onChange(buildBodyMeasurements(gender, unit, chest, waist, s, bust)); };
+  const handleBust  = (v: string) => { const s = v.replace(/[^0-9.]/g, ''); setBust(s);  onChange(buildBodyMeasurements(gender, unit, chest, waist, hips, s)); };
 
-  const inputClass = "w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
-
-  function finalizeGender(g: 'Boy'|'Girl') { return g === 'Boy' ? 'BoyMeasurements' : 'GirlMeasurements'; }
+  const selectClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer transition-all";
+  const inputClass  = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all";
+  const unitLabel   = unit === 'cm' ? 'cm' : 'in';
 
   return (
-    <div>
+    <div className="min-w-0 mt-4">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
-      <div className="grid grid-cols-3 gap-2 items-center mb-2">
-        <select value={gender} onChange={(e) => setGender(e.target.value as any)} className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none font-montserrat text-sm">
-          <option value="Boy" style={{ color: '#111' }}>Boy</option>
-          <option value="Girl" style={{ color: '#111' }}>Girl</option>
+
+      {/* Controls row: Gender + Unit */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center mb-2">
+        <select
+          value={gender}
+          onChange={(e) => handleGenderChange(e.target.value as 'Boy'|'Girl')}
+          className={`${selectClass} sm:col-span-2`}
+        >
+          <option value="Boy"  style={{ background: '#1c1033', color: '#fff' }}>Boy</option>
+          <option value="Girl" style={{ background: '#1c1033', color: '#fff' }}>Girl</option>
         </select>
-        <div className="col-span-2 text-neutral-500 text-xs">Choose athlete gender to show measurement fields</div>
+        <select
+          value={unit}
+          onChange={(e) => handleUnitChange(e.target.value as 'cm'|'in')}
+          className={`${selectClass} w-full`}
+        >
+          <option value="cm" style={{ background: '#1c1033', color: '#fff' }}>cm</option>
+          <option value="in" style={{ background: '#1c1033', color: '#fff' }}>inches (in)</option>
+        </select>
       </div>
 
+      {/* Measurement fields */}
       {gender === 'Boy' ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          <input className={inputClass} placeholder="Chest (cm)" value={chest} onChange={(e) => setChest(e.target.value.replace(/[^0-9.]/g, ''))} />
-          <input className={inputClass} placeholder="Waist (cm)" value={waist} onChange={(e) => setWaist(e.target.value.replace(/[^0-9.]/g, ''))} />
-          <input className={inputClass} placeholder="Hips (cm)" value={hips} onChange={(e) => setHips(e.target.value.replace(/[^0-9.]/g, ''))} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+          <input className={inputClass} placeholder={`Chest (${unitLabel})`} value={chest} onChange={(e) => handleChest(e.target.value)} />
+          <input className={inputClass} placeholder={`Waist (${unitLabel})`} value={waist} onChange={(e) => handleWaist(e.target.value)} />
+          <input className={inputClass} placeholder={`Hips (${unitLabel})`}  value={hips}  onChange={(e) => handleHips(e.target.value)} />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          <input className={inputClass} placeholder="Bust (cm)" value={bust} onChange={(e) => setBust(e.target.value.replace(/[^0-9.]/g, ''))} />
-          <input className={inputClass} placeholder="Waist (cm)" value={waist} onChange={(e) => setWaist(e.target.value.replace(/[^0-9.]/g, ''))} />
-          <input className={inputClass} placeholder="Hips (cm)" value={hips} onChange={(e) => setHips(e.target.value.replace(/[^0-9.]/g, ''))} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+          <input className={inputClass} placeholder={`Bust (${unitLabel})`}  value={bust}  onChange={(e) => handleBust(e.target.value)} />
+          <input className={inputClass} placeholder={`Waist (${unitLabel})`} value={waist} onChange={(e) => handleWaist(e.target.value)} />
+          <input className={inputClass} placeholder={`Hips (${unitLabel})`}  value={hips}  onChange={(e) => handleHips(e.target.value)} />
         </div>
       )}
     </div>
@@ -397,14 +485,14 @@ function BodyMeasurementsInput({ label, value, onChange }:
 function LabeledTextarea({ label, value, onChange, placeholder, rows = 4 }:
   { label: string; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
         placeholder={placeholder}
-        className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+        className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
       />
     </div>
   );
@@ -413,15 +501,109 @@ function LabeledTextarea({ label, value, onChange, placeholder, rows = 4 }:
 function LabeledMultiline({ label, value, onChange, placeholder }:
   { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={3}
         placeholder={placeholder}
-        className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+        className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
       />
+    </div>
+  );
+}
+
+type MarriageEntry = { name?: string; marriedYear?: string; divorcedYear?: string; currentlyMarried?: boolean };
+
+function MarriagesInput({ label, value, onChange }:
+  { label: string; value: MarriageEntry[]; onChange: (v: MarriageEntry[]) => void }) {
+  const inputClass = "w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed";
+
+  const [local, setLocal] = useState<MarriageEntry[]>(value || []);
+
+  useEffect(() => { setLocal(value || []); }, [value]);
+
+  const propagate = (arr: MarriageEntry[]) => { setLocal(arr); onChange(arr); };
+
+  const update = (idx: number, patch: Partial<MarriageEntry>) => {
+    const copy = local.map((m) => ({ ...m }));
+    copy[idx] = { ...copy[idx], ...patch };
+    propagate(copy);
+  };
+
+  const add = () => propagate([...local, { name: '', marriedYear: '', divorcedYear: '', currentlyMarried: false }]);
+  const remove = (idx: number) => propagate(local.filter((_, i) => i !== idx));
+
+  const lastIdx = local.length - 1;
+
+  return (
+    <div className="min-w-0">
+      <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
+      <div className="space-y-3">
+        {local.map((m, idx) => {
+          const isLast = idx === lastIdx;
+          const isCurrent = isLast && !!m.currentlyMarried;
+          return (
+            <div key={idx} className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+              {/* Row: name + years */}
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-center">
+                <input
+                  value={m.name || ''}
+                  onChange={(e) => update(idx, { name: e.target.value })}
+                  placeholder="Spouse name"
+                  className={`${inputClass} sm:col-span-2`}
+                />
+                <input
+                  value={m.marriedYear || ''}
+                  onChange={(e) => update(idx, { marriedYear: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  placeholder="Married (year)"
+                  className={`${inputClass} sm:col-span-1`}
+                  inputMode="numeric"
+                />
+                <input
+                  value={m.divorcedYear || ''}
+                  onChange={(e) => update(idx, { divorcedYear: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  placeholder="Divorced (year)"
+                  className={`${inputClass} sm:col-span-1`}
+                  inputMode="numeric"
+                  disabled={isCurrent}
+                />
+                <button
+                  type="button"
+                  onClick={() => remove(idx)}
+                  className="text-xs text-red-400 hover:text-red-300 text-left sm:text-center"
+                >
+                  Remove
+                </button>
+              </div>
+              {/* "Married till now" checkbox — only on last entry */}
+              {isLast && (
+                <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isCurrent}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      update(idx, { currentlyMarried: checked, divorcedYear: checked ? '' : m.divorcedYear });
+                    }}
+                    className="w-4 h-4 accent-yellow-400 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-300 font-montserrat">Married till now</span>
+                </label>
+              )}
+            </div>
+          );
+        })}
+
+        <button
+          type="button"
+          onClick={add}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm hover:bg-white/10 transition-all"
+        >
+          + Add marriage
+        </button>
+      </div>
     </div>
   );
 }
@@ -447,7 +629,7 @@ function ToggleField({ label, value, onChange }:
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CelebrityManagementSection() {
-  const { authHeaders } = useAuth();
+  const { authHeaders, loading: authLoading, refreshToken } = useAuth();
 
   // List state
   const [celebrities, setCelebrities] = useState<CelebrityRow[]>([]);
@@ -471,6 +653,7 @@ export default function CelebrityManagementSection() {
   const [form, setForm]               = useState<CelebrityFull>(EMPTY_FORM);
   const [formErrors, setFormErrors]   = useState<Partial<Record<keyof CelebrityFull, string>>>({});
   const [formLoading, setFormLoading] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
   const [formApiError, setFormApiError] = useState('');
   const [loadingDetail, setLoadingDetail] = useState(false);
 
@@ -479,6 +662,8 @@ export default function CelebrityManagementSection() {
   const emptySlot = (): UploadSlot => ({ uploading: false, progress: 0, error: '' });
   const [profileUpload, setProfileUpload] = useState<UploadSlot>(emptySlot());
   const [coverUpload,   setCoverUpload]   = useState<UploadSlot>(emptySlot());
+  const [ogImageUpload, setOgImageUpload] = useState<UploadSlot>(emptySlot());
+  const [twitterImageUpload, setTwitterImageUpload] = useState<UploadSlot>(emptySlot());
   const [galleryUploads, setGalleryUploads] = useState<Record<number, UploadSlot>>({});
 
   const profileInputRef = useRef<HTMLInputElement>(null);
@@ -504,9 +689,18 @@ export default function CelebrityManagementSection() {
       const params = new URLSearchParams({ page: String(p), limit: String(lim) });
       if (searchQuery) params.set('q', searchQuery);
       if (statusFilter) params.set('status', statusFilter);
-      const res  = await fetch(`/api/superadmin/celebrities?${params}`, {
+      let res  = await fetch(`/api/superadmin/celebrities?${params}`, {
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       });
+      // If token expired, silently refresh and retry once
+      if (res.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          res = await fetch(`/api/superadmin/celebrities?${params}`, {
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          });
+        }
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed to load');
       setCelebrities(data.data);
@@ -519,9 +713,9 @@ export default function CelebrityManagementSection() {
     } finally {
       setLoading(false);
     }
-  }, [authHeaders, searchQuery, statusFilter, limit]);
+  }, [authHeaders, refreshToken, searchQuery, statusFilter, limit]);
 
-  useEffect(() => { fetchList(1); }, [fetchList]);
+  useEffect(() => { if (!authLoading) fetchList(1); }, [fetchList, authLoading]);
 
   // ─── open add panel ──────────────────────────────────────────────────────
   const openAdd = () => {
@@ -542,9 +736,17 @@ export default function CelebrityManagementSection() {
     setLoadingDetail(true);
     setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     try {
-      const res  = await fetch(`/api/superadmin/celebrities/${row.id}`, {
+      let res = await fetch(`/api/superadmin/celebrities/${row.id}`, {
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       });
+      if (res.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          res = await fetch(`/api/superadmin/celebrities/${row.id}`, {
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          });
+        }
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed to load celebrity');
       const d: any = data.data;
@@ -617,7 +819,10 @@ export default function CelebrityManagementSection() {
         controversiesHtml: (d.controversies || [])[0] || '',
         philanthropy:     d.philanthropy     || [],
         trivia:           d.trivia           || [],
-        works:            d.works            || [],
+        works:            Array.isArray(d.works) ? d.works : [],
+        movies:           d.movies           || [],
+        webSeries:        d.webSeries        || [],
+        tvShows:          d.tvShows          || [],
         quotes:           d.quotes           || [],
         tags:             d.tags             || [],
         categories:       d.categories       || [],
@@ -625,17 +830,25 @@ export default function CelebrityManagementSection() {
         profileImage:     d.profileImage     || '',
         coverImage:       d.coverImage       || '',
         galleryImages:    d.galleryImages    || [],
-        status:           d.status           || 'draft',
-        contentQuality:   d.contentQuality   || 'draft',
-        isActive:         d.isActive         ?? true,
+        status:           (d.status === 'published' ? 'published' : 'draft') as 'draft' | 'published',
         isFeatured:       d.isFeatured       ?? false,
         isVerified:       d.isVerified       ?? false,
+        awards:    d.awards    || [],
+        marriages: (d.marriages || []).map((m: any) => ({
+          name:             m.name             || '',
+          marriedYear:      m.marriedYear      || '',
+          divorcedYear:     m.divorcedYear     || '',
+          currentlyMarried: m.currentlyMarried ?? false,
+        })),
         socialMedia: {
           instagram: d.socialMedia?.instagram || '',
           twitter:   d.socialMedia?.twitter   || '',
           facebook:  d.socialMedia?.facebook  || '',
           youtube:   d.socialMedia?.youtube   || '',
           tiktok:    d.socialMedia?.tiktok    || '',
+          threads:   d.socialMedia?.threads   || '',
+          imdb:      d.socialMedia?.imdb      || '',
+          wikipedia: d.socialMedia?.wikipedia || '',
           website:   d.socialMedia?.website   || '',
         },
         seo: {
@@ -648,6 +861,9 @@ export default function CelebrityManagementSection() {
           ogDescription:   d.seo?.ogDescription   || '',
           ogImage:         (d.seo?.ogImages || [])[0] || '',      // DB: ogImages[]
           twitterCard:     d.seo?.twitterCard     || 'summary_large_image',
+          twitterTitle:    d.seo?.twitterTitle    || '',
+          twitterDescription: d.seo?.twitterDescription || '',
+          twitterImage:    d.seo?.twitterImage    || '',
           twitterCreator:  d.seo?.twitterCreator  || '',
           schemaType:      d.seo?.schemaType      || 'Person',
           breadcrumbTitle: '',
@@ -667,11 +883,20 @@ export default function CelebrityManagementSection() {
 
   const closePanel = () => { setPanelMode(null); };
 
-  // ─── validate ────────────────────────────────────────────────────────────
+  // ─── validate (full — requires name + slug) ──────────────────────────────
   const validate = () => {
     const errs: Partial<Record<keyof CelebrityFull, string>> = {};
     if (!form.name || form.name.trim().length < 2) errs.name = 'Name is required (min 2 chars)';
     if (!form.slug || form.slug.trim().length < 2) errs.slug = 'Slug is required';
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  // ─── validate draft (only name + slug required) ───────────────────────────
+  const validateDraft = () => {
+    const errs: Partial<Record<keyof CelebrityFull, string>> = {};
+    if (!form.name || form.name.trim().length < 2) errs.name = 'Name is required to save as draft';
+    if (!form.slug || form.slug.trim().length < 2) errs.slug = 'Slug is required to save as draft';
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -710,6 +935,16 @@ export default function CelebrityManagementSection() {
     philanthropy:     form.philanthropy             || [],
     trivia:           form.trivia                   || [],
     works:            form.works                    || [],
+    movies:           form.movies                   || [],
+    webSeries:        form.webSeries                || [],
+    tvShows:          form.tvShows                  || [],
+    awards:           form.awards                   || [],
+    marriages:        (form.marriages || []).map((m) => ({
+                        name:             m.name             || '',
+                        marriedYear:      m.marriedYear      || '',
+                        divorcedYear:     m.currentlyMarried ? '' : (m.divorcedYear || ''),
+                        currentlyMarried: m.currentlyMarried ?? false,
+                      })),
     quotes:           form.quotes                   || [],
     tags:             form.tags                     || [],
     categories:       form.categories               || [],
@@ -718,8 +953,6 @@ export default function CelebrityManagementSection() {
     coverImage:       form.coverImage?.trim()       || '',
     galleryImages:    form.galleryImages            || [],
     status:           form.status,
-    contentQuality:   form.contentQuality,
-    isActive:         form.isActive,
     isFeatured:       form.isFeatured,
     isVerified:       form.isVerified,
     socialMedia:      form.socialMedia,
@@ -734,6 +967,9 @@ export default function CelebrityManagementSection() {
       ogDescription:   form.seo?.ogDescription   || '',
       ogImages:        form.seo?.ogImage ? [form.seo.ogImage] : [],  // form: ogImage → DB: ogImages[]
       twitterCard:     form.seo?.twitterCard     || 'summary_large_image',
+      twitterTitle:    form.seo?.twitterTitle    || '',
+      twitterDescription: form.seo?.twitterDescription || '',
+      twitterImage:    form.seo?.twitterImage    || '',
       twitterCreator:  form.seo?.twitterCreator  || '',
       schemaType:      form.seo?.schemaType      || 'Person',
       noindex:         !(form.seo?.robotsIndex  ?? true),        // form: robotsIndex → DB: noindex (inverted)
@@ -748,11 +984,21 @@ export default function CelebrityManagementSection() {
     if (!validate()) return;
     setFormLoading(true); setFormApiError('');
     try {
-      const res  = await fetch('/api/superadmin/celebrities', {
+      let res = await fetch('/api/superadmin/celebrities', {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(buildPayload()),
       });
+      if (res.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          res = await fetch('/api/superadmin/celebrities', {
+            method: 'POST',
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildPayload()),
+          });
+        }
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed to create');
       closePanel();
@@ -771,11 +1017,21 @@ export default function CelebrityManagementSection() {
     if (!validate()) return;
     setFormLoading(true); setFormApiError('');
     try {
-      const res  = await fetch(`/api/superadmin/celebrities/${form.id}`, {
+      let res = await fetch(`/api/superadmin/celebrities/${form.id}`, {
         method: 'PUT',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(buildPayload()),
       });
+      if (res.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          res = await fetch(`/api/superadmin/celebrities/${form.id}`, {
+            method: 'PUT',
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildPayload()),
+          });
+        }
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Update failed');
       closePanel();
@@ -788,14 +1044,81 @@ export default function CelebrityManagementSection() {
     }
   };
 
+  // ─── save as draft ─────────────────────────────────────────────────────
+  // Works for both add (creates new) and edit (updates existing).
+  // Only name + slug are required. All other fields can be partially filled.
+  const handleSaveDraft = async () => {
+    if (!validateDraft()) return;
+    setDraftLoading(true); setFormApiError('');
+    const payload = { ...buildPayload(), status: 'draft' as const };
+    try {
+      let res: Response;
+      if (panelMode === 'edit' && form.id) {
+        res = await fetch(`/api/superadmin/celebrities/${form.id}`, {
+          method: 'PUT',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.status === 401) {
+          const refreshed = await refreshToken();
+          if (refreshed) {
+            res = await fetch(`/api/superadmin/celebrities/${form.id}`, {
+              method: 'PUT',
+              headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+          }
+        }
+      } else {
+        res = await fetch('/api/superadmin/celebrities', {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.status === 401) {
+          const refreshed = await refreshToken();
+          if (refreshed) {
+            res = await fetch('/api/superadmin/celebrities', {
+              method: 'POST',
+              headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+          }
+        }
+      }
+      const data = await res!.json();
+      if (!res!.ok || !data.success) throw new Error(data.message || 'Failed to save draft');
+      // If we just created a new draft, switch the panel to edit mode so
+      // subsequent "Save as Draft" calls update the same record.
+      if (panelMode === 'add' && data.data?.id) {
+        setForm((f) => ({ ...f, id: data.data.id, status: 'draft' }));
+        setPanelMode('edit');
+      }
+      showToast('success', `Draft saved — "${form.name.trim()}"`);
+      fetchList(page === 1 ? 1 : page);
+    } catch (err: any) {
+      setFormApiError(err.message || 'Failed to save draft');
+    } finally {
+      setDraftLoading(false);
+    }
+  };
+
   // ─── delete ──────────────────────────────────────────────────────────────
   const handleDelete = async (c: CelebrityRow) => {
     setConfirmDelete(null);
     setBusy(c.id, true);
     try {
-      const res  = await fetch(`/api/superadmin/celebrities/${c.id}`, {
+      let res = await fetch(`/api/superadmin/celebrities/${c.id}`, {
         method: 'DELETE', headers: authHeaders(),
       });
+      if (res.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          res = await fetch(`/api/superadmin/celebrities/${c.id}`, {
+            method: 'DELETE', headers: authHeaders(),
+          });
+        }
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Delete failed');
       setCelebrities((prev) => prev.filter((x) => x.id !== c.id));
@@ -809,19 +1132,29 @@ export default function CelebrityManagementSection() {
   };
 
   // ─── quick toggle ────────────────────────────────────────────────────────
-  const handleToggle = async (c: CelebrityRow, field: 'isActive' | 'isFeatured') => {
+  const handleToggle = async (c: CelebrityRow, field: 'isFeatured') => {
     setBusy(c.id, true);
     const newVal = !c[field];
     try {
-      const res  = await fetch(`/api/superadmin/celebrities/${c.id}`, {
+      let res = await fetch(`/api/superadmin/celebrities/${c.id}`, {
         method: 'PUT',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: newVal }),
       });
+      if (res.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          res = await fetch(`/api/superadmin/celebrities/${c.id}`, {
+            method: 'PUT',
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [field]: newVal }),
+          });
+        }
+      }
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Update failed');
       setCelebrities((prev) => prev.map((x) => x.id === c.id ? { ...x, [field]: newVal } : x));
-      showToast('success', `${c.name} ${field === 'isActive' ? (newVal ? 'activated' : 'deactivated') : (newVal ? 'featured' : 'unfeatured')}`);
+      showToast('success', `${c.name} ${newVal ? 'featured' : 'unfeatured'}`);
     } catch (err: any) {
       showToast('error', err.message || 'Failed to update');
     } finally {
@@ -852,6 +1185,28 @@ export default function CelebrityManagementSection() {
       setCoverUpload({ uploading: false, progress: 100, error: '' });
     } catch (e: any) {
       setCoverUpload({ uploading: false, progress: 0, error: e.message || 'Upload failed' });
+    }
+  };
+
+  const handleOgImageUpload = async (file: File) => {
+    setOgImageUpload({ uploading: true, progress: 10, error: '' });
+    try {
+      const url = await uploadImage(file, `celebrities/${celebFolder()}/og`);
+      setField('seo', { ...form.seo, ogImage: url });
+      setOgImageUpload({ uploading: false, progress: 100, error: '' });
+    } catch (e: any) {
+      setOgImageUpload({ uploading: false, progress: 0, error: e.message || 'Upload failed' });
+    }
+  };
+
+  const handleTwitterImageUpload = async (file: File) => {
+    setTwitterImageUpload({ uploading: true, progress: 10, error: '' });
+    try {
+      const url = await uploadImage(file, `celebrities/${celebFolder()}/twitter`);
+      setField('seo', { ...form.seo, twitterImage: url });
+      setTwitterImageUpload({ uploading: false, progress: 100, error: '' });
+    } catch (e: any) {
+      setTwitterImageUpload({ uploading: false, progress: 0, error: e.message || 'Upload failed' });
     }
   };
 
@@ -897,7 +1252,7 @@ export default function CelebrityManagementSection() {
     switch (formTab) {
       // ── BASIC ──────────────────────────────────────────────────────────
       case 'basic': return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 [&>*]:min-w-0">
           <div>
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Full Name *</label>
             <input
@@ -925,39 +1280,41 @@ export default function CelebrityManagementSection() {
           <LabeledInput label="Nationality"     value={form.nationality  || ''} onChange={(v) => setField('nationality', v)}  placeholder="e.g. American" />
           <div>
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Years Active</label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-center">
               <div>
                 <label className="block text-[10px] text-neutral-500 mb-1">From</label>
-                <input
-                  type="number"
-                  min={1900}
-                  max={new Date().getFullYear()}
+                <select
                   value={form.yearsActiveFrom || ''}
                   onChange={(e) => {
-                    const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                    const v = e.target.value;
                     setField('yearsActiveFrom', v);
                     setField('yearsActive', computeYearsActive(v, form.yearsActiveTo, form.yearsActivePresent));
                   }}
-                  placeholder="e.g. 2016"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
-                />
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all appearance-none cursor-pointer"
+                >
+                  <option value="" className="bg-neutral-900 text-neutral-400">Select year</option>
+                  {Array.from({ length: new Date().getFullYear() - 1900 + 1 }, (_, i) => new Date().getFullYear() - i).map((yr) => (
+                    <option key={yr} value={String(yr)} className="bg-neutral-900">{yr}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-[10px] text-neutral-500 mb-1">To</label>
-                <input
-                  type="number"
-                  min={1900}
-                  max={new Date().getFullYear()}
+                <select
                   value={form.yearsActiveTo || ''}
                   onChange={(e) => {
-                    const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                    const v = e.target.value;
                     setField('yearsActiveTo', v);
                     setField('yearsActive', computeYearsActive(form.yearsActiveFrom, v, form.yearsActivePresent));
                   }}
                   disabled={form.yearsActivePresent}
-                  placeholder="e.g. 2024"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all disabled:opacity-50"
-                />
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="" className="bg-neutral-900 text-neutral-400">Select year</option>
+                  {Array.from({ length: new Date().getFullYear() - 1900 + 1 }, (_, i) => new Date().getFullYear() - i).map((yr) => (
+                    <option key={yr} value={String(yr)} className="bg-neutral-900">{yr}</option>
+                  ))}
+                </select>
               </div>
               <div className="pt-1">
                 <ToggleField
@@ -1012,13 +1369,13 @@ export default function CelebrityManagementSection() {
             <BodyMeasurementsInput label="Body Measurements" value={form.bodyMeasurements || ''} onChange={(v) => setField('bodyMeasurements', v)} />
           </div>
 
-          <div className="md:col-start-2 space-y-2">
+          <div className="xl:col-start-2 space-y-2 min-w-0">
             <LabeledInput label="Eye Color" value={form.eyeColor || ''} onChange={(v) => setField('eyeColor', v)} placeholder="e.g. Brown" />
             <LabeledInput label="Hair Color" value={form.hairColor || ''} onChange={(v) => setField('hairColor', v)} placeholder="e.g. Black" />
 
             <div>
               <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Net Worth</label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <input
                   type="text"
                   inputMode="decimal"
@@ -1029,7 +1386,7 @@ export default function CelebrityManagementSection() {
                     setField('netWorth', computeNetWorthString(v, form.netWorthUnit));
                   }}
                   placeholder="e.g. 800"
-                  className="w-full col-span-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  className="w-full min-w-0 box-border sm:col-span-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
                 />
                 <select
                   value={form.netWorthUnit || 'USD'}
@@ -1038,7 +1395,7 @@ export default function CelebrityManagementSection() {
                     setField('netWorthUnit', v);
                     setField('netWorth', computeNetWorthString(form.netWorthAmount, v));
                   }}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all cursor-pointer"
+                  className="w-full min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all cursor-pointer"
                 >
                   <option value="USD" style={{ background: '#2b1433', color: '#fff' }}>USD</option>
                   <option value="INR" style={{ background: '#2b1433', color: '#fff' }}>INR</option>
@@ -1049,18 +1406,16 @@ export default function CelebrityManagementSection() {
               <p className="text-neutral-500 text-xs mt-2">Preview: <span className="text-white">{form.netWorth}</span></p>
             </div>
           </div>
-          <LabeledInput label="Language Code"   value={form.language     || 'en'} onChange={(v) => setField('language', v)}  placeholder="en" />
-
-          <div className="md:col-span-2">
-            <LabeledMultiline
+          <div className="md:col-span-1">
+            <LabeledInput
               label="Occupation (comma separated)"
               value={(form.occupation || []).join(', ')}
               onChange={(v) => setField('occupation', v.split(',').map((s) => s.trim()).filter(Boolean))}
               placeholder={"Actor, Producer, Filmmaker"}
             />
           </div>
-          <div className="md:col-span-2">
-            <LabeledMultiline
+          <div className="md:col-span-1">
+            <LabeledInput
               label="Citizenship (comma separated)"
               value={(form.citizenship || []).join(', ')}
               onChange={(v) => setField('citizenship', v.split(',').map((s) => s.trim()).filter(Boolean))}
@@ -1069,55 +1424,46 @@ export default function CelebrityManagementSection() {
           </div>
 
           <div className="md:col-span-2 mt-4">
-            <p className="text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">Family</p>
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-yellow-400/90 font-montserrat mb-1">Family</h3>
+            <p className="text-xs text-neutral-500">Add family members and marriage timeline. You can add multiple marriages with married/divorced years.</p>
           </div>
           <div className="md:col-span-2">
-            <LabeledInput label="Spouse" value={form.spouse || ''} onChange={(v) => setField('spouse', v)} placeholder="e.g. Lauren Hashian" />
+            <MarriagesInput
+              label="Marriages"
+              value={(form.marriages || [])}
+              onChange={(v) => { setField('marriages', v); setField('spouse', (v && v.length) ? (v[v.length-1].name || '') : ''); }}
+            />
           </div>
-          <LabeledMultiline label="Children (comma separated)"  value={joinComma(form.children)}  onChange={(v) => setField('children',  splitComma(v))} placeholder="Simone Alexandra Johnson, Ava Johnson" />
-          <LabeledMultiline label="Parents (comma separated)"   value={joinComma(form.parents)}   onChange={(v) => setField('parents',   splitComma(v))} placeholder="Rocky Johnson, Ata Johnson" />
-          <LabeledMultiline label="Siblings (comma separated)"  value={joinComma(form.siblings)}  onChange={(v) => setField('siblings',  splitComma(v))} placeholder="Curtis Bowles, John Doe" />
-          <LabeledMultiline label="Relatives (comma separated)" value={joinComma(form.relatives)} onChange={(v) => setField('relatives', splitComma(v))} placeholder="Uncle Bob, Cousin Jane" />
+          <LabeledInput label="Children (comma separated)"  value={joinComma(form.children)}  onChange={(v) => setField('children',  splitComma(v))} placeholder="Simone Alexandra Johnson, Ava Johnson" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <LabeledInput
+              label="Father"
+              value={(form.parents && form.parents[0]) || ''}
+              onChange={(v) => {
+                const mother = (form.parents && form.parents[1]) || '';
+                const arr = [v, mother].filter(Boolean);
+                setField('parents', arr);
+              }}
+              placeholder="Father's name"
+            />
+            <LabeledInput
+              label="Mother"
+              value={(form.parents && form.parents[1]) || ''}
+              onChange={(v) => {
+                const father = (form.parents && form.parents[0]) || '';
+                const arr = [father, v].filter(Boolean);
+                setField('parents', arr);
+              }}
+              placeholder="Mother's name"
+            />
+          </div>
+          <LabeledInput label="Siblings (comma separated)"  value={joinComma(form.siblings)}  onChange={(v) => setField('siblings',  splitComma(v))} placeholder="Curtis Bowles, John Doe" />
+          <LabeledInput label="Relatives (comma separated)" value={joinComma(form.relatives)} onChange={(v) => setField('relatives', splitComma(v))} placeholder="Uncle Bob, Cousin Jane" />
           <div className="md:col-span-2">
-            <LabeledMultiline label="Education (comma separated)" value={joinComma(form.education)} onChange={(v) => setField('education', splitComma(v))} placeholder="University of Miami, Harvard University" />
+            <LabeledInput label="Education (comma separated)" value={joinComma(form.education)} onChange={(v) => setField('education', splitComma(v))} placeholder="University of Miami, Harvard University" />
           </div>
 
-          <div className="md:col-span-2 space-y-3">
-            <label className="block text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">Status & Quality</label>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-neutral-600 mb-1 font-montserrat">Publish Status</label>
-                <select
-                  value={form.status}
-                  onChange={(e) => setField('status', e.target.value as CelebrityFull['status'])}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-neutral-600 mb-1 font-montserrat">Content Quality</label>
-                <select
-                  value={form.contentQuality}
-                  onChange={(e) => setField('contentQuality', e.target.value as CelebrityFull['contentQuality'])}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="review">Review</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-            </div>
-          </div>
 
-          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-1">
-            <ToggleField label="Active"   value={form.isActive}            onChange={(v) => setField('isActive', v)}   />
-            <ToggleField label="Featured" value={form.isFeatured  ?? false} onChange={(v) => setField('isFeatured', v)} />
-            <ToggleField label="Verified" value={form.isVerified  ?? false} onChange={(v) => setField('isVerified', v)} />
-          </div>
         </div>
       );
 
@@ -1126,56 +1472,54 @@ export default function CelebrityManagementSection() {
       
 
       // ── INTRO ─────────────────────────────────────────────────────────
-      case 'intro': return (
-        <div className="space-y-4">
-          <RichTextEditor label="Introduction" value={form.introduction || ''} onChange={(v) => setField('introduction', v)} placeholder="A brief introduction about the celebrity…" minHeight={220} />
-        </div>
-      );
+      // ── BIOGRAPHY (Intro · Early Life · Career · Personal · Achievements · Controversies) ──
+      case 'biography': return (
+        <div className="space-y-8">
+          {/* Introduction */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Introduction</h3>
+            <RichTextEditor label="" value={form.introduction || ''} onChange={(v) => setField('introduction', v)} placeholder="A brief introduction about the celebrity…" minHeight={200} />
+          </div>
 
-      // ── EARLY LIFE ────────────────────────────────────────────────────
-      case 'earlyLife': return (
-        <div className="space-y-4">
-          <RichTextEditor label="Early Life" value={form.earlyLife || ''} onChange={(v) => setField('earlyLife', v)} placeholder="Childhood, family background, early years…" minHeight={260} />
-        </div>
-      );
+          <div className="border-t border-white/8" />
 
-      // ── CAREER ───────────────────────────────────────────────────────
-      case 'career': return (
-        <div className="space-y-4">
-          <RichTextEditor label="Career" value={form.career || ''} onChange={(v) => setField('career', v)} placeholder="Career highlights, milestones, achievements…" minHeight={260} />
-        </div>
-      );
+          {/* Early Life */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Early Life</h3>
+            <RichTextEditor label="" value={form.earlyLife || ''} onChange={(v) => setField('earlyLife', v)} placeholder="Childhood, family background, early years…" minHeight={200} />
+          </div>
 
-      // ── PERSONAL LIFE ─────────────────────────────────────────────────
-      case 'personalLife': return (
-        <div className="space-y-4">
-          <RichTextEditor label="Personal Life" value={form.personalLife || ''} onChange={(v) => setField('personalLife', v)} placeholder="Relationships, hobbies, personal interests…" minHeight={220} />
-        </div>
-      );
+          <div className="border-t border-white/8" />
 
-      // ── ACHIEVEMENTS ─────────────────────────────────────────────────
-      case 'achievements': return (
-        <div className="space-y-4">
-          <RichTextEditor
-            label="Achievements"
-            value={form.achievementsHtml || ''}
-            onChange={(v) => setField('achievementsHtml', v)}
-            placeholder="List awards, honors, milestones, records…"
-            minHeight={280}
-          />
-        </div>
-      );
+          {/* Career */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Career</h3>
+            <RichTextEditor label="" value={form.career || ''} onChange={(v) => setField('career', v)} placeholder="Career highlights, milestones, achievements…" minHeight={200} />
+          </div>
 
-      // ── CONTROVERSIES ────────────────────────────────────────────────
-      case 'controversies': return (
-        <div className="space-y-4">
-          <RichTextEditor
-            label="Controversies"
-            value={form.controversiesHtml || ''}
-            onChange={(v) => setField('controversiesHtml', v)}
-            placeholder="Describe controversies, legal issues, public disputes…"
-            minHeight={280}
-          />
+          <div className="border-t border-white/8" />
+
+          {/* Personal Life */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Personal Life</h3>
+            <RichTextEditor label="" value={form.personalLife || ''} onChange={(v) => setField('personalLife', v)} placeholder="Relationships, hobbies, personal interests…" minHeight={200} />
+          </div>
+
+          <div className="border-t border-white/8" />
+
+          {/* Achievements */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Achievements</h3>
+            <RichTextEditor label="" value={form.achievementsHtml || ''} onChange={(v) => setField('achievementsHtml', v)} placeholder="List awards, honors, milestones, records…" minHeight={200} />
+          </div>
+
+          <div className="border-t border-white/8" />
+
+          {/* Controversies */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Controversies</h3>
+            <RichTextEditor label="" value={form.controversiesHtml || ''} onChange={(v) => setField('controversiesHtml', v)} placeholder="Describe controversies, legal issues, public disputes…" minHeight={200} />
+          </div>
         </div>
       );
 
@@ -1367,26 +1711,818 @@ export default function CelebrityManagementSection() {
         );
       }
 
+      // ── MOVIES ────────────────────────────────────────────────────────
+      case 'movies': {
+        const movies = form.movies || [];
+        const EMPTY_MOVIE: CelebrityMovie = { name: '', role: '', year: '', director: '', genre: '', description: '' };
+
+        // Keep draft/edit state inside the main form object so it persists while editing.
+        const draft: CelebrityMovie = (form as any).__movieDraft ?? { ...EMPTY_MOVIE };
+        const editIndex = typeof (form as any).__movieEditIndex === 'number' ? (form as any).__movieEditIndex : null;
+        const setDraft = (patch: Partial<CelebrityMovie>) =>
+          setForm((f) => ({ ...f, __movieDraft: { ...((f as any).__movieDraft ?? EMPTY_MOVIE), ...patch } }));
+        const clearDraft = () =>
+          setForm((f) => {
+            const next = { ...f };
+            delete (next as any).__movieDraft;
+            delete (next as any).__movieEditIndex;
+            return next;
+          });
+
+        const commitMovie = () => {
+          if (!draft.name.trim()) return;
+          const nextMovie = {
+            ...(editIndex !== null ? movies[editIndex] : {}),
+            name: draft.name.trim(),
+            role: draft.role.trim(),
+            year: draft.year.trim(),
+            director: draft.director.trim(),
+            genre: draft.genre.trim(),
+            description: draft.description.trim(),
+          };
+          setField(
+            'movies',
+            editIndex !== null
+              ? movies.map((movie, index) => (index === editIndex ? nextMovie : movie))
+              : [...movies, nextMovie]
+          );
+          clearDraft();
+        };
+
+        const editMovie = (i: number) =>
+          setForm((f) => ({ ...f, __movieDraft: { ...movies[i] }, __movieEditIndex: i }));
+
+        const removeMovie = (i: number) => {
+          setField('movies', movies.filter((_, idx) => idx !== i));
+          if (editIndex === i) clearDraft();
+          if (editIndex !== null && editIndex > i) {
+            setForm((f) => ({ ...f, __movieEditIndex: editIndex - 1 }));
+          }
+        };
+
+        const inputCls = 'w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all';
+        const labelCls = 'block text-[10px] font-medium text-neutral-500 mb-1.5 font-montserrat uppercase tracking-wider';
+
+        return (
+          <div className="space-y-6">
+
+            {/* ── Add movie form ─────────────────────────────────── */}
+            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold text-yellow-400 font-montserrat uppercase tracking-wider flex items-center gap-2">
+                  <Icon name="FilmIcon" size={13} /> {editIndex !== null ? 'Edit Movie' : 'Add a Movie'}
+                </p>
+                {editIndex !== null && (
+                  <span className="text-[11px] text-neutral-400 font-montserrat">
+                    Editing item #{editIndex + 1}
+                  </span>
+                )}
+              </div>
+
+              {/* Name + Year on one row */}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Movie Name *</label>
+                  <input type="text" value={draft.name} onChange={(e) => setDraft({ name: e.target.value })}
+                    placeholder="e.g. Vicky Donor" className={inputCls} />
+                </div>
+                <div className="w-full sm:w-24 shrink-0">
+                  <label className={labelCls}>Year</label>
+                  <input type="text" value={draft.year}
+                    onChange={(e) => setDraft({ year: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
+                    placeholder="2012" maxLength={4} className={inputCls} />
+                </div>
+              </div>
+
+              {/* Role + Director */}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Role</label>
+                  <input type="text" value={draft.role} onChange={(e) => setDraft({ role: e.target.value })}
+                    placeholder="e.g. Lead Actor" className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Director</label>
+                  <input type="text" value={draft.director} onChange={(e) => setDraft({ director: e.target.value })}
+                    placeholder="e.g. Shoojit Sircar" className={inputCls} />
+                </div>
+              </div>
+
+              {/* Genre */}
+              <div>
+                <label className={labelCls}>Genre</label>
+                <input type="text" value={draft.genre} onChange={(e) => setDraft({ genre: e.target.value })}
+                  placeholder="e.g. Romantic Comedy, Drama" className={inputCls} />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className={labelCls}>Description</label>
+                <textarea rows={2} value={draft.description} onChange={(e) => setDraft({ description: e.target.value })}
+                  placeholder="e.g. Ayushmann Khurrana made his Bollywood debut as Vicky Arora, a carefree…"
+                  className={`${inputCls} resize-none`} />
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button type="button" onClick={commitMovie}
+                  disabled={!draft.name.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-yellow-500 text-black text-xs font-semibold font-montserrat hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                  <Icon name={editIndex !== null ? 'PencilSquareIcon' : 'PlusIcon'} size={13} /> {editIndex !== null ? 'Save Changes' : 'Add to List'}
+                </button>
+                {(draft.name || draft.role || draft.year || draft.director || draft.genre || draft.description) && (
+                  <button type="button" onClick={clearDraft}
+                    className="px-4 py-2 rounded-xl text-xs text-neutral-400 hover:text-white font-montserrat transition-all">
+                    {editIndex !== null ? 'Cancel Edit' : 'Clear'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ── Added movies list ──────────────────────────────── */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1 h-4 rounded-full bg-primary inline-block" />
+                <p className="text-xs font-semibold text-white font-montserrat uppercase tracking-wider">
+                  Filmography
+                </p>
+                <span className="text-xs text-neutral-500 font-montserrat">
+                  ({movies.length} film{movies.length !== 1 ? 's' : ''})
+                </span>
+              </div>
+
+              {movies.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-10 rounded-2xl border border-dashed border-white/8 text-center">
+                  <Icon name="FilmIcon" size={24} className="text-neutral-700" />
+                  <p className="text-sm text-neutral-600 font-montserrat">No movies added yet</p>
+                  <p className="text-xs text-neutral-700 font-montserrat">Fill in the form above and click &ldquo;Add to List&rdquo;</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {movies.map((movie, i) => (
+                    <div key={i}
+                      className={`flex flex-col gap-3 px-4 py-3 rounded-xl border bg-white/3 transition-colors sm:flex-row sm:items-start ${editIndex === i ? 'border-primary/40 bg-primary/5' : 'border-white/6 hover:border-white/12'} group`}>
+                      {/* Year pill */}
+                      <span className="shrink-0 mt-0.5 text-xs font-bold text-primary font-montserrat w-10 text-left sm:text-center">
+                        {movie.year || '—'}
+                      </span>
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-white font-montserrat truncate">{movie.name}</span>
+                          {movie.role && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-montserrat shrink-0">
+                              {movie.role}
+                            </span>
+                          )}
+                          {movie.genre && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-neutral-400 font-montserrat shrink-0">
+                              {movie.genre}
+                            </span>
+                          )}
+                        </div>
+                        {movie.director && (
+                          <p className="text-xs text-neutral-500 font-montserrat mt-0.5">Dir. {movie.director}</p>
+                        )}
+                        {movie.description && (
+                          <p className="text-xs text-neutral-600 font-montserrat mt-0.5 line-clamp-1">{movie.description}</p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
+                        <button
+                          type="button"
+                          onClick={() => editMovie(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-primary/10 hover:text-primary transition-all"
+                          title="Edit"
+                        >
+                          <Icon name="PencilSquareIcon" size={13} />
+                        </button>
+                        <button type="button" onClick={() => removeMovie(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-red-500/15 hover:text-red-400 transition-all"
+                          title="Remove">
+                          <Icon name="TrashIcon" size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // ── WEB SERIES ────────────────────────────────────────────────────
+      case 'webSeries': {
+        const webSeriesList = (form as any).webSeries || [];
+        const EMPTY_WS: CelebrityWebSeries = { name: '', role: '', seasons: '', year: '', platform: '', genre: '', description: '' };
+
+        const wsDraft: CelebrityWebSeries = (form as any).__wsDraft ?? { ...EMPTY_WS };
+        const wsEditIndex = typeof (form as any).__wsEditIndex === 'number' ? (form as any).__wsEditIndex : null;
+        const setWsDraft = (patch: Partial<CelebrityWebSeries>) =>
+          setForm((f) => ({ ...f, __wsDraft: { ...((f as any).__wsDraft ?? EMPTY_WS), ...patch } }));
+        const clearWsDraft = () =>
+          setForm((f) => {
+            const next = { ...f };
+            delete (next as any).__wsDraft;
+            delete (next as any).__wsEditIndex;
+            return next;
+          });
+
+        const commitWs = () => {
+          if (!wsDraft.name.trim()) return;
+          const next = {
+            ...(wsEditIndex !== null ? webSeriesList[wsEditIndex] : {}),
+            name: wsDraft.name.trim(),
+            role: wsDraft.role.trim(),
+            seasons: wsDraft.seasons.trim(),
+            year: wsDraft.year.trim(),
+            platform: wsDraft.platform.trim(),
+            genre: wsDraft.genre.trim(),
+            description: wsDraft.description.trim(),
+          };
+          setField(
+            'webSeries' as any,
+            wsEditIndex !== null
+              ? webSeriesList.map((ws: CelebrityWebSeries, i: number) => (i === wsEditIndex ? next : ws))
+              : [...webSeriesList, next]
+          );
+          clearWsDraft();
+        };
+
+        const editWs = (i: number) =>
+          setForm((f) => ({ ...f, __wsDraft: { ...webSeriesList[i] }, __wsEditIndex: i }));
+
+        const removeWs = (i: number) => {
+          setField('webSeries' as any, webSeriesList.filter((_: any, idx: number) => idx !== i));
+          if (wsEditIndex === i) clearWsDraft();
+          if (wsEditIndex !== null && wsEditIndex > i)
+            setForm((f) => ({ ...f, __wsEditIndex: wsEditIndex - 1 }));
+        };
+
+        const inputCls = 'w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all';
+        const labelCls = 'block text-[10px] font-medium text-neutral-500 mb-1.5 font-montserrat uppercase tracking-wider';
+
+        return (
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold text-yellow-400 font-montserrat uppercase tracking-wider flex items-center gap-2">
+                  <Icon name="TvIcon" size={13} /> {wsEditIndex !== null ? 'Edit Web Series' : 'Add a Web Series'}
+                </p>
+                {wsEditIndex !== null && (
+                  <span className="text-[11px] text-neutral-400 font-montserrat">Editing item #{wsEditIndex + 1}</span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Series Name *</label>
+                  <input type="text" value={wsDraft.name} onChange={(e) => setWsDraft({ name: e.target.value })}
+                    placeholder="e.g. Sacred Games" className={inputCls} />
+                </div>
+                <div className="w-full sm:w-24 shrink-0">
+                  <label className={labelCls}>Year</label>
+                  <input type="text" value={wsDraft.year}
+                    onChange={(e) => setWsDraft({ year: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
+                    placeholder="2018" maxLength={4} className={inputCls} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Role</label>
+                  <input type="text" value={wsDraft.role} onChange={(e) => setWsDraft({ role: e.target.value })}
+                    placeholder="e.g. Lead Actor" className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Seasons</label>
+                  <input type="text" value={wsDraft.seasons} onChange={(e) => setWsDraft({ seasons: e.target.value })}
+                    placeholder="e.g. 2 Seasons" className={inputCls} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Platform</label>
+                  <input type="text" value={wsDraft.platform} onChange={(e) => setWsDraft({ platform: e.target.value })}
+                    placeholder="e.g. Netflix, Amazon Prime, Disney+" className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Genre</label>
+                  <input type="text" value={wsDraft.genre} onChange={(e) => setWsDraft({ genre: e.target.value })}
+                    placeholder="e.g. Thriller, Drama" className={inputCls} />
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>Description</label>
+                <textarea rows={2} value={wsDraft.description} onChange={(e) => setWsDraft({ description: e.target.value })}
+                  placeholder="Brief description of the series or the role…"
+                  className={`${inputCls} resize-none`} />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button type="button" onClick={commitWs}
+                  disabled={!wsDraft.name.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-yellow-500 text-black text-xs font-semibold font-montserrat hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                  <Icon name={wsEditIndex !== null ? 'PencilSquareIcon' : 'PlusIcon'} size={13} />
+                  {wsEditIndex !== null ? 'Save Changes' : 'Add to List'}
+                </button>
+                {(wsDraft.name || wsDraft.role || wsDraft.platform || wsDraft.genre || wsDraft.description) && (
+                  <button type="button" onClick={clearWsDraft}
+                    className="px-4 py-2 rounded-xl text-xs text-neutral-400 hover:text-white font-montserrat transition-all">
+                    {wsEditIndex !== null ? 'Cancel Edit' : 'Clear'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1 h-4 rounded-full bg-primary inline-block" />
+                <p className="text-xs font-semibold text-white font-montserrat uppercase tracking-wider">Web Series</p>
+                <span className="text-xs text-neutral-500 font-montserrat">
+                  ({webSeriesList.length} series)
+                </span>
+              </div>
+
+              {webSeriesList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-10 rounded-2xl border border-dashed border-white/8 text-center">
+                  <Icon name="TvIcon" size={24} className="text-neutral-700" />
+                  <p className="text-sm text-neutral-600 font-montserrat">No web series added yet</p>
+                  <p className="text-xs text-neutral-700 font-montserrat">Fill in the form above and click &ldquo;Add to List&rdquo;</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {webSeriesList.map((ws: CelebrityWebSeries, i: number) => (
+                    <div key={i}
+                      className={`flex flex-col gap-3 px-4 py-3 rounded-xl border bg-white/3 transition-colors sm:flex-row sm:items-start ${wsEditIndex === i ? 'border-primary/40 bg-primary/5' : 'border-white/6 hover:border-white/12'} group`}>
+                      <span className="shrink-0 mt-0.5 text-xs font-bold text-primary font-montserrat w-10 text-left sm:text-center">
+                        {ws.year || '—'}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-white font-montserrat truncate">{ws.name}</span>
+                          {ws.role && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-montserrat shrink-0">{ws.role}</span>
+                          )}
+                          {ws.platform && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-montserrat shrink-0">{ws.platform}</span>
+                          )}
+                          {ws.genre && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-neutral-400 font-montserrat shrink-0">{ws.genre}</span>
+                          )}
+                        </div>
+                        {ws.seasons && <p className="text-xs text-neutral-500 font-montserrat mt-0.5">{ws.seasons}</p>}
+                        {ws.description && <p className="text-xs text-neutral-600 font-montserrat mt-0.5 line-clamp-1">{ws.description}</p>}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
+                        <button type="button" onClick={() => editWs(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-primary/10 hover:text-primary transition-all" title="Edit">
+                          <Icon name="PencilSquareIcon" size={13} />
+                        </button>
+                        <button type="button" onClick={() => removeWs(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-red-500/15 hover:text-red-400 transition-all" title="Remove">
+                          <Icon name="TrashIcon" size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // ── TV SHOWS ──────────────────────────────────────────────────────
+      case 'tvShows': {
+        const tvShowsList = (form as any).tvShows || [];
+        const EMPTY_TV: CelebrityTvShow = { name: '', role: '', seasons: '', year: '', channel: '', genre: '', description: '' };
+
+        const tvDraft: CelebrityTvShow = (form as any).__tvDraft ?? { ...EMPTY_TV };
+        const tvEditIndex = typeof (form as any).__tvEditIndex === 'number' ? (form as any).__tvEditIndex : null;
+        const setTvDraft = (patch: Partial<CelebrityTvShow>) =>
+          setForm((f) => ({ ...f, __tvDraft: { ...((f as any).__tvDraft ?? EMPTY_TV), ...patch } }));
+        const clearTvDraft = () =>
+          setForm((f) => {
+            const next = { ...f };
+            delete (next as any).__tvDraft;
+            delete (next as any).__tvEditIndex;
+            return next;
+          });
+
+        const commitTv = () => {
+          if (!tvDraft.name.trim()) return;
+          const next = {
+            ...(tvEditIndex !== null ? tvShowsList[tvEditIndex] : {}),
+            name: tvDraft.name.trim(),
+            role: tvDraft.role.trim(),
+            seasons: tvDraft.seasons.trim(),
+            year: tvDraft.year.trim(),
+            channel: tvDraft.channel.trim(),
+            genre: tvDraft.genre.trim(),
+            description: tvDraft.description.trim(),
+          };
+          setField(
+            'tvShows' as any,
+            tvEditIndex !== null
+              ? tvShowsList.map((tv: CelebrityTvShow, i: number) => (i === tvEditIndex ? next : tv))
+              : [...tvShowsList, next]
+          );
+          clearTvDraft();
+        };
+
+        const editTv = (i: number) =>
+          setForm((f) => ({ ...f, __tvDraft: { ...tvShowsList[i] }, __tvEditIndex: i }));
+
+        const removeTv = (i: number) => {
+          setField('tvShows' as any, tvShowsList.filter((_: any, idx: number) => idx !== i));
+          if (tvEditIndex === i) clearTvDraft();
+          if (tvEditIndex !== null && tvEditIndex > i)
+            setForm((f) => ({ ...f, __tvEditIndex: tvEditIndex - 1 }));
+        };
+
+        const inputCls = 'w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all';
+        const labelCls = 'block text-[10px] font-medium text-neutral-500 mb-1.5 font-montserrat uppercase tracking-wider';
+
+        return (
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold text-yellow-400 font-montserrat uppercase tracking-wider flex items-center gap-2">
+                  <Icon name="PlayCircleIcon" size={13} /> {tvEditIndex !== null ? 'Edit TV Show' : 'Add a TV Show'}
+                </p>
+                {tvEditIndex !== null && (
+                  <span className="text-[11px] text-neutral-400 font-montserrat">Editing item #{tvEditIndex + 1}</span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Show Name *</label>
+                  <input type="text" value={tvDraft.name} onChange={(e) => setTvDraft({ name: e.target.value })}
+                    placeholder="e.g. Kaun Banega Crorepati" className={inputCls} />
+                </div>
+                <div className="w-full sm:w-24 shrink-0">
+                  <label className={labelCls}>Year</label>
+                  <input type="text" value={tvDraft.year}
+                    onChange={(e) => setTvDraft({ year: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
+                    placeholder="2000" maxLength={4} className={inputCls} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Role</label>
+                  <input type="text" value={tvDraft.role} onChange={(e) => setTvDraft({ role: e.target.value })}
+                    placeholder="e.g. Host, Lead Actor" className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Seasons</label>
+                  <input type="text" value={tvDraft.seasons} onChange={(e) => setTvDraft({ seasons: e.target.value })}
+                    placeholder="e.g. 15 Seasons" className={inputCls} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Channel / Network</label>
+                  <input type="text" value={tvDraft.channel} onChange={(e) => setTvDraft({ channel: e.target.value })}
+                    placeholder="e.g. Star Plus, Colors, Zee TV" className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Genre</label>
+                  <input type="text" value={tvDraft.genre} onChange={(e) => setTvDraft({ genre: e.target.value })}
+                    placeholder="e.g. Reality, Drama, Comedy" className={inputCls} />
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>Description</label>
+                <textarea rows={2} value={tvDraft.description} onChange={(e) => setTvDraft({ description: e.target.value })}
+                  placeholder="Brief description of the show or the role…"
+                  className={`${inputCls} resize-none`} />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button type="button" onClick={commitTv}
+                  disabled={!tvDraft.name.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-yellow-500 text-black text-xs font-semibold font-montserrat hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                  <Icon name={tvEditIndex !== null ? 'PencilSquareIcon' : 'PlusIcon'} size={13} />
+                  {tvEditIndex !== null ? 'Save Changes' : 'Add to List'}
+                </button>
+                {(tvDraft.name || tvDraft.role || tvDraft.channel || tvDraft.genre || tvDraft.description) && (
+                  <button type="button" onClick={clearTvDraft}
+                    className="px-4 py-2 rounded-xl text-xs text-neutral-400 hover:text-white font-montserrat transition-all">
+                    {tvEditIndex !== null ? 'Cancel Edit' : 'Clear'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1 h-4 rounded-full bg-primary inline-block" />
+                <p className="text-xs font-semibold text-white font-montserrat uppercase tracking-wider">TV Shows</p>
+                <span className="text-xs text-neutral-500 font-montserrat">
+                  ({tvShowsList.length} show{tvShowsList.length !== 1 ? 's' : ''})
+                </span>
+              </div>
+
+              {tvShowsList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-10 rounded-2xl border border-dashed border-white/8 text-center">
+                  <Icon name="PlayCircleIcon" size={24} className="text-neutral-700" />
+                  <p className="text-sm text-neutral-600 font-montserrat">No TV shows added yet</p>
+                  <p className="text-xs text-neutral-700 font-montserrat">Fill in the form above and click &ldquo;Add to List&rdquo;</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {tvShowsList.map((tv: CelebrityTvShow, i: number) => (
+                    <div key={i}
+                      className={`flex flex-col gap-3 px-4 py-3 rounded-xl border bg-white/3 transition-colors sm:flex-row sm:items-start ${tvEditIndex === i ? 'border-primary/40 bg-primary/5' : 'border-white/6 hover:border-white/12'} group`}>
+                      <span className="shrink-0 mt-0.5 text-xs font-bold text-primary font-montserrat w-10 text-left sm:text-center">
+                        {tv.year || '—'}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-white font-montserrat truncate">{tv.name}</span>
+                          {tv.role && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-montserrat shrink-0">{tv.role}</span>
+                          )}
+                          {tv.channel && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 font-montserrat shrink-0">{tv.channel}</span>
+                          )}
+                          {tv.genre && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-neutral-400 font-montserrat shrink-0">{tv.genre}</span>
+                          )}
+                        </div>
+                        {tv.seasons && <p className="text-xs text-neutral-500 font-montserrat mt-0.5">{tv.seasons}</p>}
+                        {tv.description && <p className="text-xs text-neutral-600 font-montserrat mt-0.5 line-clamp-1">{tv.description}</p>}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
+                        <button type="button" onClick={() => editTv(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-primary/10 hover:text-primary transition-all" title="Edit">
+                          <Icon name="PencilSquareIcon" size={13} />
+                        </button>
+                        <button type="button" onClick={() => removeTv(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-red-500/15 hover:text-red-400 transition-all" title="Remove">
+                          <Icon name="TrashIcon" size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // ── AWARDS ───────────────────────────────────────────────────────
+      case 'awards': {
+        const awards = form.awards || [];
+        const EMPTY_AWARD: CelebrityAward = { title: '', category: '', year: '', organization: '', work: '', description: '' };
+
+        const awardDraft: CelebrityAward = (form as any).__awardDraft ?? { ...EMPTY_AWARD };
+        const awardEditIndex = typeof (form as any).__awardEditIndex === 'number' ? (form as any).__awardEditIndex : null;
+        const setAwardDraft = (patch: Partial<CelebrityAward>) =>
+          setForm((f) => ({ ...f, __awardDraft: { ...((f as any).__awardDraft ?? EMPTY_AWARD), ...patch } }));
+        const clearAwardDraft = () =>
+          setForm((f) => {
+            const next = { ...f };
+            delete (next as any).__awardDraft;
+            delete (next as any).__awardEditIndex;
+            return next;
+          });
+
+        const commitAward = () => {
+          if (!awardDraft.title.trim()) return;
+          const nextAward = {
+            ...(awardEditIndex !== null ? awards[awardEditIndex] : {}),
+            title:        awardDraft.title.trim(),
+            category:     awardDraft.category.trim(),
+            year:         awardDraft.year.trim(),
+            organization: awardDraft.organization.trim(),
+            work:         awardDraft.work.trim(),
+            description:  awardDraft.description.trim(),
+          };
+          setField(
+            'awards',
+            awardEditIndex !== null
+              ? awards.map((a, idx) => (idx === awardEditIndex ? nextAward : a))
+              : [...awards, nextAward]
+          );
+          clearAwardDraft();
+        };
+
+        const editAward = (i: number) =>
+          setForm((f) => ({ ...f, __awardDraft: { ...awards[i] }, __awardEditIndex: i }));
+
+        const removeAward = (i: number) => {
+          setField('awards', awards.filter((_, idx) => idx !== i));
+          if (awardEditIndex === i) clearAwardDraft();
+          if (awardEditIndex !== null && awardEditIndex > i) {
+            setForm((f) => ({ ...f, __awardEditIndex: awardEditIndex - 1 }));
+          }
+        };
+
+        const inputCls = 'w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all';
+        const labelCls = 'block text-[10px] font-medium text-neutral-500 mb-1.5 font-montserrat uppercase tracking-wider';
+
+        return (
+          <div className="space-y-6">
+
+            {/* ── Add award form ─────────────────────────────── */}
+            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold text-yellow-400 font-montserrat uppercase tracking-wider flex items-center gap-2">
+                  <Icon name="TrophyIcon" size={13} /> {awardEditIndex !== null ? 'Edit Award' : 'Add an Award'}
+                </p>
+                {awardEditIndex !== null && (
+                  <span className="text-[11px] text-neutral-400 font-montserrat">
+                    Editing item #{awardEditIndex + 1}
+                  </span>
+                )}
+              </div>
+
+              {/* Title + Year */}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Title *</label>
+                  <input type="text" value={awardDraft.title} onChange={(e) => setAwardDraft({ title: e.target.value })}
+                    placeholder="e.g. SIIMA Awards" className={inputCls} />
+                </div>
+                <div className="w-full sm:w-24 shrink-0">
+                  <label className={labelCls}>Year</label>
+                  <input type="text" value={awardDraft.year}
+                    onChange={(e) => setAwardDraft({ year: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
+                    placeholder="2017" maxLength={4} className={inputCls} />
+                </div>
+              </div>
+
+              {/* Category + Organization */}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Category</label>
+                  <input type="text" value={awardDraft.category} onChange={(e) => setAwardDraft({ category: e.target.value })}
+                    placeholder="e.g. Best Female Debut (Telugu) – Nominee" className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={labelCls}>Organization</label>
+                  <input type="text" value={awardDraft.organization} onChange={(e) => setAwardDraft({ organization: e.target.value })}
+                    placeholder="e.g. South Indian International Movie Awards" className={inputCls} />
+                </div>
+              </div>
+
+              {/* Work */}
+              <div>
+                <label className={labelCls}>Work / Project</label>
+                <input type="text" value={awardDraft.work} onChange={(e) => setAwardDraft({ work: e.target.value })}
+                  placeholder="e.g. Krishna Gaadi Veera Prema Gaadha" className={inputCls} />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className={labelCls}>Description</label>
+                <textarea rows={2} value={awardDraft.description} onChange={(e) => setAwardDraft({ description: e.target.value })}
+                  placeholder="e.g. Mehreen received a nomination for her refreshing and expressive debut…"
+                  className={`${inputCls} resize-none`} />
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button type="button" onClick={commitAward}
+                  disabled={!awardDraft.title.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-yellow-500 text-black text-xs font-semibold font-montserrat hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                  <Icon name={awardEditIndex !== null ? 'PencilSquareIcon' : 'PlusIcon'} size={13} />
+                  {awardEditIndex !== null ? 'Save Changes' : 'Add to List'}
+                </button>
+                {(awardDraft.title || awardDraft.category || awardDraft.year || awardDraft.organization || awardDraft.work || awardDraft.description) && (
+                  <button type="button" onClick={clearAwardDraft}
+                    className="px-4 py-2 rounded-xl text-xs text-neutral-400 hover:text-white font-montserrat transition-all">
+                    {awardEditIndex !== null ? 'Cancel Edit' : 'Clear'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ── Awards list ────────────────────────────────── */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1 h-4 rounded-full bg-yellow-400 inline-block" />
+                <p className="text-xs font-semibold text-white font-montserrat uppercase tracking-wider">Awards &amp; Nominations</p>
+                <span className="text-xs text-neutral-500 font-montserrat">({awards.length} entr{awards.length !== 1 ? 'ies' : 'y'})</span>
+              </div>
+
+              {awards.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-10 rounded-2xl border border-dashed border-white/8 text-center">
+                  <Icon name="TrophyIcon" size={24} className="text-neutral-700" />
+                  <p className="text-sm text-neutral-600 font-montserrat">No awards added yet</p>
+                  <p className="text-xs text-neutral-700 font-montserrat">Fill in the form above and click &ldquo;Add to List&rdquo;</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {awards.map((award, i) => (
+                    <div key={i}
+                      className={`flex flex-col gap-3 px-4 py-3 rounded-xl border bg-white/3 transition-colors sm:flex-row sm:items-start ${
+                        awardEditIndex === i ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-white/6 hover:border-white/12'
+                      } group`}>
+                      {/* Year pill */}
+                      <span className="shrink-0 mt-0.5 text-xs font-bold text-yellow-400 font-montserrat w-10 text-left sm:text-center">
+                        {award.year || '—'}
+                      </span>
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-white font-montserrat truncate">{award.title}</span>
+                          {award.category && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-montserrat shrink-0">
+                              {award.category}
+                            </span>
+                          )}
+                        </div>
+                        {award.organization && (
+                          <p className="text-xs text-neutral-500 font-montserrat mt-0.5">{award.organization}</p>
+                        )}
+                        {award.work && (
+                          <p className="text-xs text-neutral-600 font-montserrat mt-0.5">For: {award.work}</p>
+                        )}
+                        {award.description && (
+                          <p className="text-xs text-neutral-600 font-montserrat mt-0.5 line-clamp-1">{award.description}</p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
+                        <button type="button" onClick={() => editAward(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-yellow-500/10 hover:text-yellow-400 transition-all"
+                          title="Edit">
+                          <Icon name="PencilSquareIcon" size={13} />
+                        </button>
+                        <button type="button" onClick={() => removeAward(i)}
+                          className="p-1.5 rounded-lg text-neutral-500 hover:bg-red-500/15 hover:text-red-400 transition-all"
+                          title="Remove">
+                          <Icon name="TrashIcon" size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
       // ── SOCIAL ────────────────────────────────────────────────────────
       case 'social': return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {([
-            { key: 'instagram' as const, label: 'Instagram', placeholder: 'https://instagram.com/...' },
-            { key: 'twitter'   as const, label: 'Twitter/X', placeholder: 'https://twitter.com/...'  },
-            { key: 'facebook'  as const, label: 'Facebook',  placeholder: 'https://facebook.com/...' },
-            { key: 'youtube'   as const, label: 'YouTube',   placeholder: 'https://youtube.com/...'  },
-            { key: 'tiktok'    as const, label: 'TikTok',    placeholder: 'https://tiktok.com/@...'  },
-            { key: 'website'   as const, label: 'Website',   placeholder: 'https://example.com'      },
-          ]).map(({ key, label, placeholder }) => (
-            <LabeledInput
-              key={key}
-              label={label}
-              value={form.socialMedia?.[key] || ''}
-              onChange={(v) => setField('socialMedia', { ...form.socialMedia, [key]: v })}
-              placeholder={placeholder}
-              type="url"
-            />
-          ))}
+        <div className="space-y-6">
+          {/* Social Platforms */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">Social Platforms</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {([
+                { key: 'instagram' as const, label: 'Instagram',  placeholder: 'https://instagram.com/...'   },
+                { key: 'twitter'   as const, label: 'Twitter / X', placeholder: 'https://twitter.com/...'    },
+                { key: 'facebook'  as const, label: 'Facebook',   placeholder: 'https://facebook.com/...'   },
+                { key: 'youtube'   as const, label: 'YouTube',    placeholder: 'https://youtube.com/...'    },
+                { key: 'tiktok'    as const, label: 'TikTok',     placeholder: 'https://tiktok.com/@...'    },
+                { key: 'threads'   as const, label: 'Threads',    placeholder: 'https://threads.net/@...'   },
+              ]).map(({ key, label, placeholder }) => (
+                <LabeledInput
+                  key={key}
+                  label={label}
+                  value={form.socialMedia?.[key] || ''}
+                  onChange={(v) => setField('socialMedia', { ...form.socialMedia, [key]: v })}
+                  placeholder={placeholder}
+                  type="url"
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-white/8" />
+
+          {/* External Profiles */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-yellow-400/80 font-montserrat mb-3">External Profiles</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {([
+                { key: 'imdb'      as const, label: 'IMDb Profile',   placeholder: 'https://www.imdb.com/name/...' },
+                { key: 'wikipedia' as const, label: 'Wikipedia Page', placeholder: 'https://en.wikipedia.org/wiki/...' },
+                { key: 'website'   as const, label: 'Official Website', placeholder: 'https://example.com'          },
+              ]).map(({ key, label, placeholder }) => (
+                <LabeledInput
+                  key={key}
+                  label={label}
+                  value={form.socialMedia?.[key] || ''}
+                  onChange={(v) => setField('socialMedia', { ...form.socialMedia, [key]: v })}
+                  placeholder={placeholder}
+                  type="url"
+                />
+              ))}
+            </div>
+          </div>
         </div>
       );
 
@@ -1565,14 +2701,47 @@ export default function CelebrityManagementSection() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Image URL</label>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Image</label>
+                  {/* Upload button */}
+                  <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all mb-2 ${
+                    ogImageUpload.uploading ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+                  }`}>
+                    <input type="file" accept="image/*" className="sr-only" disabled={ogImageUpload.uploading}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleOgImageUpload(f); e.target.value = ''; }}
+                    />
+                    {ogImageUpload.uploading ? (
+                      <><span className="text-yellow-400 text-sm font-montserrat">Uploading…</span>
+                      <div className="ml-auto h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${ogImageUpload.progress}%` }} />
+                      </div></>
+                    ) : (
+                      <><span className="text-2xl">🖼️</span>
+                      <div>
+                        <p className="text-sm text-white font-montserrat font-medium">Upload OG Image</p>
+                        <p className="text-xs text-neutral-500 font-montserrat">Uploads to Firebase · 1200 × 630 px recommended</p>
+                      </div>
+                      {seo.ogImage && <span className="ml-auto text-[10px] text-emerald-400 font-montserrat">✓ Set</span>}
+                      </>
+                    )}
+                  </label>
+                  {ogImageUpload.error && <p className="text-red-400 text-xs font-montserrat mb-2">{ogImageUpload.error}</p>}
+                  {/* OR paste a URL */}
                   <input
                     type="url" value={seo.ogImage || ''}
                     onChange={(e) => setSeo('ogImage', e.target.value)}
-                    placeholder={form.profileImage || 'https://... (1200×630 px recommended)'}
+                    placeholder="Or paste an image URL (https://…)"
                     className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
                   />
-                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Recommended: 1200 × 630 px. Leave blank to default to profile photo.</p>
+                  {seo.ogImage && (
+                    <div className="mt-2 relative rounded-xl overflow-hidden border border-white/10 h-28 bg-black/20">
+                      <img src={seo.ogImage} alt="OG preview" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setSeo('ogImage', '')}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-red-500/80 transition-all">
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to default to profile photo.</p>
                 </div>
               </div>
             </section>
@@ -1613,6 +2782,69 @@ export default function CelebrityManagementSection() {
                     placeholder="@handle"
                     className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Title</label>
+                  <input
+                    type="text" value={seo.twitterTitle || ''}
+                    onChange={(e) => setSeo('twitterTitle', e.target.value)}
+                    placeholder={seo.metaTitle || `${form.name || 'Celebrity Name'} — Biography`}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to inherit Meta Title.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Description</label>
+                  <textarea
+                    rows={2} value={seo.twitterDescription || ''}
+                    onChange={(e) => setSeo('twitterDescription', e.target.value)}
+                    placeholder={seo.metaDescription || 'Description shown in Twitter card preview…'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+                  />
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to inherit Meta Description.</p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Image</label>
+                  {/* Upload button */}
+                  <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all mb-2 ${
+                    twitterImageUpload.uploading ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+                  }`}>
+                    <input type="file" accept="image/*" className="sr-only" disabled={twitterImageUpload.uploading}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTwitterImageUpload(f); e.target.value = ''; }}
+                    />
+                    {twitterImageUpload.uploading ? (
+                      <><span className="text-yellow-400 text-sm font-montserrat">Uploading…</span>
+                      <div className="ml-auto h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${twitterImageUpload.progress}%` }} />
+                      </div></>
+                    ) : (
+                      <><span className="text-2xl">🐦</span>
+                      <div>
+                        <p className="text-sm text-white font-montserrat font-medium">Upload Twitter Image</p>
+                        <p className="text-xs text-neutral-500 font-montserrat">Uploads to Firebase · min 120×120; large card: 1200×600 px</p>
+                      </div>
+                      {seo.twitterImage && <span className="ml-auto text-[10px] text-emerald-400 font-montserrat">✓ Set</span>}
+                      </>
+                    )}
+                  </label>
+                  {twitterImageUpload.error && <p className="text-red-400 text-xs font-montserrat mb-2">{twitterImageUpload.error}</p>}
+                  {/* OR paste a URL */}
+                  <input
+                    type="url" value={seo.twitterImage || ''}
+                    onChange={(e) => setSeo('twitterImage', e.target.value)}
+                    placeholder={seo.ogImage || form.profileImage || 'Or paste an image URL (https://…)'}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
+                  />
+                  {seo.twitterImage && (
+                    <div className="mt-2 relative rounded-xl overflow-hidden border border-white/10 h-28 bg-black/20">
+                      <img src={seo.twitterImage} alt="Twitter image preview" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setSeo('twitterImage', '')}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-red-500/80 transition-all">
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to fall back to OG Image.</p>
                 </div>
               </div>
             </section>
@@ -1773,8 +3005,8 @@ export default function CelebrityManagementSection() {
         </div>
       )}
 
-      {/* Stats — hidden while the Add form is open */}
-      {panelMode !== 'add' && <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Stats — hidden while the form panel is open */}
+      {!panelMode && <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Total',     value: total,                                                      icon: 'StarIcon',         color: 'text-yellow-400'  },
           { label: 'Published', value: celebrities.filter((c) => c.status === 'published').length,  icon: 'CheckBadgeIcon',   color: 'text-emerald-400' },
@@ -1792,8 +3024,8 @@ export default function CelebrityManagementSection() {
       </div>}
 
       {/* Controls */}
-      <div className="glass-card rounded-2xl p-5">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div className="glass-card rounded-2xl p-4 sm:p-5">
+        <div className="flex flex-col xl:flex-row gap-3">
           <div className="flex-1 relative">
             <Icon name="MagnifyingGlassIcon" size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500" />
             <input
@@ -1807,17 +3039,16 @@ export default function CelebrityManagementSection() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
+            className="w-full xl:w-auto min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
           >
             <option value="">All Statuses</option>
             <option value="published">Published</option>
             <option value="draft">Draft</option>
-            <option value="archived">Archived</option>
           </select>
           <select
             value={limit}
             onChange={(e) => fetchList(1, Number(e.target.value))}
-            className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
+            className="w-full xl:w-auto min-w-0 box-border px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
           >
             {PAGE_SIZES.map((s) => <option key={s} value={s}>{s} / page</option>)}
           </select>
@@ -1825,14 +3056,14 @@ export default function CelebrityManagementSection() {
             onClick={() => fetchList(page)}
             disabled={loading}
             title="Refresh"
-            className="px-3 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-40"
+            className="w-full sm:w-auto px-3 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-40"
           >
             <Icon name="ArrowPathIcon" size={16} className={loading ? 'animate-spin' : ''} />
           </button>
-          {panelMode === 'add' ? (
+          {panelMode ? (
             <button
               onClick={closePanel}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 font-semibold font-montserrat text-sm hover:bg-white/20 transition-all"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 font-semibold font-montserrat text-sm hover:bg-white/20 transition-all"
             >
               <Icon name="ChevronLeftIcon" size={16} />
               Back to List
@@ -1840,7 +3071,7 @@ export default function CelebrityManagementSection() {
           ) : (
             <button
               onClick={openAdd}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all"
             >
               <Icon name="PlusIcon" size={16} />
               Add Celebrity
@@ -1849,8 +3080,8 @@ export default function CelebrityManagementSection() {
         </div>
       </div>
 
-      {/* Error — hidden while the Add form is open */}
-      {panelMode !== 'add' && fetchError && (
+      {/* Error — hidden while the form panel is open */}
+      {!panelMode && fetchError && (
         <div className="glass-card rounded-2xl p-4 border border-red-500/20 bg-red-500/10 flex items-center gap-3">
           <Icon name="ExclamationCircleIcon" size={18} className="text-red-400 shrink-0" />
           <p className="text-red-400 text-sm font-montserrat flex-1">{fetchError}</p>
@@ -1862,21 +3093,21 @@ export default function CelebrityManagementSection() {
       {panelMode && (
         <div ref={panelRef} className="glass-card rounded-2xl border border-yellow-500/20 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6 border-b border-white/10">
+            <div className="flex min-w-0 items-center gap-3">
               <div className="p-2.5 rounded-xl bg-yellow-500/10">
                 <Icon name={panelMode === 'add' ? 'UserPlusIcon' : 'PencilSquareIcon'} size={20} className="text-yellow-400" />
               </div>
-              <div>
-                <h3 className="font-playfair text-lg font-bold text-white">
+              <div className="min-w-0">
+                <h3 className="font-playfair text-base sm:text-lg font-bold text-white truncate">
                   {panelMode === 'add' ? 'Add New Celebrity' : `Editing — ${form.name || '...'}`}
                 </h3>
-                <p className="text-neutral-500 text-xs font-montserrat">
+                <p className="text-neutral-500 text-xs font-montserrat leading-relaxed">
                   {panelMode === 'add' ? 'Fill in details across tabs — only Name and Slug are required' : 'Update celebrity profile details'}
                 </p>
               </div>
             </div>
-            <button onClick={closePanel} className="p-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all">
+            <button onClick={closePanel} className="self-end sm:self-auto p-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all">
               <Icon name="XMarkIcon" size={18} />
             </button>
           </div>
@@ -1889,13 +3120,13 @@ export default function CelebrityManagementSection() {
           ) : (
             <form onSubmit={panelMode === 'add' ? handleCreate : handleUpdate}>
               {/* Tab bar */}
-              <div className="flex gap-1 px-6 pt-5 pb-1 overflow-x-auto border-b border-white/10">
+              <div className="flex gap-1 px-3 pt-4 pb-1 sm:px-6 overflow-x-auto border-b border-white/10">
                 {TABS.map((t) => (
                   <button
                     key={t.key}
                     type="button"
                     onClick={() => setFormTab(t.key)}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-sm font-medium font-montserrat whitespace-nowrap transition-all ${
+                    className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-t-xl text-xs sm:text-sm font-medium font-montserrat whitespace-nowrap transition-all ${
                       formTab === t.key
                         ? 'bg-yellow-500 text-black'
                         : 'text-neutral-400 hover:text-white hover:bg-white/10'
@@ -1908,7 +3139,7 @@ export default function CelebrityManagementSection() {
               </div>
 
               {/* Tab content */}
-              <div className="px-6 py-5 min-h-[360px]">
+              <div className="px-3 py-4 sm:px-6 sm:py-5 min-h-[360px] overflow-x-hidden">
                 {formApiError && (
                   <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
                     <p className="text-red-400 text-sm font-montserrat text-center">{formApiError}</p>
@@ -1918,20 +3149,60 @@ export default function CelebrityManagementSection() {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-white/10 bg-white/2">
+              <div className="flex flex-col gap-3 px-3 py-4 sm:px-6 border-t border-white/10 bg-white/2">
+                {/* Status + Toggles row */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Status pills */}
+                  <div className="flex gap-2">
+                    {(['draft', 'published'] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setField('status', s)}
+                        className={`px-4 py-1.5 rounded-xl border font-montserrat text-xs font-semibold capitalize transition-all ${
+                          form.status === s
+                            ? s === 'published'
+                              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                              : 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400'
+                            : 'bg-white/5 border-white/10 text-neutral-500 hover:border-white/20 hover:text-neutral-300'
+                        }`}
+                      >
+                        {s === 'draft' ? '📝 Draft' : '✅ Published'}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Divider */}
+                  <div className="h-5 w-px bg-white/10 hidden sm:block" />
+                  {/* Featured & Verified toggles */}
+                  <ToggleField label="Featured" value={form.isFeatured ?? false} onChange={(v) => setField('isFeatured', v)} />
+                  <ToggleField label="Verified" value={form.isVerified ?? false} onChange={(v) => setField('isVerified', v)} />
+                </div>
+                {/* Actions row */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-neutral-600 text-xs font-montserrat">* Name and Slug are required</p>
-                <div className="flex gap-3">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                   <button
                     type="button"
                     onClick={closePanel}
-                    className="px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
                   >
                     Cancel
                   </button>
+                  {/* Save as Draft — always visible, only needs name+slug */}
+                  <button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    disabled={draftLoading || formLoading}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-yellow-500/40 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 font-montserrat text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {draftLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
+                    {draftLoading ? 'Saving draft…' : '📝 Save as Draft'}
+                  </button>
+                  {/* Publish — requires full validation */}
                   <button
                     type="submit"
-                    disabled={formLoading}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={formLoading || draftLoading}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {formLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
                     {formLoading
@@ -1939,14 +3210,15 @@ export default function CelebrityManagementSection() {
                       : (panelMode === 'add' ? 'Create Celebrity' : 'Save Changes')}
                   </button>
                 </div>
+                </div>
               </div>
             </form>
           )}
         </div>
       )}
 
-      {/* Table — hidden while the Add form is open */}
-      {panelMode !== 'add' && <div className="glass-card rounded-2xl p-6">
+      {/* Table — hidden while the form panel is open */}
+      {!panelMode && <div className="glass-card rounded-2xl p-6">
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-playfair text-xl font-bold text-white">Celebrity Profiles</h3>
           {!loading && (
@@ -1962,7 +3234,7 @@ export default function CelebrityManagementSection() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/10">
-                {['Celebrity', 'Nationality / Occupation', 'Status', 'Active', 'Featured', 'Actions'].map((h) => (
+                {['Celebrity', 'Nationality / Occupation', 'Status', 'Featured', 'Actions'].map((h) => (
                   <th key={h} className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -1971,7 +3243,7 @@ export default function CelebrityManagementSection() {
               {loading
                 ? skeletonRows.map((_, i) => (
                     <tr key={i} className="border-b border-white/5">
-                      {[180, 140, 80, 60, 60, 80].map((w, j) => (
+                      {[180, 140, 80, 60, 80].map((w, j) => (
                         <td key={j} className="py-3.5 px-3">
                           <div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: w }} />
                         </td>
@@ -2004,15 +3276,6 @@ export default function CelebrityManagementSection() {
                         <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium font-montserrat capitalize ${STATUS_COLORS[c.status || 'draft']}`}>
                           {c.status || 'draft'}
                         </span>
-                      </td>
-                      <td className="py-3.5 px-3">
-                        <button
-                          onClick={() => handleToggle(c, 'isActive')}
-                          title={c.isActive ? 'Deactivate' : 'Activate'}
-                          className={`w-10 h-5 rounded-full transition-all relative ${c.isActive ? 'bg-emerald-500' : 'bg-white/10'}`}
-                        >
-                          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${c.isActive ? 'left-5' : 'left-0.5'}`} />
-                        </button>
                       </td>
                       <td className="py-3.5 px-3">
                         <button

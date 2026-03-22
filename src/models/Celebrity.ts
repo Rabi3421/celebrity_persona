@@ -10,6 +10,46 @@ export interface IMovie extends Document {
   _id?: string;
 }
 
+export interface IWebSeries extends Document {
+  name: string;
+  role: string;
+  seasons: string;
+  year: string;
+  platform: string;  // Netflix, Prime, Disney+, etc.
+  genre: string;
+  description: string;
+  _id?: string;
+}
+
+export interface ITvShow extends Document {
+  name: string;
+  role: string;
+  seasons: string;
+  year: string;
+  channel: string;   // Star Plus, Colors, Zee TV, etc.
+  genre: string;
+  description: string;
+  _id?: string;
+}
+
+export interface IAward extends Document {
+  title: string;
+  category?: string;
+  year?: string;
+  organization?: string;
+  work?: string;
+  description?: string;
+  _id?: string;
+}
+
+export interface IMarriage {
+  name?: string;
+  marriedYear?: string;
+  divorcedYear?: string;
+  currentlyMarried?: boolean;
+  _id?: string;
+}
+
 export interface ISEO extends Document {
   metaTitle?: string;
   metaDescription?: string;
@@ -85,6 +125,10 @@ export interface ICelebrity extends Document {
   trivia: string[];
   works: string[];
   movies: IMovie[];
+  webSeries: IWebSeries[];
+  tvShows: ITvShow[];
+  awards: IAward[];
+  marriages: IMarriage[];
   quotes: string[];
   relatedCelebrities: string[];
   newsArticles: string[];
@@ -94,6 +138,9 @@ export interface ICelebrity extends Document {
     facebook?: string;
     youtube?: string;
     tiktok?: string;
+    threads?: string;
+    imdb?: string;
+    wikipedia?: string;
     website?: string;
   };
   seo: ISEO;
@@ -104,17 +151,15 @@ export interface ICelebrity extends Document {
   searchRank?: number;
   trendingScore?: number;
   likes: mongoose.Types.ObjectId[];
-  isActive: boolean;
   isFeatured?: boolean;
   isVerified?: boolean;
-  contentQuality?: 'draft' | 'review' | 'published' | 'archived';
   tags: string[];
   categories: string[];
   language?: string;
   profileImage?: string;
   coverImage?: string;
   galleryImages: string[];
-  status?: 'draft' | 'published' | 'archived';
+  status?: 'draft' | 'published';
   isScheduled?: boolean;
   publishAt?: Date;
   createdAt: Date;
@@ -122,36 +167,48 @@ export interface ICelebrity extends Document {
 }
 
 const movieSchema = new Schema<IMovie>({
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  role: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  year: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  director: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  genre: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  description: {
-    type: String,
-    required: true,
-    trim: true
-  }
+  name:        { type: String, required: true, trim: true },
+  role:        { type: String, trim: true, default: '' },
+  year:        { type: String, trim: true, default: '' },
+  director:    { type: String, trim: true, default: '' },
+  genre:       { type: String, trim: true, default: '' },
+  description: { type: String, trim: true, default: '' },
+}, { _id: true });
+
+const webSeriesSchema = new Schema<IWebSeries>({
+  name:        { type: String, trim: true, default: '' },
+  role:        { type: String, trim: true, default: '' },
+  seasons:     { type: String, trim: true, default: '' },
+  year:        { type: String, trim: true, default: '' },
+  platform:    { type: String, trim: true, default: '' },
+  genre:       { type: String, trim: true, default: '' },
+  description: { type: String, trim: true, default: '' },
+}, { _id: true });
+
+const tvShowSchema = new Schema<ITvShow>({
+  name:        { type: String, trim: true, default: '' },
+  role:        { type: String, trim: true, default: '' },
+  seasons:     { type: String, trim: true, default: '' },
+  year:        { type: String, trim: true, default: '' },
+  channel:     { type: String, trim: true, default: '' },
+  genre:       { type: String, trim: true, default: '' },
+  description: { type: String, trim: true, default: '' },
+}, { _id: true });
+
+const marriageSchema = new Schema<IMarriage>({
+  name:             { type: String, trim: true },
+  marriedYear:      { type: String, trim: true },
+  divorcedYear:     { type: String, trim: true },
+  currentlyMarried: { type: Boolean, default: false },
+}, { _id: true });
+
+const awardSchema = new Schema<IAward>({
+  title:        { type: String, required: true, trim: true },
+  category:     { type: String, trim: true },
+  year:         { type: String, trim: true },
+  organization: { type: String, trim: true },
+  work:         { type: String, trim: true },
+  description:  { type: String, trim: true },
 }, { _id: true });
 
 const seoSchema = new Schema<ISEO>({
@@ -293,6 +350,10 @@ const celebritySchema = new Schema<ICelebrity>(
     trivia: [String],
     works: [String],
     movies: [movieSchema],
+    webSeries: { type: [webSeriesSchema], default: [] },
+    tvShows:   { type: [tvShowSchema],   default: [] },
+    awards: [awardSchema],
+    marriages: { type: [marriageSchema], default: [] },
     quotes: [String],
     relatedCelebrities: [String],
     newsArticles: [String],
@@ -302,6 +363,9 @@ const celebritySchema = new Schema<ICelebrity>(
       facebook: String,
       youtube: String,
       tiktok: String,
+      threads: String,
+      imdb: String,
+      wikipedia: String,
       website: String
     },
     seo: {
@@ -336,10 +400,6 @@ const celebritySchema = new Schema<ICelebrity>(
       type: [{ type: Schema.Types.ObjectId, ref: 'User' }],
       default: [],
     },
-    isActive: {
-      type: Boolean,
-      default: true
-    },
     isFeatured: {
       type: Boolean,
       default: false
@@ -347,11 +407,6 @@ const celebritySchema = new Schema<ICelebrity>(
     isVerified: {
       type: Boolean,
       default: false
-    },
-    contentQuality: {
-      type: String,
-      enum: ['draft', 'review', 'published', 'archived'],
-      default: 'draft'
     },
     tags: [String],
     categories: [String],
@@ -364,7 +419,7 @@ const celebritySchema = new Schema<ICelebrity>(
     galleryImages: [String],
     status: {
       type: String,
-      enum: ['draft', 'published', 'archived'],
+      enum: ['draft', 'published'],
       default: 'draft'
     },
     isScheduled: {
@@ -387,10 +442,15 @@ celebritySchema.index(
 );
 
 // Compound indexes for performance
-celebritySchema.index({ status: 1, isActive: 1 });
-celebritySchema.index({ slug: 1 });
+celebritySchema.index({ status: 1 });
+// Note: slug index is already created by `unique: true` on the schema field.
 celebritySchema.index({ viewCount: -1 });
 celebritySchema.index({ popularityScore: -1 });
+
+// Delete cached model in development to pick up schema changes on hot-reload
+if (process.env.NODE_ENV === 'development') {
+  delete (mongoose.models as any).Celebrity;
+}
 
 const Celebrity: Model<ICelebrity> = mongoose.models.Celebrity || mongoose.model<ICelebrity>('Celebrity', celebritySchema);
 

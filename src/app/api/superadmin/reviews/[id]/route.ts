@@ -6,7 +6,7 @@ import { withAuth } from '@/lib/authMiddleware';
 const ALLOWED_FIELDS = [
   'title', 'slug', 'movieTitle', 'poster', 'backdropImage', 'trailer',
   'rating', 'content', 'excerpt', 'author', 'movieDetails', 'scores',
-  'publishDate', 'featured', 'pros', 'cons', 'verdict', 'seoData', 'seo',
+  'publishDate', 'featured', 'pros', 'cons', 'verdict', 'seoData', 'seo', 'status',
 ];
 
 async function getHandler(

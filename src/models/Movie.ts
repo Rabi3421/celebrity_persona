@@ -29,8 +29,16 @@ export interface IMovieSEO {
   twitterDescription?: string;
   twitterImage?: string;
   twitterCard?: string;
+  twitterCreator?: string;
   structuredData?: string;
   focusKeyword?: string;
+  schemaType?: string;
+  authorName?: string;
+  authorUrl?: string;
+  articleSection?: string;
+  relatedTopics?: string[];
+  robotsIndex?: boolean;
+  robotsFollow?: boolean;
   altText?: string;
   imageDescription?: string;
   robots?: string;
@@ -122,25 +130,33 @@ const ticketLinkSchema = new Schema<ITicketLink>(
 
 const seoDataSchema = new Schema<IMovieSEO>(
   {
-    metaTitle:        { type: String },
-    metaDescription:  { type: String },
-    keywords:         [{ type: String }],
-    canonicalUrl:     { type: String, trim: true },
-    ogTitle:          { type: String },
-    ogDescription:    { type: String },
-    ogImage:          { type: String, trim: true },
-    ogType:           { type: String, trim: true, default: 'movie' },
-    twitterTitle:     { type: String },
+    metaTitle:          { type: String },
+    metaDescription:    { type: String },
+    keywords:           [{ type: String }],
+    canonicalUrl:       { type: String, trim: true },
+    ogTitle:            { type: String },
+    ogDescription:      { type: String },
+    ogImage:            { type: String, trim: true },
+    ogType:             { type: String, trim: true, default: 'movie' },
+    twitterTitle:       { type: String },
     twitterDescription: { type: String },
-    twitterImage:     { type: String, trim: true },
-    twitterCard:      { type: String, trim: true, default: 'summary_large_image' },
-    structuredData:   { type: String },
-    focusKeyword:     { type: String, trim: true },
-    altText:          { type: String },
-    imageDescription: { type: String },
-    robots:           { type: String, trim: true, default: 'index,follow' },
-    priority:         { type: Number, min: 0, max: 1, default: 0.8 },
-    changeFreq:       { type: String, trim: true, default: 'weekly' },
+    twitterImage:       { type: String, trim: true },
+    twitterCard:        { type: String, trim: true, default: 'summary_large_image' },
+    twitterCreator:     { type: String, trim: true },
+    structuredData:     { type: String },
+    focusKeyword:       { type: String, trim: true },
+    schemaType:         { type: String, trim: true, default: 'Movie' },
+    authorName:         { type: String, trim: true },
+    authorUrl:          { type: String, trim: true },
+    articleSection:     { type: String, trim: true },
+    relatedTopics:      [{ type: String }],
+    robotsIndex:        { type: Boolean, default: true },
+    robotsFollow:       { type: Boolean, default: true },
+    altText:            { type: String },
+    imageDescription:   { type: String },
+    robots:             { type: String, trim: true, default: 'index,follow' },
+    priority:           { type: Number, min: 0, max: 1, default: 0.8 },
+    changeFreq:         { type: String, trim: true, default: 'weekly' },
   },
   { _id: false }
 );

@@ -3,21 +3,22 @@ import { NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
 import dbConnect from '@/lib/mongodb';
 import Celebrity from '@/models/Celebrity';
+import { normalizeStoredNetWorth } from '@/lib/netWorth';
 
 const ALLOWED_FIELDS = new Set([
   'name', 'slug', 'born', 'birthPlace', 'died', 'age', 'nationality', 'citizenship',
   'occupation', 'yearsActive', 'height', 'weight', 'bodyMeasurements', 'eyeColor',
   'hairColor', 'spouse', 'children', 'parents', 'siblings', 'relatives', 'education',
   'netWorth', 'introduction', 'earlyLife', 'career', 'personalLife', 'achievements',
-  'controversies', 'philanthropy', 'trivia', 'works', 'movies', 'quotes',
-  'relatedCelebrities', 'newsArticles', 'socialMedia', 'seo', 'popularity',
-  'popularityScore', 'isActive', 'isFeatured', 'isVerified', 'contentQuality',
+  'controversies', 'philanthropy', 'trivia', 'works', 'movies', 'webSeries', 'tvShows', 'awards', 'marriages',
+  'quotes', 'relatedCelebrities', 'newsArticles', 'socialMedia', 'seo', 'popularity',
+  'popularityScore', 'isFeatured', 'isVerified',
   'tags', 'categories', 'language', 'profileImage', 'coverImage', 'galleryImages',
   'status', 'isScheduled', 'publishAt',
 ]);
 
 async function handler(request: AuthenticatedRequest, { params }: any) {
-  const id = params?.id;
+  const { id } = await params;
   if (!id) return NextResponse.json({ success: false, message: 'Missing id' }, { status: 400 });
 
   try {
@@ -44,8 +45,12 @@ async function handler(request: AuthenticatedRequest, { params }: any) {
         if (ALLOWED_FIELDS.has(key)) update[key] = body[key];
       }
 
+      if (typeof update.netWorth === 'string') {
+        update.netWorth = normalizeStoredNetWorth(update.netWorth) || undefined;
+      }
+
       // Validate status if provided
-      if (update.status && !['draft', 'published', 'archived'].includes(update.status)) {
+      if (update.status && !['draft', 'published'].includes(update.status)) {
         return NextResponse.json({ success: false, message: 'Invalid status value' }, { status: 400 });
       }
 
@@ -57,7 +62,7 @@ async function handler(request: AuthenticatedRequest, { params }: any) {
         }
       }
 
-      const updated = await Celebrity.findByIdAndUpdate(id, update, { new: true }).lean();
+      const updated = await Celebrity.findByIdAndUpdate(id, { $set: update }, { new: true, runValidators: false }).lean();
       if (!updated) return NextResponse.json({ success: false, message: 'Celebrity not found' }, { status: 404 });
       const obj: any = { ...updated, id: String((updated as any)._id) };
       delete obj._id; delete obj.__v;

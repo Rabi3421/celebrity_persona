@@ -395,9 +395,9 @@ export default function RoleManagementSection() {
 
       {/* ── Users Table ── */}
       <div className="glass-card rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="font-playfair text-2xl font-bold text-white">User Role Management</h3>
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+          <h3 className="font-playfair text-xl sm:text-2xl font-bold text-white flex-1">User Role Management</h3>
+          <div className="flex items-center gap-3 flex-wrap">
             {!loading && (
               <span className="text-neutral-400 text-sm font-montserrat">
                 {filteredUsers.length} of {users.length} users
@@ -420,23 +420,24 @@ export default function RoleManagementSection() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/10">
-                <th className="text-left py-4 px-4 text-neutral-400 text-sm font-medium font-montserrat">User</th>
-                <th className="text-left py-4 px-4 text-neutral-400 text-sm font-medium font-montserrat">Email</th>
-                <th className="text-left py-4 px-4 text-neutral-400 text-sm font-medium font-montserrat">Current Role</th>
-                <th className="text-left py-4 px-4 text-neutral-400 text-sm font-medium font-montserrat">Change Role</th>
-                <th className="text-left py-4 px-4 text-neutral-400 text-sm font-medium font-montserrat">Status</th>
-                <th className="text-left py-4 px-4 text-neutral-400 text-sm font-medium font-montserrat">Actions</th>
+                <th className="text-left py-4 px-3 text-neutral-400 text-sm font-medium font-montserrat">User</th>
+                <th className="text-left py-4 px-3 text-neutral-400 text-sm font-medium font-montserrat hidden md:table-cell">Email</th>
+                <th className="text-left py-4 px-3 text-neutral-400 text-sm font-medium font-montserrat hidden sm:table-cell">Role</th>
+                <th className="text-left py-4 px-3 text-neutral-400 text-sm font-medium font-montserrat hidden lg:table-cell">Change Role</th>
+                <th className="text-left py-4 px-3 text-neutral-400 text-sm font-medium font-montserrat">Status</th>
+                <th className="text-left py-4 px-3 text-neutral-400 text-sm font-medium font-montserrat">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading
                 ? skeletonRows.map((_, i) => (
                     <tr key={i} className="border-b border-white/5">
-                      {Array.from({ length: 6 }).map((__, j) => (
-                        <td key={j} className="py-4 px-4">
-                          <div className="h-6 rounded-lg bg-white/10 animate-pulse" style={{ width: j === 0 ? '160px' : j === 1 ? '200px' : '100px' }} />
-                        </td>
-                      ))}
+                      <td className="py-4 px-3"><div className="h-6 rounded-lg bg-white/10 animate-pulse w-36" /></td>
+                      <td className="py-4 px-3 hidden md:table-cell"><div className="h-6 rounded-lg bg-white/10 animate-pulse w-44" /></td>
+                      <td className="py-4 px-3 hidden sm:table-cell"><div className="h-6 rounded-lg bg-white/10 animate-pulse w-20" /></td>
+                      <td className="py-4 px-3 hidden lg:table-cell"><div className="h-6 rounded-lg bg-white/10 animate-pulse w-24" /></td>
+                      <td className="py-4 px-3"><div className="h-6 rounded-lg bg-white/10 animate-pulse w-16" /></td>
+                      <td className="py-4 px-3"><div className="h-6 rounded-lg bg-white/10 animate-pulse w-20" /></td>
                     </tr>
                   ))
                 : filteredUsers.map((user) => (
@@ -447,20 +448,23 @@ export default function RoleManagementSection() {
                       }`}
                     >
                       {/* User */}
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold font-playfair text-sm shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold font-playfair text-sm shrink-0">
                             {user.name.charAt(0).toUpperCase()}
                           </div>
-                          <span className="text-white font-medium font-montserrat">{user.name}</span>
+                          <div className="min-w-0">
+                            <span className="text-white font-medium font-montserrat text-sm block truncate max-w-[120px] sm:max-w-none">{user.name}</span>
+                            <span className="text-neutral-500 text-xs font-montserrat md:hidden truncate block max-w-[120px]">{user.email}</span>
+                          </div>
                         </div>
                       </td>
 
-                      {/* Email */}
-                      <td className="py-4 px-4 text-neutral-400 font-montserrat text-sm">{user.email}</td>
+                      {/* Email — hidden on mobile, shown inline above */}
+                      <td className="py-4 px-3 text-neutral-400 font-montserrat text-sm hidden md:table-cell">{user.email}</td>
 
                       {/* Current Role Badge */}
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-3 hidden sm:table-cell">
                         <span
                           className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium font-montserrat ${roleBadgeClass(user.role)}`}
                         >
@@ -468,8 +472,8 @@ export default function RoleManagementSection() {
                         </span>
                       </td>
 
-                      {/* Role Select — hidden for superadmin */}
-                      <td className="py-4 px-4">
+                      {/* Role Select — hidden for superadmin, hidden on mobile */}
+                      <td className="py-4 px-3 hidden lg:table-cell">
                         {user.role === 'superadmin' ? (
                           <span className="text-neutral-600 text-xs font-montserrat italic">—</span>
                         ) : (
@@ -489,7 +493,7 @@ export default function RoleManagementSection() {
                       </td>
 
                       {/* Status Toggle — hidden for superadmin */}
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-3">
                         {user.role === 'superadmin' ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium font-montserrat bg-accent/20 text-accent">
                             <span className="w-1.5 h-1.5 rounded-full bg-accent" />
@@ -515,7 +519,7 @@ export default function RoleManagementSection() {
                       </td>
 
                       {/* Actions — superadmin: password only; others: full CRUD */}
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-3">
                         {user.role === 'superadmin' ? (
                           <button
                             onClick={() => openEditModal(user, 'password')}
