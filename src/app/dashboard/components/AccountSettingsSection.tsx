@@ -180,7 +180,7 @@ export default function AccountSettingsSection() {
   // ── Sign out ──────────────────────────────────────────────────────────────
   const handleLogout = async () => {
     try { await logout(); } catch {}
-    router.push('/homepage');
+    router.push('/');
   };
 
   // ── Delete account ────────────────────────────────────────────────────────
@@ -196,7 +196,7 @@ export default function AccountSettingsSection() {
         body:    JSON.stringify({ password: deletePassword }),
       });
       const data = await res.json();
-      if (res.ok && data.success) { await logout(); router.push('/homepage'); }
+      if (res.ok && data.success) { await logout(); router.push('/'); }
       else setDeleteError(data.message || 'Failed to delete account.');
     } catch {
       setDeleteError('Network error. Please try again.');

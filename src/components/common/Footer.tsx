@@ -12,7 +12,7 @@ export default function Footer() {
 
 	const footerLinks = {
 		explore: [
-			{ id: 'fe_home', label: 'Home', href: '/homepage' },
+			{ id: 'fe_home', label: 'Home', href: '/' },
 			{ id: 'fe_celebrities', label: 'Celebrity Profiles', href: '/celebrity-profiles' },
 			{ id: 'fe_fashion', label: 'Fashion Gallery', href: '/fashion-gallery' },
 			{ id: 'fe_news', label: 'Celebrity News', href: '/celebrity-news' },
@@ -87,7 +87,7 @@ export default function Footer() {
 					{/* Left: logo + description */}
 					<div className="md:col-span-2">
 						<button
-							onClick={() => handleNavClick('/homepage')}
+							onClick={() => handleNavClick('/')}
 							className="flex items-start gap-3 mb-4 text-left hover:opacity-80 transition-opacity"
 						>
 							<div className="w-12 h-12 flex items-center justify-center rounded-full bg-card border border-border flex-shrink-0">

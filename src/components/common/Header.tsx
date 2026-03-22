@@ -44,7 +44,7 @@ export default function Header() {
     await logout();
     setShowUserMenu(false);
     setIsMobileMenuOpen(false);
-    router.push('/homepage');
+    router.push('/');
   };
 
   const handleUploadOutfit = () => {
@@ -98,7 +98,7 @@ export default function Header() {
     >
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/homepage" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
             <Icon name="SparklesIcon" size={20} className="text-black" />
           </div>

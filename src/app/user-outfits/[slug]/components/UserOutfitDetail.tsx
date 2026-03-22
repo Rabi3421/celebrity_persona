@@ -193,7 +193,7 @@ export default function UserOutfitDetail({ slug }: { slug: string }) {
     <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-16">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-neutral-500 mb-8">
-        <Link href="/homepage" className="hover:text-white transition-colors">Home</Link>
+        <Link href="/" className="hover:text-white transition-colors">Home</Link>
         <span>/</span>
         <Link href="/fashion-gallery" className="hover:text-white transition-colors">Fashion Gallery</Link>
         <span>/</span>

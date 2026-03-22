@@ -234,7 +234,7 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
 
       {/* ── Breadcrumb ────────────────────────────────────────────────────── */}
       <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-neutral-500 mb-8 flex-wrap">
-        <Link href="/homepage" className="hover:text-white transition-colors">Home</Link>
+        <Link href="/" className="hover:text-white transition-colors">Home</Link>
         <Icon name="ChevronRightIcon" size={12} className="text-neutral-700" />
         <Link href="/fashion-gallery" className="hover:text-white transition-colors">Fashion Gallery</Link>
         <Icon name="ChevronRightIcon" size={12} className="text-neutral-700" />
