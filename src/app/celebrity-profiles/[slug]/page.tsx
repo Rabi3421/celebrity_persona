@@ -453,13 +453,13 @@ function StructuredData({ celeb }: { celeb: Record<string, any> }) {
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item: BASE_URL,
+        item: SITE_URL,
       },
       {
         '@type': 'ListItem',
         position: 2,
         name: 'Celebrity Profiles',
-        item: `${BASE_URL}/celebrity-profiles`,
+        item: `${SITE_URL}/celebrity-profiles`,
       },
       {
         '@type': 'ListItem',
