@@ -2319,12 +2319,23 @@ export default function MovieManagementSection() {
       {/* Stats */}
       {!panelMode && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Total',      value: total,                                                         icon: 'FilmIcon',          color: 'text-yellow-400'  },
-            { label: 'Published',  value: movies.filter((m) => m.status === 'published').length,         icon: 'CheckBadgeIcon',    color: 'text-emerald-400' },
-            { label: 'Draft',      value: movies.filter((m) => (m.status || 'draft') === 'draft').length, icon: 'DocumentTextIcon',  color: 'text-yellow-300'  },
-            { label: 'Featured',   value: movies.filter((m) => m.featured).length,                       icon: 'SparklesIcon',      color: 'text-purple-400'  },
-          ].map((s) => (
+          {(() => {
+            const now = new Date();
+            const RELEASED_STATUSES = ['Released', 'Now Showing', 'Now Playing', 'In Theatres', 'In Theaters'];
+            const isRel = (m: MovieRow) => {
+              if (RELEASED_STATUSES.some(s => s.toLowerCase() === (m.status || '').toLowerCase())) return true;
+              if (m.releaseDate) { const d = new Date(m.releaseDate); if (!isNaN(d.getTime()) && d <= now) return true; }
+              return false;
+            };
+            const upcomingCount = movies.filter(m => !isRel(m)).length;
+            const releasedCount = movies.filter(m => isRel(m)).length;
+            return [
+              { label: 'Total',      value: total,          icon: 'FilmIcon',       color: 'text-yellow-400'  },
+              { label: 'Published',  value: movies.filter(m => m.status === 'published').length, icon: 'CheckBadgeIcon', color: 'text-emerald-400' },
+              { label: 'Upcoming',   value: upcomingCount,  icon: 'CalendarIcon',   color: 'text-sky-400'     },
+              { label: 'Released',   value: releasedCount,  icon: 'SparklesIcon',   color: 'text-purple-400'  },
+            ];
+          })().map((s) => (
             <div key={s.label} className="glass-card rounded-2xl p-5">
               <Icon name={s.icon as any} size={20} className={s.color} />
               <p className="font-playfair text-3xl font-bold text-white mt-3">
@@ -2490,183 +2501,275 @@ export default function MovieManagementSection() {
         </div>
       )}
 
-      {/* Table */}
-      {!panelMode && (
-        <div className="glass-card rounded-2xl p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-5">
-            <h3 className="font-playfair text-xl font-bold text-white flex-1">Upcoming Movies</h3>
-            {!loading && (
-              <span className="text-neutral-400 text-sm font-montserrat">
-                {total > 0 ? `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total}` : '0 results'}
-              </span>
-            )}
-          </div>
+      {/* Tables — split into Upcoming vs Released */}
+      {!panelMode && (() => {
+        const now = new Date();
+        const RELEASED_STATUSES = ['Released', 'Now Showing', 'Now Playing', 'In Theatres', 'In Theaters'];
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/10">
-                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Movie</th>
-                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden md:table-cell">Director</th>
-                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Status</th>
-                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden lg:table-cell">Release Date</th>
-                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Featured</th>
-                  <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Actions</th>
+        const isReleased = (m: MovieRow) => {
+          if (RELEASED_STATUSES.some(s => s.toLowerCase() === (m.status || '').toLowerCase())) return true;
+          if (m.releaseDate) {
+            const d = new Date(m.releaseDate);
+            if (!isNaN(d.getTime()) && d <= now) return true;
+          }
+          return false;
+        };
+
+        const upcomingMovies = movies.filter(m => !isReleased(m));
+        const releasedMovies = movies.filter(m => isReleased(m));
+
+        const MovieTableRows = ({ rows, emptyLabel }: { rows: MovieRow[]; emptyLabel: string }) => (
+          <>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center">
+                  <Icon name="FilmIcon" size={32} className="mx-auto mb-2 text-neutral-700" />
+                  <p className="text-neutral-500 font-montserrat text-sm">{emptyLabel}</p>
+                </td>
+              </tr>
+            ) : (
+              rows.map((m) => (
+                <tr key={m.id} className={`border-b border-white/5 hover:bg-white/5 transition-colors ${busyMap[m.id] ? 'opacity-50 pointer-events-none' : ''}`}>
+                  {/* Movie */}
+                  <td className="py-3.5 px-3">
+                    <div className="flex items-center gap-3">
+                      {m.poster ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={m.poster} alt={m.title} className="w-9 h-12 rounded-lg object-cover shrink-0 border border-white/10" />
+                      ) : (
+                        <div className="w-9 h-12 rounded-lg bg-yellow-500/10 flex items-center justify-center shrink-0">
+                          <Icon name="FilmIcon" size={14} className="text-yellow-400" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-white font-medium font-montserrat text-sm leading-tight line-clamp-1 max-w-[240px]">{m.title}</p>
+                        <p className="text-neutral-600 text-xs font-montserrat mt-0.5">
+                          {Array.isArray(m.language) ? m.language.join('·') : (m.language || '—')}{m.duration ? ` · ${m.duration} min` : ''}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  {/* Director */}
+                  <td className="py-3.5 px-3 hidden md:table-cell">
+                    <p className="text-neutral-300 text-sm font-montserrat">{m.director || '—'}</p>
+                  </td>
+                  {/* Status */}
+                  <td className="py-3.5 px-3 hidden sm:table-cell">
+                    <div className="flex flex-col gap-1.5">
+                      {m.status && m.status !== 'draft' && m.status !== 'published' && (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-montserrat capitalize ${
+                          STATUS_COLORS[m.status] || 'bg-neutral-500/10 text-neutral-400'
+                        }`}>{m.status}</span>
+                      )}
+                      <div className="inline-flex rounded-lg overflow-hidden border border-white/10">
+                        <button
+                          onClick={() => handleStatusToggle(m, 'draft')}
+                          disabled={!!busyMap[m.id]}
+                          title="Set to Draft"
+                          className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
+                            (m.status || 'draft') === 'draft'
+                              ? 'bg-yellow-500/25 text-yellow-300'
+                              : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
+                          }`}
+                        >Draft</button>
+                        <button
+                          onClick={() => handleStatusToggle(m, 'published')}
+                          disabled={!!busyMap[m.id]}
+                          title="Set to Published"
+                          className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
+                            m.status === 'published'
+                              ? 'bg-emerald-500/25 text-emerald-300'
+                              : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
+                          }`}
+                        >Published</button>
+                      </div>
+                    </div>
+                  </td>
+                  {/* Release Date */}
+                  <td className="py-3.5 px-3 hidden lg:table-cell">
+                    <p className="text-neutral-400 text-xs font-montserrat">{formatDate(m.releaseDate)}</p>
+                  </td>
+                  {/* Featured */}
+                  <td className="py-3.5 px-3 hidden sm:table-cell">
+                    <button onClick={() => handleToggleFeatured(m)} title={m.featured ? 'Unfeature' : 'Feature'}
+                      className={`w-10 h-5 rounded-full transition-all relative ${m.featured ? 'bg-yellow-500' : 'bg-white/10'}`}
+                    >
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${m.featured ? 'left-5' : 'left-0.5'}`} />
+                    </button>
+                  </td>
+                  {/* Actions */}
+                  <td className="py-3.5 px-3">
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => openEdit(m)} title="Edit"
+                        className="p-2 rounded-lg bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-all">
+                        <Icon name="PencilSquareIcon" size={14} />
+                      </button>
+                      <button onClick={() => setConfirmDelete(m)} title="Delete"
+                        className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all">
+                        <Icon name="TrashIcon" size={14} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {loading
-                  ? skeletonRows.map((_, i) => (
-                      <tr key={i} className="border-b border-white/5">
-                        {[220, 130, 100, 90, 60, 70].map((w, j) => (
-                          <td key={j} className="py-3.5 px-3">
-                            <div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: w }} />
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  : movies.map((m) => (
-                      <tr key={m.id} className={`border-b border-white/5 hover:bg-white/5 transition-colors ${busyMap[m.id] ? 'opacity-50 pointer-events-none' : ''}`}>
-                        {/* Movie */}
-                        <td className="py-3.5 px-3">
-                          <div className="flex items-center gap-3">
-                            {m.poster ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={m.poster} alt={m.title} className="w-9 h-12 rounded-lg object-cover shrink-0 border border-white/10" />
-                            ) : (
-                              <div className="w-9 h-12 rounded-lg bg-yellow-500/10 flex items-center justify-center shrink-0">
-                                <Icon name="FilmIcon" size={14} className="text-yellow-400" />
-                              </div>
-                            )}
-                            <div>
-                              <p className="text-white font-medium font-montserrat text-sm leading-tight line-clamp-1 max-w-[240px]">{m.title}</p>
-                              <p className="text-neutral-600 text-xs font-montserrat mt-0.5">
-                                {m.language || '—'}{m.duration ? ` · ${m.duration} min` : ''}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        {/* Director */}
-                        <td className="py-3.5 px-3 hidden md:table-cell">
-                          <p className="text-neutral-300 text-sm font-montserrat">{m.director || '—'}</p>
-                        </td>
-                        {/* Status */}
-                        <td className="py-3.5 px-3 hidden sm:table-cell">
-                          <div className="flex flex-col gap-1.5">
-                            {m.status && m.status !== 'draft' && m.status !== 'published' && (
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-montserrat capitalize ${
-                                STATUS_COLORS[m.status] || 'bg-neutral-500/10 text-neutral-400'
-                              }`}>{m.status}</span>
-                            )}
-                            <div className="inline-flex rounded-lg overflow-hidden border border-white/10">
-                              <button
-                                onClick={() => handleStatusToggle(m, 'draft')}
-                                disabled={!!busyMap[m.id]}
-                                title="Set to Draft"
-                                className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
-                                  (m.status || 'draft') === 'draft'
-                                    ? 'bg-yellow-500/25 text-yellow-300'
-                                    : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
-                                }`}
-                              >
-                                Draft
-                              </button>
-                              <button
-                                onClick={() => handleStatusToggle(m, 'published')}
-                                disabled={!!busyMap[m.id]}
-                                title="Set to Published"
-                                className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
-                                  m.status === 'published'
-                                    ? 'bg-emerald-500/25 text-emerald-300'
-                                    : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
-                                }`}
-                              >
-                                Published
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                        {/* Release Date */}
-                        <td className="py-3.5 px-3 hidden lg:table-cell">
-                          <p className="text-neutral-400 text-xs font-montserrat">{formatDate(m.releaseDate)}</p>
-                        </td>
-                        {/* Featured */}
-                        <td className="py-3.5 px-3 hidden sm:table-cell">
-                          <button onClick={() => handleToggleFeatured(m)} title={m.featured ? 'Unfeature' : 'Feature'}
-                            className={`w-10 h-5 rounded-full transition-all relative ${m.featured ? 'bg-yellow-500' : 'bg-white/10'}`}
-                          >
-                            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${m.featured ? 'left-5' : 'left-0.5'}`} />
-                          </button>
-                        </td>
-                        {/* Actions */}
-                        <td className="py-3.5 px-3">
-                          <div className="flex items-center gap-1.5">
-                            <button onClick={() => openEdit(m)} title="Edit"
-                              className="p-2 rounded-lg bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-all">
-                              <Icon name="PencilSquareIcon" size={14} />
-                            </button>
-                            <button onClick={() => setConfirmDelete(m)} title="Delete"
-                              className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all">
-                              <Icon name="TrashIcon" size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+              ))
+            )}
+          </>
+        );
 
-                {!loading && !fetchError && movies.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-16 text-center">
-                      <Icon name="FilmIcon" size={40} className="mx-auto mb-3 text-neutral-700" />
-                      <p className="text-neutral-500 font-montserrat text-sm">No movies found</p>
-                      <button onClick={openAdd} className="mt-3 text-yellow-400 text-sm font-montserrat hover:underline">
-                        + Add the first movie
-                      </button>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        const TableHead = () => (
+          <thead>
+            <tr className="border-b border-white/10">
+              <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Movie</th>
+              <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden md:table-cell">Director</th>
+              <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Status</th>
+              <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden lg:table-cell">Release Date</th>
+              <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Featured</th>
+              <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+        );
 
-          {/* Pagination */}
-          {pages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-5 border-t border-white/10">
-              <p className="text-neutral-500 text-xs font-montserrat order-2 sm:order-1">
-                Page {page} of {pages} &middot; {total} total
-              </p>
-              <div className="flex items-center gap-1.5 order-1 sm:order-2">
-                <button onClick={() => fetchList(1)} disabled={page <= 1 || loading}
-                  className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30">
-                  <Icon name="ChevronDoubleLeftIcon" size={14} />
-                </button>
-                <button onClick={() => fetchList(page - 1)} disabled={page <= 1 || loading}
-                  className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30">
-                  <Icon name="ChevronLeftIcon" size={14} />
-                </button>
-                {pageNumbers().map((n, i) =>
-                  n === '...'
-                    ? <span key={`d${i}`} className="px-1.5 text-neutral-600 font-montserrat text-sm">…</span>
-                    : (
-                      <button key={n} onClick={() => fetchList(n as number)} disabled={loading}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium font-montserrat transition-all ${n === page ? 'bg-yellow-500 text-black' : 'bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10'}`}>
-                        {n}
-                      </button>
-                    )
+        return (
+          <div className="space-y-6">
+            {/* ── Upcoming Movies ── */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-5">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-8 h-8 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center">
+                    <Icon name="CalendarIcon" size={16} className="text-sky-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-playfair text-xl font-bold text-white">Upcoming Movies</h3>
+                    <p className="text-neutral-500 text-xs font-montserrat">Release date is in the future or not yet set</p>
+                  </div>
+                  {!loading && (
+                    <span className="ml-1 px-2.5 py-0.5 rounded-full text-xs font-semibold font-montserrat bg-sky-500/15 text-sky-400 border border-sky-500/30">
+                      {upcomingMovies.length}
+                    </span>
+                  )}
+                </div>
+                {!loading && (
+                  <span className="text-neutral-500 text-xs font-montserrat shrink-0">
+                    {upcomingMovies.length} movie{upcomingMovies.length !== 1 ? 's' : ''}
+                  </span>
                 )}
-                <button onClick={() => fetchList(page + 1)} disabled={page >= pages || loading}
-                  className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30">
-                  <Icon name="ChevronRightIcon" size={14} />
-                </button>
-                <button onClick={() => fetchList(pages)} disabled={page >= pages || loading}
-                  className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30">
-                  <Icon name="ChevronDoubleRightIcon" size={14} />
-                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <TableHead />
+                  <tbody>
+                    {loading
+                      ? skeletonRows.map((_, i) => (
+                          <tr key={i} className="border-b border-white/5">
+                            {[220, 130, 100, 90, 60, 70].map((w, j) => (
+                              <td key={j} className="py-3.5 px-3">
+                                <div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: w }} />
+                              </td>
+                            ))}
+                          </tr>
+                        ))
+                      : <MovieTableRows rows={upcomingMovies} emptyLabel="No upcoming movies found" />
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              {!loading && upcomingMovies.length === 0 && !fetchError && (
+                <div className="mt-4 text-center">
+                  <button onClick={openAdd} className="text-yellow-400 text-sm font-montserrat hover:underline">
+                    + Add an upcoming movie
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* ── Released Movies ── */}
+            <div className="glass-card rounded-2xl p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-5">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+                    <Icon name="CheckBadgeIcon" size={16} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-playfair text-xl font-bold text-white">Already Released</h3>
+                    <p className="text-neutral-500 text-xs font-montserrat">Release date has passed or marked as released</p>
+                  </div>
+                  {!loading && (
+                    <span className="ml-1 px-2.5 py-0.5 rounded-full text-xs font-semibold font-montserrat bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      {releasedMovies.length}
+                    </span>
+                  )}
+                </div>
+                {!loading && (
+                  <span className="text-neutral-500 text-xs font-montserrat shrink-0">
+                    {releasedMovies.length} movie{releasedMovies.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <TableHead />
+                  <tbody>
+                    {loading
+                      ? skeletonRows.slice(0, 3).map((_, i) => (
+                          <tr key={i} className="border-b border-white/5">
+                            {[220, 130, 100, 90, 60, 70].map((w, j) => (
+                              <td key={j} className="py-3.5 px-3">
+                                <div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: w }} />
+                              </td>
+                            ))}
+                          </tr>
+                        ))
+                      : <MovieTableRows rows={releasedMovies} emptyLabel="No released movies on this page" />
+                    }
+                  </tbody>
+                </table>
               </div>
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Pagination (shared — applies to the full result set) */}
+            {pages > 1 && (
+              <div className="glass-card rounded-2xl px-6 py-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <p className="text-neutral-500 text-xs font-montserrat order-2 sm:order-1">
+                    Page {page} of {pages} &middot; {total} total
+                  </p>
+                  <div className="flex items-center gap-1.5 order-1 sm:order-2">
+                    <button onClick={() => fetchList(1)} disabled={page <= 1 || loading}
+                      className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30">
+                      <Icon name="ChevronDoubleLeftIcon" size={14} />
+                    </button>
+                    <button onClick={() => fetchList(page - 1)} disabled={page <= 1 || loading}
+                      className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30">
+                      <Icon name="ChevronLeftIcon" size={14} />
+                    </button>
+                    {pageNumbers().map((n, i) =>
+                      n === '...'
+                        ? <span key={`d${i}`} className="px-1.5 text-neutral-600 font-montserrat text-sm">…</span>
+                        : (
+                          <button key={n} onClick={() => fetchList(n as number)} disabled={loading}
+                            className={`w-8 h-8 rounded-lg text-sm font-medium font-montserrat transition-all ${n === page ? 'bg-yellow-500 text-black' : 'bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10'}`}>
+                            {n}
+                          </button>
+                        )
+                    )}
+                    <button onClick={() => fetchList(page + 1)} disabled={page >= pages || loading}
+                      className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30">
+                      <Icon name="ChevronRightIcon" size={14} />
+                    </button>
+                    <button onClick={() => fetchList(pages)} disabled={page >= pages || loading}
+                      className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30">
+                      <Icon name="ChevronDoubleRightIcon" size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Delete confirmation */}
       {confirmDelete && (

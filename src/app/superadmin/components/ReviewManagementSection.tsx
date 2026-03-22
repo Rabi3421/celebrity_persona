@@ -269,6 +269,12 @@ export default function ReviewManagementSection() {
   const castDropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Available-for-review movies (released but no review yet)
+  const [availableMovies,        setAvailableMovies]        = useState<any[]>([]);
+  const [availableLoading,       setAvailableLoading]       = useState(true);
+  const [availableError,         setAvailableError]         = useState<string | null>(null);
+  const [showAllAvailable,       setShowAllAvailable]       = useState(false);
+
   // ── helpers ────────────────────────────────────────────────────────────
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
@@ -426,6 +432,27 @@ export default function ReviewManagementSection() {
   }, [authHeaders, searchQuery, statusFilter, limit]);
 
   useEffect(() => { fetchList(1); }, [fetchList]);
+
+  // ── fetch available-for-review movies ───────────────────────────────────
+  const fetchAvailableMovies = useCallback(async () => {
+    setAvailableLoading(true);
+    setAvailableError(null);
+    try {
+      const res = await fetch('/api/user/movies/available-for-review?limit=20&sort=release', {
+        headers: { 'x-api-key': process.env.NEXT_PUBLIC_X_API_KEY ?? '' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || 'Failed to load');
+      setAvailableMovies(json.data ?? []);
+    } catch (e: any) {
+      setAvailableError(e.message || 'Failed to load');
+    } finally {
+      setAvailableLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAvailableMovies(); }, [fetchAvailableMovies]);
 
   // ── open add ────────────────────────────────────────────────────────────
   const openAdd = () => {
@@ -1833,6 +1860,122 @@ export default function ReviewManagementSection() {
               <p className="text-neutral-400 text-sm font-montserrat mt-1">{s.label}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Available for Review */}
+      {!panelMode && (availableLoading || availableMovies.length > 0) && (
+        <div className="glass-card rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+                <Icon name="ClockIcon" size={14} className="text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="font-playfair text-base font-bold text-white">Available for Review</h3>
+                <p className="text-neutral-500 text-xs font-montserrat">Released movies with no review yet</p>
+              </div>
+              {!availableLoading && availableMovies.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold font-montserrat bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  {availableMovies.length}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {!availableLoading && availableMovies.length > 4 && (
+                <button
+                  onClick={() => setShowAllAvailable(v => !v)}
+                  className="text-emerald-400 text-xs font-semibold font-montserrat hover:text-emerald-300 transition-colors flex items-center gap-1"
+                >
+                  <Icon name={showAllAvailable ? 'ChevronUpIcon' : 'ChevronDownIcon'} size={12} />
+                  {showAllAvailable ? 'Show less' : `See all ${availableMovies.length}`}
+                </button>
+              )}
+              <button onClick={fetchAvailableMovies} disabled={availableLoading} title="Refresh"
+                className="p-1.5 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-40"
+              >
+                <Icon name="ArrowPathIcon" size={13} className={availableLoading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          </div>
+
+          {availableError ? (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+              <Icon name="ExclamationCircleIcon" size={16} className="text-red-400 shrink-0" />
+              <p className="text-red-400 text-xs font-montserrat flex-1">{availableError}</p>
+              <button onClick={fetchAvailableMovies} className="text-xs text-yellow-400 hover:underline font-montserrat">Retry</button>
+            </div>
+          ) : availableLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] animate-pulse">
+                  <div className="w-8 h-10 rounded-lg bg-white/10 shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 bg-white/10 rounded w-full" />
+                    <div className="h-2.5 bg-white/[0.06] rounded w-2/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {(showAllAvailable ? availableMovies : availableMovies.slice(0, 4)).map((movie: any) => {
+                const releasedOn = movie.releaseDate
+                  ? new Date(movie.releaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  : null;
+                return (
+                  <button
+                    key={movie._id}
+                    type="button"
+                    onClick={() => {
+                      setField('movieTitle', movie.title);
+                      setField('poster', movie.poster || '');
+                      setField('slug', toSlug(movie.title + '-review'));
+                      setMovieField('director', movie.director || '');
+                      setMovieField('genre', movie.genre || []);
+                      setMovieField('runtime', movie.duration);
+                      setMovieField('mpaaRating', movie.mpaaRating || '');
+                      openAdd();
+                    }}
+                    className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/20
+                      hover:bg-emerald-500/[0.10] hover:border-emerald-500/40 transition-all text-left group w-full"
+                    title={`Write a review for ${movie.title}`}
+                  >
+                    {movie.poster ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={movie.poster} alt={movie.title} className="w-8 h-11 rounded-lg object-cover shrink-0 border border-white/10" />
+                    ) : (
+                      <div className="w-8 h-11 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                        <Icon name="FilmIcon" size={12} className="text-emerald-400" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white text-xs font-semibold font-montserrat leading-snug line-clamp-2 group-hover:text-emerald-300 transition-colors">
+                        {movie.title}
+                      </p>
+                      {releasedOn && (
+                        <p className="text-neutral-500 text-[10px] font-montserrat mt-0.5 flex items-center gap-0.5">
+                          <Icon name="CalendarIcon" size={8} />
+                          {releasedOn}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className="text-[9px] font-montserrat font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20">
+                          + Add Review
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {!availableLoading && !showAllAvailable && availableMovies.length > 4 && (
+            <p className="text-center text-neutral-600 text-xs font-montserrat mt-3">
+              + {availableMovies.length - 4} more movies waiting for a review
+            </p>
+          )}
         </div>
       )}
 
