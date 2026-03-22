@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import ReviewDetailClient from './components/ReviewDetailClient';
+import dbConnect from '@/lib/mongodb';
+import MovieReview from '@/models/MovieReview';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -10,16 +12,11 @@ interface Props {
 
 async function getReview(slug: string) {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:4028'}/api/v1/reviews/${slug}`,
-      {
-        headers: { 'x-api-key': process.env.X_API_KEY ?? '' },
-        next: { revalidate: 60 },
-      }
-    );
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.success ? json.data : null;
+    await dbConnect();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const review: any = await MovieReview.findOne({ slug: slug.toLowerCase().trim() }).lean();
+    if (!review) return null;
+    return JSON.parse(JSON.stringify(review));
   } catch {
     return null;
   }

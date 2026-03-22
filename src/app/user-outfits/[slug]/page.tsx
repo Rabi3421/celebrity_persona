@@ -2,20 +2,24 @@ import type { Metadata } from 'next';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import UserOutfitDetail from './components/UserOutfitDetail';
+import dbConnect from '@/lib/mongodb';
+import UserOutfit from '@/models/UserOutfit';
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:4028';
-    const res = await fetch(`${baseUrl}/api/user-outfits/${slug}`, { cache: 'no-store' });
-    const json = await res.json();
-    if (json.success && json.outfit) {
+    await dbConnect();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const outfit: any = await UserOutfit.findOne(
+      { $or: [{ slug }, { _id: slug.match(/^[0-9a-fA-F]{24}$/) ? slug : null }] }
+    ).lean();
+    if (outfit) {
       return {
-        title: `${json.outfit.title} - CelebrityPersona`,
-        description: json.outfit.description || `Browse ${json.outfit.title} on CelebrityPersona`,
-        openGraph: { images: json.outfit.images?.[0] ? [json.outfit.images[0]] : [] },
+        title: `${outfit.title} - CelebrityPersona`,
+        description: outfit.description || `Browse ${outfit.title} on CelebrityPersona`,
+        openGraph: { images: outfit.images?.[0] ? [outfit.images[0]] : [] },
       };
     }
   } catch { /* fallback */ }

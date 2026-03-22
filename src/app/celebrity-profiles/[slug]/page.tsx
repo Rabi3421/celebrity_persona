@@ -4,19 +4,29 @@ import Link from 'next/link';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import CelebrityProfileDetail from './components/CelebrityProfileDetail';
+import dbConnect from '@/lib/mongodb';
+import Celebrity from '@/models/Celebrity';
+import CelebrityOutfit from '@/models/CelebrityOutfit';
+import CelebrityNews from '@/models/CelebrityNews';
+import Movie from '@/models/Movie';
+import { normalizeStoredNetWorth } from '@/lib/netWorth';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:4028';
-const API_KEY  = process.env.X_API_KEY || '';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://celebritypersona.com';
 
 async function fetchCelebrity(slug: string) {
   try {
-    const res = await fetch(`${BASE_URL}/api/user/celebrities/${slug}`, {
-      headers: { 'x-api-key': API_KEY },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.success ? data.celebrity : null;
+    await dbConnect();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const doc: any = await Celebrity.findOne({
+      slug: slug.toLowerCase().trim(),
+      $or: [{ status: { $exists: false } }, { status: 'published' }],
+    }).select('-__v').lean();
+    if (!doc) return null;
+    Celebrity.findByIdAndUpdate(doc._id, { $inc: { viewCount: 1 } }).exec();
+    const celebrity: Record<string, any> = { ...doc, id: String(doc._id) };
+    delete celebrity._id;
+    celebrity.netWorth = normalizeStoredNetWorth(celebrity.netWorth);
+    return JSON.parse(JSON.stringify(celebrity));
   } catch {
     return null;
   }
@@ -25,45 +35,62 @@ async function fetchCelebrity(slug: string) {
 // ── Fetch helpers (all run server-side at render time) ────────────────────────
 async function fetchRelatedOutfits(name: string) {
   try {
-    const res = await fetch(
-      `${BASE_URL}/api/user/outfits?celebrity=${encodeURIComponent(name)}&limit=4`,
-      { headers: { 'x-api-key': API_KEY }, next: { revalidate: 1800 } },
-    );
-    const json = await res.json();
-    return json.success ? (json.data ?? []) : [];
+    await dbConnect();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const docs: any[] = await CelebrityOutfit.find({ isActive: true })
+      .populate({ path: 'celebrity', match: { name: { $regex: name, $options: 'i' } }, select: 'name slug' })
+      .limit(4).lean();
+    const results = docs.filter((d: any) => d.celebrity);
+    return JSON.parse(JSON.stringify(results));
   } catch { return []; }
 }
 
 async function fetchRelatedNews(name: string) {
   try {
-    const res = await fetch(
-      `${BASE_URL}/api/user/news?celebrity=${encodeURIComponent(name)}&limit=4`,
-      { headers: { 'x-api-key': API_KEY }, next: { revalidate: 1800 } },
-    );
-    const json = await res.json();
-    return json.success ? (json.data ?? []) : [];
+    await dbConnect();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const docs: any[] = await CelebrityNews.find({
+      $or: [
+        { 'celebrities': { $regex: name, $options: 'i' } },
+        { title: { $regex: name, $options: 'i' } },
+      ],
+      status: 'published',
+    }).select('title slug coverImage category publishDate').limit(4).lean();
+    return JSON.parse(JSON.stringify(docs));
   } catch { return []; }
 }
 
 async function fetchRelatedMovies(name: string) {
   try {
-    const res = await fetch(
-      `${BASE_URL}/api/user/movies/released?celebrity=${encodeURIComponent(name)}&limit=4`,
-      { headers: { 'x-api-key': API_KEY }, next: { revalidate: 1800 } },
-    );
-    const json = await res.json();
-    return json.success ? (json.data ?? []) : [];
+    await dbConnect();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const docs: any[] = await Movie.find({
+      status: 'released',
+      $or: [
+        { director: { $regex: name, $options: 'i' } },
+        { 'cast.name': { $regex: name, $options: 'i' } },
+        { writers: { $regex: name, $options: 'i' } },
+        { producers: { $regex: name, $options: 'i' } },
+      ],
+    }).select('title slug poster backdrop releaseDate').limit(4).lean();
+    return JSON.parse(JSON.stringify(docs));
   } catch { return []; }
 }
 
 async function fetchRelatedUpcoming(name: string) {
   try {
-    const res = await fetch(
-      `${BASE_URL}/api/user/movies/upcoming?celebrity=${encodeURIComponent(name)}&limit=4`,
-      { headers: { 'x-api-key': API_KEY }, next: { revalidate: 1800 } },
-    );
-    const json = await res.json();
-    return json.success ? (json.data ?? []) : [];
+    await dbConnect();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const docs: any[] = await Movie.find({
+      status: { $ne: 'released' },
+      $or: [
+        { director: { $regex: name, $options: 'i' } },
+        { 'cast.name': { $regex: name, $options: 'i' } },
+        { writers: { $regex: name, $options: 'i' } },
+        { producers: { $regex: name, $options: 'i' } },
+      ],
+    }).select('title slug poster backdrop releaseDate').limit(4).lean();
+    return JSON.parse(JSON.stringify(docs));
   } catch { return []; }
 }
 
@@ -301,7 +328,7 @@ export async function generateMetadata(
 
   const title       = seo.metaTitle        || `${name} — Celebrity Profile | CelebrityPersona`;
   const description = seo.metaDescription  || intro;
-  const canonical   = seo.canonicalUrl     || `${BASE_URL}/celebrity-profiles/${celeb.slug}`;
+  const canonical   = seo.canonicalUrl     || `${SITE_URL}/celebrity-profiles/${celeb.slug}`;
   const ogImage     = seo.ogImages?.[0]    || celeb.coverImage || celeb.profileImage || '';
 
   return {
@@ -335,7 +362,7 @@ export async function generateMetadata(
 
 // ── JSON-LD structured data ───────────────────────────────────────────────────
 function StructuredData({ celeb }: { celeb: Record<string, any> }) {
-  const profileUrl = `${BASE_URL}/celebrity-profiles/${celeb.slug}`;
+  const profileUrl = `${SITE_URL}/celebrity-profiles/${celeb.slug}`;
   const sm = (celeb.socialMedia as Record<string, string>) || {};
 
   // All social / external profile URLs
