@@ -57,7 +57,7 @@ export default function AdminDashboardInteractive() {
 
         {/* Brand */}
         <div className={`flex items-center gap-3 px-5 py-5 border-b border-white/10 ${collapsed ? 'justify-center px-0' : ''}`}>
-          <Link href="/homepage" className="flex items-center gap-2 shrink-0">
+          <Link href="/" className="flex items-center gap-2 shrink-0">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0">
               <Icon name="SparklesIcon" size={18} className="text-black" />
             </div>
@@ -109,7 +109,7 @@ export default function AdminDashboardInteractive() {
 
         {/* Bottom actions */}
         <div className="px-3 py-4 border-t border-white/10 space-y-1">
-          <Link href="/homepage"
+          <Link href="/"
             className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-neutral-400 hover:text-white hover:bg-white/5 transition-all ${collapsed ? 'justify-center' : ''}`}
             title={collapsed ? 'Home' : undefined}
           >

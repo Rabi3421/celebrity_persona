@@ -105,7 +105,7 @@ export default function SuperAdminDashboardInteractive() {
 
         {/* Brand */}
         <div className={`flex items-center gap-3 px-5 py-9 border-b border-white/10 ${collapsed ? 'xl:justify-center xl:px-0' : ''}`}>
-          <Link href="/homepage" className="flex items-center gap-2 shrink-0" onClick={() => setMobileOpen(false)}>
+          <Link href="/" className="flex items-center gap-2 shrink-0" onClick={() => setMobileOpen(false)}>
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center shrink-0">
               <Icon name="StarIcon" size={18} className="text-black" />
             </div>
@@ -141,7 +141,7 @@ export default function SuperAdminDashboardInteractive() {
 
         {/* Bottom actions */}
         <div className="px-3 py-4 border-t border-white/10 space-y-1">
-          <Link href="/homepage"
+          <Link href="/"
             className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-neutral-400 hover:text-white hover:bg-white/5 transition-all ${collapsed ? 'xl:justify-center' : ''}`}
             title={collapsed ? 'Home' : undefined}
             onClick={() => setMobileOpen(false)}
