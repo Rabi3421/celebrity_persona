@@ -3,19 +3,39 @@ import { notFound } from 'next/navigation';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import CelebrityOutfitDetail from './components/CelebrityOutfitDetail';
+import dbConnect from '@/lib/mongodb';
+import CelebrityOutfit from '@/models/CelebrityOutfit';
+import '@/models/Celebrity';
 
 interface Props { params: Promise<{ slug: string }> }
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:4028';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://celebritypersona.com';
 
 async function fetchOutfit(slug: string) {
   try {
-    const res = await fetch(`${BASE_URL}/api/content/outfits/slug/${slug}`, {
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.success ? json.data : null;
+    await dbConnect();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const outfit: any = await CelebrityOutfit.findOne({ slug })
+      .populate('celebrity', 'name slug profileImage')
+      .lean();
+    if (!outfit) return null;
+    const data = {
+      ...outfit,
+      id:         String(outfit._id),
+      likes:      (outfit.likes      ?? []).map(String),
+      favourites: (outfit.favourites ?? []).map(String),
+      comments:   (outfit.comments   ?? []).map((c: any) => ({
+        _id:        String(c._id),
+        userId:     String(c.userId),
+        userName:   c.userName,
+        userAvatar: c.userAvatar || '',
+        text:       c.text,
+        createdAt:  c.createdAt,
+      })),
+    };
+    delete data._id;
+    delete data.__v;
+    return JSON.parse(JSON.stringify(data));
   } catch {
     return null;
   }
@@ -38,7 +58,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = o.seo?.metaDescription ||
     o.description?.slice(0, 155) ||
     `Shop ${celebName}'s ${o.title}. ${o.brand ? `Brand: ${o.brand}.` : ''} ${o.price ? `Price: ${o.price}.` : ''} Get the celebrity look now.`;
-  const canonical  = o.seo?.canonicalUrl    || `${BASE_URL}/celebrity-outfits/${slug}`;
+  const canonical  = o.seo?.canonicalUrl    || `${SITE_URL}/celebrity-outfits/${slug}`;
   const ogImage    = o.seo?.ogImages?.[0]   || o.images?.[0] || '';
   const keywords   = o.seo?.metaKeywords?.join(', ') ||
     [celebName, o.title, o.brand, o.designer, o.category, o.event, 'celebrity outfit', 'shop the look', 'celebrity fashion']
@@ -77,7 +97,7 @@ function OutfitSchema({ outfit }: { outfit: Record<string, any> }) {
     '@type':    'Product',
     name:        outfit.title,
     description: outfit.description || `${outfit.title} worn by ${celebName}`,
-    url:         `${BASE_URL}/celebrity-outfits/${outfit.slug}`,
+    url:         `${SITE_URL}/celebrity-outfits/${outfit.slug}`,
     image:       outfit.images || [],
     brand:       outfit.brand ? { '@type': 'Brand', name: outfit.brand } : undefined,
     offers: outfit.purchaseLink ? {
@@ -101,10 +121,10 @@ function OutfitSchema({ outfit }: { outfit: Record<string, any> }) {
     '@context': 'https://schema.org',
     '@type':    'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home',           item: BASE_URL },
-      { '@type': 'ListItem', position: 2, name: 'Fashion Gallery', item: `${BASE_URL}/fashion-gallery` },
-      { '@type': 'ListItem', position: 3, name: celebName,         item: `${BASE_URL}/fashion-gallery` },
-      { '@type': 'ListItem', position: 4, name: outfit.title,      item: `${BASE_URL}/celebrity-outfits/${outfit.slug}` },
+      { '@type': 'ListItem', position: 1, name: 'Home',           item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: 'Fashion Gallery', item: `${SITE_URL}/fashion-gallery` },
+      { '@type': 'ListItem', position: 3, name: celebName,         item: `${SITE_URL}/fashion-gallery` },
+      { '@type': 'ListItem', position: 4, name: outfit.title,      item: `${SITE_URL}/celebrity-outfits/${outfit.slug}` },
     ],
   };
 

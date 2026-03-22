@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import MovieDetailClient from './components/MovieDetailClient';
+import dbConnect from '@/lib/mongodb';
+import Movie from '@/models/Movie';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CastMember {
@@ -71,17 +73,12 @@ interface Movie {
 
 // ── Server-side data fetch ────────────────────────────────────────────────────
 async function getMovie(slug: string): Promise<Movie | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:4028';
-  const apiKey  = process.env.X_API_KEY ?? '';
-
   try {
-    const res = await fetch(`${baseUrl}/api/user/movies/${slug}`, {
-      headers: { 'x-api-key': apiKey },
-      next: { revalidate: 60 }, // ISR: revalidate every 60 seconds
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.success ? (json.data as Movie) : null;
+    await dbConnect();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const movie: any = await Movie.findOne({ slug }).select('-__v').lean();
+    if (!movie) return null;
+    return JSON.parse(JSON.stringify(movie)) as Movie;
   } catch {
     return null;
   }
