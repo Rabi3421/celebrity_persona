@@ -6,6 +6,21 @@ import Image from 'next/image';
 import Link from 'next/link';
 import MovieInteractions from './MovieInteractions';
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function stripHtml(html: string): string {
+  return html
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CastMember {
   _id: string;
@@ -295,7 +310,7 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
               >
                 <h2 className="text-lg font-bold text-white mb-3 border-l-4 border-yellow-500 pl-4">Synopsis</h2>
                 <p className="text-neutral-300 leading-relaxed text-[15px] whitespace-pre-line">
-                  {movie.synopsis}
+                  {stripHtml(movie.synopsis)}
                 </p>
               </motion.section>
             )}
@@ -309,7 +324,7 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
               >
                 <h2 className="text-lg font-bold text-white mb-3 border-l-4 border-blue-500 pl-4">Plot Summary</h2>
                 <p className="text-neutral-300 leading-relaxed text-[15px] whitespace-pre-line">
-                  {movie.plotSummary}
+                  {stripHtml(movie.plotSummary)}
                 </p>
               </motion.section>
             )}
@@ -323,7 +338,7 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
               >
                 <h2 className="text-lg font-bold text-white mb-3 border-l-4 border-purple-500 pl-4">Production Notes</h2>
                 <p className="text-neutral-300 leading-relaxed text-[15px] whitespace-pre-line">
-                  {movie.productionNotes}
+                  {stripHtml(movie.productionNotes)}
                 </p>
               </motion.section>
             )}

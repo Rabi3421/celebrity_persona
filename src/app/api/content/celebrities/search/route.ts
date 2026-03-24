@@ -14,17 +14,33 @@ export async function GET(request: NextRequest) {
 
     // Build search query
     const searchQuery: any = {
-      status: 'published', // Only show published celebrities
-      isActive: true, // Only show active celebrities
+      $and: [
+        {
+          $or: [
+            { status: 'published' },
+            { status: { $exists: false } },
+            { status: null },
+          ],
+        },
+        {
+          $or: [
+            { isActive: true },
+            { isActive: { $exists: false } },
+            { isActive: null },
+          ],
+        },
+      ],
     };
 
     if (query.trim()) {
       // Enhanced search - match name, categories, or tags
-      searchQuery.$or = [
-        { name: { $regex: query.trim(), $options: 'i' } },
-        { categories: { $in: [new RegExp(query.trim(), 'i')] } },
-        { tags: { $in: [new RegExp(query.trim(), 'i')] } }
-      ];
+      searchQuery.$and.push({
+        $or: [
+          { name: { $regex: query.trim(), $options: 'i' } },
+          { categories: { $in: [new RegExp(query.trim(), 'i')] } },
+          { tags: { $in: [new RegExp(query.trim(), 'i')] } },
+        ],
+      });
     }
 
     // Select fields based on includeImage parameter

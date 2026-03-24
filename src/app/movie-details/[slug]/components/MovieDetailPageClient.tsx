@@ -7,12 +7,27 @@ import Link from 'next/link';
 import MovieInteractions from './MovieInteractions';
 import type { ReleasedMovie } from '../page';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────────
 function formatFullDate(dateStr?: string): string {
   if (!dateStr) return 'TBA';
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return 'TBA';
   return d.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+}
 }
 
 function formatYear(dateStr?: string): string {
@@ -288,7 +303,7 @@ export default function MovieDetailPageClient({ movie }: { movie: ReleasedMovie 
               >
                 <h2 className="text-lg font-bold text-white mb-3 border-l-4 border-yellow-500 pl-4">Synopsis</h2>
                 <p className="text-neutral-300 leading-relaxed text-[15px] whitespace-pre-line">
-                  {movie.synopsis}
+                  {stripHtml(movie.synopsis)}
                 </p>
               </motion.section>
             )}
@@ -302,7 +317,7 @@ export default function MovieDetailPageClient({ movie }: { movie: ReleasedMovie 
               >
                 <h2 className="text-lg font-bold text-white mb-3 border-l-4 border-blue-500 pl-4">Plot Summary</h2>
                 <p className="text-neutral-300 leading-relaxed text-[15px] whitespace-pre-line">
-                  {movie.plotSummary}
+                  {stripHtml(movie.plotSummary)}
                 </p>
               </motion.section>
             )}
@@ -318,7 +333,7 @@ export default function MovieDetailPageClient({ movie }: { movie: ReleasedMovie 
                   Production Notes
                 </h2>
                 <p className="text-neutral-300 leading-relaxed text-[15px] whitespace-pre-line">
-                  {movie.productionNotes}
+                  {stripHtml(movie.productionNotes)}
                 </p>
               </motion.section>
             )}

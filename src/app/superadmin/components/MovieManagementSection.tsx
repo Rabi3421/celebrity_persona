@@ -930,9 +930,7 @@ export default function MovieManagementSection() {
   // Handle celebrity search with debouncing
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (celebritySearch !== '') {
-        fetchCelebrities(celebritySearch);
-      }
+      fetchCelebrities(celebritySearch);
     }, 300);
     
     return () => clearTimeout(timer);
@@ -964,7 +962,7 @@ export default function MovieManagementSection() {
     setField('cast', updatedCast);
     setActiveCastDropdown(null);
     setCelebritySearch(''); // Clear search after selection
-    setCelebrities([]); // Clear search results
+    fetchCelebrities('');
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1275,7 +1273,15 @@ export default function MovieManagementSection() {
                         </label>
                         <button
                           type="button"
-                          onClick={() => setActiveCastDropdown(isDropdownOpen ? null : i)}
+                          onClick={() => {
+                            if (isDropdownOpen) {
+                              setActiveCastDropdown(null);
+                              return;
+                            }
+                            setCelebritySearch('');
+                            fetchCelebrities('');
+                            setActiveCastDropdown(i);
+                          }}
                           className="w-full text-left px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm flex items-center justify-between"
                         >
                           <div className="flex items-center gap-3">
