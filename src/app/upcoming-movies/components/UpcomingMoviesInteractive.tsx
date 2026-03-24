@@ -5,6 +5,22 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function stripHtml(html: string): string {
+  return html
+    .replace(/<\/p>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // ── Types matching the real API payload ───────────────────────────────────────
 interface CastMember {
   _id: string;
@@ -404,7 +420,7 @@ export default function UpcomingMoviesInteractive() {
 
                   {/* Synopsis */}
                   <p className="text-neutral-400 text-sm leading-relaxed line-clamp-2 mb-4">
-                    {movie.synopsis || movie.plotSummary || 'No synopsis available.'}
+                    {stripHtml(movie.synopsis || movie.plotSummary || 'No synopsis available.')}
                   </p>
 
                   {/* Meta grid */}
