@@ -28,7 +28,6 @@ function stripHtml(html: string): string {
     .replace(/&#39;/g, "'")
     .trim();
 }
-}
 
 function formatYear(dateStr?: string): string {
   if (!dateStr) return '';
