@@ -678,6 +678,14 @@ export default function MovieManagementSection() {
   const [activeCastDropdown, setActiveCastDropdown] = useState<number | null>(null);
   const castDropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  // new cast draft form
+  const EMPTY_NEW_CAST = { name: '', role: '', character: '', image: '', celebrityId: '' };
+  const [newCast, setNewCast] = useState<ICastMember>({ ...EMPTY_NEW_CAST });
+  const [newCastDropdownOpen, setNewCastDropdownOpen] = useState(false);
+  const newCastDropdownRef = useRef<HTMLDivElement | null>(null);
+  // null = adding new, number = editing existing index
+  const [editCastIndex, setEditCastIndex] = useState<number | null>(null);
+
   useEffect(() => {
     function onDoc(e: MouseEvent) {
       if (!langOpen) return;
@@ -936,20 +944,23 @@ export default function MovieManagementSection() {
     return () => clearTimeout(timer);
   }, [celebritySearch, fetchCelebrities]);
 
-  // Handle outside click for cast dropdowns
+  // Handle outside click for new cast dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (activeCastDropdown !== null) {
-        const ref = castDropdownRefs.current[activeCastDropdown];
-        if (ref && !ref.contains(event.target as Node)) {
-          setActiveCastDropdown(null);
-        }
+      if (newCastDropdownOpen && newCastDropdownRef.current && !newCastDropdownRef.current.contains(event.target as Node)) {
+        setNewCastDropdownOpen(false);
       }
     }
-
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') setNewCastDropdownOpen(false);
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [activeCastDropdown]);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [newCastDropdownOpen]);
 
   const handleSelectCelebrity = (index: number, celebrity: any) => {
     const updatedCast = [...(form.cast || [])];
@@ -1231,181 +1242,242 @@ export default function MovieManagementSection() {
 
       // ── CAST ───────────────────────────────────────────────────────────
       case 'cast': return (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-montserrat text-neutral-300">
-              {(form.cast || []).length} cast member{(form.cast || []).length !== 1 ? 's' : ''}
-            </p>
-            <button type="button" onClick={addCastMember}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 text-sm font-montserrat transition-all"
-            >
-              <Icon name="PlusIcon" size={13} /> Add Member
-            </button>
+        <div className="space-y-5">
+
+          {/* ── Add / Edit Cast Member Form ───────────────────────────── */}
+          <div className={['rounded-xl border p-4 space-y-4', editCastIndex !== null ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-dashed border-white/15 bg-white/3'].join(' ')}>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-montserrat text-neutral-400 uppercase tracking-wider font-medium">
+                <Icon name={editCastIndex !== null ? 'PencilSquareIcon' : 'PlusCircleIcon'} size={13} className="inline mr-1.5 mb-0.5" />
+                {editCastIndex !== null ? `Editing: ${newCast.name}` : 'Add Cast Member'}
+              </p>
+              {editCastIndex !== null && (
+                <button type="button"
+                  onClick={() => { setEditCastIndex(null); setNewCast({ ...EMPTY_NEW_CAST }); setCelebritySearch(''); }}
+                  className="text-xs text-neutral-500 hover:text-neutral-300 font-montserrat transition-colors"
+                >Cancel edit</button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Celebrity picker */}
+              <div className="relative" ref={newCastDropdownRef}>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
+                  Celebrity <span className="text-yellow-400">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (newCastDropdownOpen) { setNewCastDropdownOpen(false); return; }
+                    setCelebritySearch('');
+                    fetchCelebrities('');
+                    setNewCastDropdownOpen(true);
+                  }}
+                  className="w-full text-left px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2.5">
+                    {newCast.image && <img src={newCast.image} alt="" className="w-7 h-7 rounded-full object-cover" />}
+                    <span className={newCast.name ? 'text-white' : 'text-neutral-500'}>
+                      {newCast.name || 'Select celebrity...'}
+                    </span>
+                  </div>
+                  <Icon name={newCastDropdownOpen ? 'ChevronUpIcon' : 'ChevronDownIcon'} size={15} />
+                </button>
+
+                {newCastDropdownOpen && (
+                  <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl bg-[#060316]/95 border border-white/10 backdrop-blur-sm shadow-xl">
+                    <div className="p-3 border-b border-white/10">
+                      <div className="relative">
+                        <Icon name="MagnifyingGlassIcon" size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+                        <input
+                          autoFocus
+                          type="text"
+                          value={celebritySearch}
+                          onChange={(e) => setCelebritySearch(e.target.value)}
+                          placeholder="Search celebrities..."
+                          className="w-full pl-7 pr-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
+                        />
+                        {loadingCelebrities && <Icon name="ArrowPathIcon" size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 animate-spin" />}
+                      </div>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto">
+                      {celebrities.length > 0 ? celebrities.map((cel) => (
+                        <button key={cel.id} type="button"
+                          onClick={() => {
+                            setNewCast(p => ({ ...p, name: cel.name, image: cel.profileImage || '', celebrityId: cel.id }));
+                            setNewCastDropdownOpen(false);
+                            setCelebritySearch('');
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/10 transition-all text-left"
+                        >
+                          {cel.profileImage ? (
+                            <img src={cel.profileImage} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-neutral-700 flex-shrink-0 flex items-center justify-center">
+                              <Icon name="UserIcon" size={15} className="text-neutral-400" />
+                            </div>
+                          )}
+                          <p className="text-white text-sm font-montserrat truncate">{cel.name}</p>
+                        </button>
+                      )) : (
+                        <div className="px-4 py-4 text-neutral-500 text-sm font-montserrat text-center">
+                          {loadingCelebrities ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <Icon name="ArrowPathIcon" size={14} className="animate-spin" /> Loading...
+                            </span>
+                          ) : celebritySearchError ? (
+                            <span className="text-red-400">{celebritySearchError}</span>
+                          ) : (
+                            'No celebrities found'
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Role */}
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Role</label>
+                <select
+                  value={newCast.role || ''}
+                  onChange={(e) => setNewCast(p => ({ ...p, role: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                >
+                  <option value="">Select role...</option>
+                  <option value="Lead">Lead</option>
+                  <option value="Supporting">Supporting</option>
+                  <option value="Cameo">Cameo</option>
+                  <option value="Guest">Guest Appearance</option>
+                  <option value="Voice">Voice Actor</option>
+                </select>
+              </div>
+
+              {/* Character Name */}
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Character Name</label>
+                <input
+                  type="text"
+                  value={newCast.character || ''}
+                  onChange={(e) => setNewCast(p => ({ ...p, character: e.target.value }))}
+                  placeholder="e.g. Bhairava, Karna"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Add / Save button */}
+            <div className="flex justify-end gap-2">
+              {editCastIndex !== null && (
+                <button
+                  type="button"
+                  onClick={() => { setEditCastIndex(null); setNewCast({ ...EMPTY_NEW_CAST }); setCelebritySearch(''); }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 font-montserrat text-sm transition-all"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={!newCast.name}
+                onClick={() => {
+                  if (!newCast.name) return;
+                  if (editCastIndex !== null) {
+                    // save edit
+                    const updated = [...(form.cast || [])];
+                    updated[editCastIndex] = { ...newCast };
+                    setField('cast', updated);
+                    setEditCastIndex(null);
+                  } else {
+                    // add new
+                    setField('cast', [...(form.cast || []), { ...newCast }]);
+                  }
+                  setNewCast({ ...EMPTY_NEW_CAST });
+                  setCelebritySearch('');
+                }}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-montserrat font-semibold text-sm transition-all"
+              >
+                {editCastIndex !== null
+                  ? <><Icon name="CheckIcon" size={14} /> Save Changes</>
+                  : <><Icon name="PlusIcon" size={14} /> Add to Cast</>
+                }
+              </button>
+            </div>
           </div>
 
-
-
+          {/* ── Cast List ─────────────────────────────────────────────── */}
           {(form.cast || []).length === 0 ? (
-            <div className="py-12 flex flex-col items-center gap-3 text-center">
+            <div className="py-8 flex flex-col items-center gap-2 text-center">
               <Icon name="UsersIcon" size={36} className="text-neutral-700" />
-              <p className="text-neutral-500 font-montserrat text-sm">No cast members yet</p>
-              <button type="button" onClick={addCastMember}
-                className="text-yellow-400 text-sm font-montserrat hover:underline"
-              >+ Add first cast member</button>
+              <p className="text-neutral-500 font-montserrat text-sm">No cast members added yet.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
+              <p className="text-xs font-montserrat text-neutral-500 uppercase tracking-wider mb-3">
+                {(form.cast || []).length} cast member{(form.cast || []).length !== 1 ? 's' : ''}
+              </p>
               {(form.cast || []).map((member, i) => {
-                const isDropdownOpen = activeCastDropdown === i;
+                const roleBadgeColor: Record<string, string> = {
+                  Lead: 'bg-yellow-500/15 text-yellow-400',
+                  Supporting: 'bg-blue-500/15 text-blue-400',
+                  Cameo: 'bg-purple-500/15 text-purple-400',
+                  Guest: 'bg-green-500/15 text-green-400',
+                  Voice: 'bg-pink-500/15 text-pink-400',
+                };
+                const badgeCls = roleBadgeColor[member.role || ''] || 'bg-white/10 text-neutral-400';
                 return (
-                  <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10 relative">
-                    <button type="button" onClick={() => removeCast(i)}
-                      className="absolute top-3 right-3 p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all z-10"
-                    >
-                      <Icon name="XMarkIcon" size={12} />
-                    </button>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Celebrity Selection */}
-                      <div className="relative" ref={el => { castDropdownRefs.current[i] = el; }}>
-                        <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-                          Celebrity <span className="text-yellow-400">*</span>
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (isDropdownOpen) {
-                              setActiveCastDropdown(null);
-                              return;
-                            }
-                            setCelebritySearch('');
-                            fetchCelebrities('');
-                            setActiveCastDropdown(i);
-                          }}
-                          className="w-full text-left px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-3">
-                            {member.image && (
-                              <img src={member.image} alt="" className="w-8 h-8 rounded-full object-cover" />
-                            )}
-                            <span className={member.name ? 'text-white' : 'text-neutral-500'}>
-                              {member.name || 'Select celebrity...'}
-                            </span>
-                          </div>
-                          <Icon name={isDropdownOpen ? 'ChevronUpIcon' : 'ChevronDownIcon'} size={16} />
-                        </button>
-
-                        {isDropdownOpen && (
-                          <div className="absolute z-50 left-0 right-0 mt-2 max-h-64 overflow-y-auto rounded-lg bg-[#060316]/95 border border-white/8 backdrop-blur-sm">
-                            {/* Search input inside dropdown */}
-                            <div className="p-3 border-b border-white/10">
-                              <div className="relative">
-                                <Icon name="MagnifyingGlassIcon" size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-neutral-500" />
-                                <input
-                                  type="text"
-                                  value={celebritySearch}
-                                  onChange={(e) => setCelebritySearch(e.target.value)}
-                                  placeholder="Search celebrities..."
-                                  className="w-full pl-7 pr-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
-                                  autoFocus
-                                />
-                                {loadingCelebrities && (
-                                  <Icon name="ArrowPathIcon" size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 animate-spin" />
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* Results */}
-                            <div className="max-h-48 overflow-y-auto">
-                              {celebrities.length > 0 ? (
-                                celebrities.map((celebrity) => (
-                                  <button
-                                    key={celebrity.id}
-                                    type="button"
-                                    onClick={() => handleSelectCelebrity(i, celebrity)}
-                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-all text-left"
-                                  >
-                                    {celebrity.profileImage ? (
-                                      <img 
-                                        src={celebrity.profileImage} 
-                                        alt="" 
-                                        className="w-10 h-10 rounded-full object-cover flex-shrink-0" 
-                                      />
-                                    ) : (
-                                      <div className="w-10 h-10 rounded-full bg-neutral-700 flex-shrink-0 flex items-center justify-center">
-                                        <Icon name="UserIcon" size={16} className="text-neutral-400" />
-                                      </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-white text-sm font-montserrat truncate">
-                                        {celebrity.name}
-                                      </p>
-                                    </div>
-                                  </button>
-                                ))
-                              ) : (
-                                <div className="px-4 py-3 text-neutral-500 text-sm font-montserrat text-center">
-                                  {loadingCelebrities ? (
-                                    <div className="flex items-center justify-center gap-2">
-                                      <Icon name="ArrowPathIcon" size={14} className="animate-spin" />
-                                      Loading celebrities...
-                                    </div>
-                                  ) : celebritySearchError ? (
-                                    <div className="text-red-400">
-                                      {celebritySearchError}
-                                    </div>
-                                  ) : celebritySearch.trim() ? (
-                                    'No celebrities found'
-                                  ) : (
-                                    'Start typing to search celebrities'
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
+                  <div key={i} className={['flex items-center gap-3 px-4 py-3 rounded-xl border group transition-all', editCastIndex === i ? 'bg-yellow-500/8 border-yellow-500/30' : 'bg-white/5 border-white/8 hover:border-white/15'].join(' ')}>
+                    {/* Avatar */}
+                    {member.image ? (
+                      <img src={member.image} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-white/10" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-neutral-700 flex-shrink-0 flex items-center justify-center ring-2 ring-white/10">
+                        <Icon name="UserIcon" size={16} className="text-neutral-400" />
                       </div>
-
-                      {/* Role */}
-                      <div>
-                        <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-                          Role
-                        </label>
-                        <select
-                          value={member.role || ''}
-                          onChange={(e) => updateCast(i, 'role', e.target.value)}
-                          className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                        >
-                          <option value="">Select role...</option>
-                          <option value="Lead">Lead</option>
-                          <option value="Supporting">Supporting</option>
-                          <option value="Cameo">Cameo</option>
-                          <option value="Guest">Guest Appearance</option>
-                          <option value="Voice">Voice Actor</option>
-                        </select>
-                      </div>
-
-                      {/* Character Name */}
-                      <div>
-                        <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-                          Character Name
-                        </label>
-                        <input
-                          type="text"
-                          value={member.character || ''}
-                          onChange={(e) => updateCast(i, 'character', e.target.value)}
-                          placeholder="e.g. Bhairava, Karna"
-                          className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                        />
-                      </div>
-
-
+                    )}
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-montserrat font-medium truncate">{member.name}</p>
+                      {member.character && (
+                        <p className="text-neutral-500 text-xs font-montserrat truncate">as {member.character}</p>
+                      )}
                     </div>
+                    {/* Role badge */}
+                    {member.role && (
+                      <span className={`text-xs font-montserrat px-2 py-0.5 rounded-full flex-shrink-0 ${badgeCls}`}>{member.role}</span>
+                    )}
+                    {/* Edit */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditCastIndex(i);
+                        setNewCast({ ...member });
+                        setCelebritySearch('');
+                        fetchCelebrities('');
+                        setNewCastDropdownOpen(false);
+                        // scroll form into view
+                        const el = newCastDropdownRef.current?.closest('.space-y-5');
+                        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                      className="ml-1 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all flex-shrink-0"
+                    >
+                      <Icon name="PencilSquareIcon" size={13} />
+                    </button>
+                    {/* Remove */}
+                    <button
+                      type="button"
+                      onClick={() => { removeCast(i); if (editCastIndex === i) { setEditCastIndex(null); setNewCast({ ...EMPTY_NEW_CAST }); } }}
+                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all flex-shrink-0"
+                    >
+                      <Icon name="XMarkIcon" size={13} />
+                    </button>
                   </div>
                 );
               })}
             </div>
           )}
+
         </div>
       );
 
