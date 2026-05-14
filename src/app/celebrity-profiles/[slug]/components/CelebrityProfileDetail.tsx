@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
@@ -538,12 +539,15 @@ export default function CelebrityProfileDetail({
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <div className="relative h-[80vh] min-h-[540px] w-full overflow-hidden">
         {coverImg ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={coverImg}
             alt={`${c.name} cover`}
-            className="w-full h-full object-cover object-top scale-105 pointer-events-none"
-            style={{ filter: 'brightness(0.65)' }}
+            fill
+            priority
+            fetchPriority="high"
+            sizes="100vw"
+            quality={82}
+            className="pointer-events-none object-cover object-top scale-105 brightness-[0.65]"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-indigo-950 via-purple-950 to-background" />
@@ -698,11 +702,12 @@ export default function CelebrityProfileDetail({
                         className="float-left mr-6 mb-4 w-44 md:w-60 flex-shrink-0 rounded-2xl overflow-hidden ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl group relative"
                         style={{ aspectRatio: '3/4' }}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
                           src={inlineImg1}
                           alt={c.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          fill
+                          sizes="(min-width: 768px) 240px, 176px"
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
                           <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full">
@@ -756,11 +761,12 @@ export default function CelebrityProfileDetail({
                   className="w-full overflow-hidden rounded-2xl group relative ring-1 ring-white/10 hover:ring-primary/50 transition-all shadow-2xl"
                   style={{ aspectRatio: '3/4' }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={profileImg}
                     alt={c.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    fill
+                    sizes="(min-width: 1024px) 33vw, 100vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-30 transition-opacity" />
                 </button>

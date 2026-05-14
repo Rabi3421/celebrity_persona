@@ -16,8 +16,14 @@ export default function Header() {
   const { user, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        setIsScrolled(window.scrollY > 50);
+        ticking = false;
+      });
     };
 
     const handleClickOutside = (event: MouseEvent) => {
@@ -31,7 +37,7 @@ export default function Header() {
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     document.addEventListener('mousedown', handleClickOutside);
     
     return () => {

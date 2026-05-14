@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import Header from '@/components/common/Header';
-import Footer from '@/components/common/Footer';
+import PublicHeader from '@/components/common/PublicHeader';
+import PublicFooter from '@/components/common/PublicFooter';
 import JsonLd from '@/components/seo/JsonLd';
 import MovieDetailsInteractive from './components/MovieDetailsInteractive';
 import { createMetadata } from '@/lib/seo/site';
@@ -40,7 +40,7 @@ export default async function MovieDetailsPage() {
           ),
         ]}
       />
-      <Header />
+      <PublicHeader />
       <main className="min-h-screen bg-[#0a0a14] pt-20">
         <MovieDetailsInteractive
           initialMovies={moviePage.data}
@@ -49,7 +49,7 @@ export default async function MovieDetailsPage() {
           initialLoaded
         />
       </main>
-      <Footer />
+      <PublicFooter />
     </>
   );
 }

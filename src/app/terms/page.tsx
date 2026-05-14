@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import Header from '@/components/common/Header';
-import Footer from '@/components/common/Footer';
+import PublicHeader from '@/components/common/PublicHeader';
+import PublicFooter from '@/components/common/PublicFooter';
 import LegalPage from '@/components/common/LegalPage';
 import { createMetadata } from '@/lib/seo/site';
 
@@ -103,7 +103,7 @@ We aim to respond to all enquiries within 3 business days.`,
 export default function TermsPage() {
 	return (
 		<>
-			<Header />
+			<PublicHeader />
 			<main className="min-h-screen bg-background pt-32">
 				<LegalPage
 					badge="Legal"
@@ -114,7 +114,7 @@ export default function TermsPage() {
 					accentColor="gold"
 				/>
 			</main>
-			<Footer />
+			<PublicFooter />
 		</>
 	);
 }

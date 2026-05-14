@@ -1,7 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  compress: true,
   productionBrowserSourceMaps: false,
+  poweredByHeader: false,
+  reactStrictMode: true,
   distDir: process.env.DIST_DIR || '.next',
+  experimental: {
+    optimizePackageImports: ['@heroicons/react'],
+  },
 
   typescript: {
       ignoreBuildErrors: true,
@@ -26,6 +32,29 @@ const nextConfig = {
         hostname: '**',
       },
     ],
+  },
+
+  async headers() {
+    return [
+      {
+        source: '/assets/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/:path*\\.(ico|png|jpg|jpeg|webp|avif|gif|svg)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
   },
 
 

@@ -5,11 +5,11 @@ type Breadcrumb = {
   href: string;
 };
 
-export default function Breadcrumbs({ items }: { items: Breadcrumb[] }) {
+export default function Breadcrumbs({ items, className = '' }: { items: Breadcrumb[]; className?: string }) {
   if (items.length === 0) return null;
 
   return (
-    <nav aria-label="Breadcrumb" className="text-sm text-neutral-500">
+    <nav aria-label="Breadcrumb" className={`text-sm text-neutral-500 ${className}`}>
       <ol className="flex flex-wrap items-center gap-2">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;

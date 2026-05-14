@@ -1,14 +1,20 @@
 import type { Metadata } from 'next';
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
-import Header from '@/components/common/Header';
-import Footer from '@/components/common/Footer';
+import PublicHeader from '@/components/common/PublicHeader';
+import PublicFooter from '@/components/common/PublicFooter';
+import Breadcrumbs from '@/components/seo/Breadcrumbs';
 import JsonLd from '@/components/seo/JsonLd';
+import InternalLinks from '@/components/seo/InternalLinks';
 import MovieDetailPageClient from './components/MovieDetailPageClient';
 import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
 import { createMoviePageMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
+import { getMovieInternalLinks } from '@/lib/seo/internalLinks';
 import { releasedMovieQuery } from '@/lib/seo/publicData';
 import { createBreadcrumbSchema, createMovieSchema } from '@/lib/seo/structuredData';
+
+export const revalidate = 900;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CastMember {
@@ -80,7 +86,7 @@ export interface ReleasedMovie {
 }
 
 // ── Server-side data fetch ────────────────────────────────────────────────────
-async function getMovie(slug: string): Promise<ReleasedMovie | null> {
+const getMovie = cache(async (slug: string): Promise<ReleasedMovie | null> => {
   try {
     await dbConnect();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,7 +97,7 @@ async function getMovie(slug: string): Promise<ReleasedMovie | null> {
   } catch {
     return null;
   }
-}
+});
 
 // ── Dynamic metadata ──────────────────────────────────────────────────────────
 export async function generateMetadata(
@@ -119,6 +125,7 @@ export default async function MovieDetailPage(
   const movie = await getMovie(slug);
 
   if (!movie) notFound();
+  const internalLinks = await getMovieInternalLinks(movie);
 
   return (
     <>
@@ -132,11 +139,25 @@ export default async function MovieDetailPage(
           ]),
         ]}
       />
-      <Header />
+      <PublicHeader />
       <main className="min-h-screen bg-[#0a0a14] text-white">
+        <div className="container mx-auto px-4 pb-2 pt-24">
+          <Breadcrumbs
+            items={[
+              { name: 'Home', href: '/' },
+              { name: 'Movie Details', href: '/movie-details' },
+              { name: movie.title, href: `/movie-details/${movie.slug}` },
+            ]}
+          />
+        </div>
         <MovieDetailPageClient movie={movie} />
+        <InternalLinks
+          links={internalLinks}
+          title={`${movie.title} Cast, Reviews, And News`}
+          description={`Explore cast profiles, movie reviews, related news, and similar movie pages connected to ${movie.title}.`}
+        />
       </main>
-      <Footer />
+      <PublicFooter />
     </>
   );
 }

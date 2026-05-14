@@ -1,19 +1,24 @@
 import type { Metadata } from 'next';
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
-import Header from '@/components/common/Header';
-import Footer from '@/components/common/Footer';
+import PublicHeader from '@/components/common/PublicHeader';
+import PublicFooter from '@/components/common/PublicFooter';
 import JsonLd from '@/components/seo/JsonLd';
+import InternalLinks from '@/components/seo/InternalLinks';
 import ReviewDetailClient from './components/ReviewDetailClient';
 import dbConnect from '@/lib/mongodb';
 import MovieReview from '@/models/MovieReview';
 import { createMovieReviewMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
+import { getReviewInternalLinks } from '@/lib/seo/internalLinks';
 import { createBreadcrumbSchema, createReviewSchema } from '@/lib/seo/structuredData';
+
+export const revalidate = 900;
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
-async function getReview(slug: string) {
+const getReview = cache(async (slug: string) => {
   try {
     await dbConnect();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,7 +28,7 @@ async function getReview(slug: string) {
   } catch {
     return null;
   }
-}
+});
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -43,6 +48,7 @@ export default async function ReviewDetailPage({ params }: Props) {
   const { slug } = await params;
   const review = await getReview(slug);
   if (!review) notFound();
+  const internalLinks = await getReviewInternalLinks(review);
 
   return (
     <>
@@ -56,11 +62,16 @@ export default async function ReviewDetailPage({ params }: Props) {
           ]),
         ]}
       />
-      <Header />
+      <PublicHeader />
       <main className="min-h-screen bg-[#0d0d14] pt-20">
         <ReviewDetailClient review={review} />
+        <InternalLinks
+          links={internalLinks}
+          title={`${review.movieTitle} Review Links`}
+          description={`Explore the ${review.movieTitle} movie page, cast profiles, related reviews, and connected entertainment news.`}
+        />
       </main>
-      <Footer />
+      <PublicFooter />
     </>
   );
 }

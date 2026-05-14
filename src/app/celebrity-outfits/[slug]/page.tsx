@@ -1,18 +1,23 @@
 import type { Metadata } from 'next';
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
-import Header from '@/components/common/Header';
-import Footer from '@/components/common/Footer';
+import PublicHeader from '@/components/common/PublicHeader';
+import PublicFooter from '@/components/common/PublicFooter';
 import JsonLd from '@/components/seo/JsonLd';
+import InternalLinks from '@/components/seo/InternalLinks';
 import CelebrityOutfitDetail from './components/CelebrityOutfitDetail';
 import dbConnect from '@/lib/mongodb';
 import CelebrityOutfit from '@/models/CelebrityOutfit';
 import { createCelebrityOutfitMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
+import { getOutfitInternalLinks } from '@/lib/seo/internalLinks';
 import { createBreadcrumbSchema, createOutfitArticleSchema } from '@/lib/seo/structuredData';
 import '@/models/Celebrity';
 
+export const revalidate = 900;
+
 interface Props { params: Promise<{ slug: string }> }
 
-async function fetchOutfit(slug: string) {
+const fetchOutfit = cache(async (slug: string) => {
   try {
     await dbConnect();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,7 +51,7 @@ async function fetchOutfit(slug: string) {
   } catch {
     return null;
   }
-}
+});
 
 // ── SEO Metadata ─────────────────────────────────────────────────────────────
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -69,6 +74,7 @@ export default async function CelebrityOutfitPage({ params }: Props) {
   const { slug } = await params;
   const outfit = await fetchOutfit(slug);
   if (!outfit) notFound();
+  const internalLinks = await getOutfitInternalLinks(outfit);
   const celebName = typeof outfit.celebrity === 'object'
     ? outfit.celebrity?.name
     : outfit.celebrity || 'Celebrity';
@@ -86,11 +92,16 @@ export default async function CelebrityOutfitPage({ params }: Props) {
           ]),
         ]}
       />
-      <Header />
+      <PublicHeader />
       <main className="min-h-screen bg-background pt-24">
         <CelebrityOutfitDetail slug={slug} prefetchedData={outfit} />
+        <InternalLinks
+          links={internalLinks}
+          title={`${celebName} Outfit Links`}
+          description={`Explore ${celebName} profile links, related outfit articles, fashion topics, and connected celebrity news.`}
+        />
       </main>
-      <Footer />
+      <PublicFooter />
     </>
   );
 }

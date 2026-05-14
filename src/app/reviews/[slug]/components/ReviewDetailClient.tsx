@@ -2,10 +2,19 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
-import ReviewInteractions from './ReviewInteractions';
-import UserReviewsSection from './UserReviewsSection';
+
+const ReviewInteractions = dynamic(() => import('./ReviewInteractions'), {
+  ssr: false,
+  loading: () => <div className="h-20 rounded-2xl border border-white/10 bg-white/[0.04]" />,
+});
+
+const UserReviewsSection = dynamic(() => import('./UserReviewsSection'), {
+  ssr: false,
+  loading: () => <div className="h-40 rounded-2xl border border-white/10 bg-white/[0.04]" />,
+});
 
 /* ─── types ──────────────────────────────────────────────────────────────── */
 interface Review {
@@ -124,10 +133,10 @@ export default function ReviewDetailClient({ review }: { review: Review }) {
       <div className="relative h-[60vh] min-h-[420px] max-h-[680px] overflow-hidden">
         {review.backdropImage ? (
           <Image src={review.backdropImage} alt={review.movieTitle} fill
-            className="object-cover scale-105" priority sizes="100vw" />
+            className="object-cover scale-105" priority fetchPriority="high" quality={82} sizes="100vw" />
         ) : review.poster ? (
           <Image src={review.poster} alt={review.movieTitle} fill
-            className="object-cover scale-105 blur-sm" priority sizes="100vw" />
+            className="object-cover scale-105 blur-sm" priority fetchPriority="high" quality={82} sizes="100vw" />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a2e] to-[#0d0d14]" />
         )}

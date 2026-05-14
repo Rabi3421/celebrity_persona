@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import Header from '@/components/common/Header';
-import Footer from '@/components/common/Footer';
+import PublicHeader from '@/components/common/PublicHeader';
+import PublicFooter from '@/components/common/PublicFooter';
 import JsonLd from '@/components/seo/JsonLd';
 import CelebrityProfilesInteractive from './components/CelebrityProfilesInteractive';
 import { createMetadata } from '@/lib/seo/site';
@@ -46,7 +46,7 @@ export default async function CelebrityProfilesPage() {
           ),
         ]}
       />
-      <Header />
+      <PublicHeader />
       <main className="min-h-screen bg-background pt-32">
         <CelebrityProfilesInteractive
           initialCelebrities={celebrities}
@@ -55,7 +55,7 @@ export default async function CelebrityProfilesPage() {
           initialLoaded
         />
       </main>
-      <Footer />
+      <PublicFooter />
     </>
   );
 }

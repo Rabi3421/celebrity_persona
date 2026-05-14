@@ -261,6 +261,9 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
                 src={outfit.images[activeImg]}
                 alt={`${outfit.title} — worn by ${name}`}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                priority={activeImg === 0}
+                sizes="(min-width: 768px) 50vw, 100vw"
+                quality={82}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-white/5">
@@ -295,7 +298,7 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
                       : 'border-white/10 hover:border-white/30'
                   }`}
                 >
-                  <AppImage src={img} alt={`View ${i + 1}`} className="w-full h-full object-cover" />
+                  <AppImage src={img} alt={`View ${i + 1}`} className="w-full h-full object-cover" sizes="80px" quality={60} />
                 </button>
               ))}
             </div>
