@@ -14,11 +14,18 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-export default function TrendingCelebrities() {
-  const [celebrities, setCelebrities] = useState<CelebrityDoc[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function TrendingCelebrities({
+  initialCelebrities = [],
+  initialLoaded = false,
+}: {
+  initialCelebrities?: CelebrityDoc[];
+  initialLoaded?: boolean;
+}) {
+  const [celebrities, setCelebrities] = useState<CelebrityDoc[]>(initialCelebrities);
+  const [loading, setLoading] = useState(!initialLoaded && initialCelebrities.length === 0);
 
   useEffect(() => {
+    if (initialLoaded) return;
     const fetchTrending = async () => {
       try {
         const res = await fetch(`/api/user/celebrities?limit=6&page=1`, {
@@ -40,7 +47,7 @@ export default function TrendingCelebrities() {
       }
     };
     fetchTrending();
-  }, []);
+  }, [initialLoaded]);
 
   if (loading) {
     return (

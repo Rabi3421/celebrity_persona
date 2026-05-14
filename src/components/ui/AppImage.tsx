@@ -36,20 +36,16 @@ function AppImage({
     fallbackSrc = '/assets/images/no_image.png',
     ...props
 }: AppImageProps) {
-    const [imageSrc, setImageSrc] = useState(src);
+    const [imageSrc, setImageSrc] = useState(src || fallbackSrc);
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
 
     // Sync when the src prop changes (e.g. thumbnail switching)
     React.useEffect(() => {
-        setImageSrc(src);
+        setImageSrc(src || fallbackSrc);
         setIsLoading(true);
         setHasError(false);
     }, [src]);
-
-    // More reliable external URL detection
-    const isExternal = imageSrc.startsWith('http://') || imageSrc.startsWith('https://');
-    const isLocal = imageSrc.startsWith('/') || imageSrc.startsWith('./') || imageSrc.startsWith('data:');
 
     const handleError = () => {
         if (!hasError && imageSrc !== fallbackSrc) {
@@ -66,45 +62,8 @@ function AppImage({
 
     const commonClassName = `${className} ${isLoading ? 'bg-gray-200' : ''} ${onClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`;
 
-    // For external URLs or when in doubt, use regular img tag
-    if (isExternal && !isLocal) {
-        const imgStyle: React.CSSProperties = {};
+    const unoptimized = imageSrc.startsWith('data:') || /\.svg($|\?)/i.test(imageSrc);
 
-        if (width) imgStyle.width = width;
-        if (height) imgStyle.height = height;
-
-        if (fill) {
-            return (
-                <div className={`relative ${className}`} style={{ width: width || '100%', height: height || '100%' }}>
-                    <img
-                        src={imageSrc}
-                        alt={alt}
-                        className={`${commonClassName} absolute inset-0 w-full h-full object-cover`}
-                        onError={handleError}
-                        onLoad={handleLoad}
-                        onClick={onClick}
-                        style={imgStyle}
-                        {...props}
-                    />
-                </div>
-            );
-        }
-
-        return (
-            <img
-                src={imageSrc}
-                alt={alt}
-                className={commonClassName}
-                onError={handleError}
-                onLoad={handleLoad}
-                onClick={onClick}
-                style={imgStyle}
-                {...props}
-            />
-        );
-    }
-
-    // For local images and data URLs, use Next.js Image component
     const imageProps = {
         src: imageSrc,
         alt,
@@ -113,7 +72,7 @@ function AppImage({
         quality,
         placeholder,
         blurDataURL,
-        unoptimized: true,
+        unoptimized,
         onError: handleError,
         onLoad: handleLoad,
         onClick,

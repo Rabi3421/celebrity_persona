@@ -7,8 +7,26 @@ import TrendingCelebrities from './TrendingCelebrities';
 import CategorySpotlight from './CategorySpotlight';
 import StatsCounter from './StatsCounter';
 import WhyExplore from './WhyExplore';
+import type { CelebrityDoc } from './CelebrityGrid';
 
-export default function CelebrityProfilesInteractive() {
+interface CelebrityProfilesInteractiveProps {
+  initialCelebrities?: CelebrityDoc[];
+  initialPagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+  initialTrending?: CelebrityDoc[];
+  initialLoaded?: boolean;
+}
+
+export default function CelebrityProfilesInteractive({
+  initialCelebrities = [],
+  initialPagination,
+  initialTrending = [],
+  initialLoaded = false,
+}: CelebrityProfilesInteractiveProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
 
@@ -33,12 +51,18 @@ export default function CelebrityProfilesInteractive() {
           </div>
 
           {/* Celebrity Grid */}
-          <CelebrityGrid searchQuery={searchQuery} activeFilter={activeFilter} />
+          <CelebrityGrid
+            searchQuery={searchQuery}
+            activeFilter={activeFilter}
+            initialCelebrities={initialCelebrities}
+            initialPagination={initialPagination}
+            initialLoaded={initialLoaded}
+          />
         </div>
       </section>
 
       {/* ── Trending Strip ───────────────────────────────────────── */}
-      <TrendingCelebrities />
+      <TrendingCelebrities initialCelebrities={initialTrending} initialLoaded={initialLoaded} />
 
       {/* ── Stats Counter ────────────────────────────────────────── */}
       <StatsCounter />

@@ -127,18 +127,34 @@ function scoreBar(score?: number): number {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function UpcomingMoviesInteractive() {
-  const [movies, setMovies]           = useState<Movie[]>([]);
-  const [total, setTotal]             = useState(0);
-  const [pages, setPages]             = useState(1);
-  const [page, setPage]               = useState(1);
-  const [loading, setLoading]         = useState(true);
+interface UpcomingMoviesInteractiveProps {
+  initialMovies?: Movie[];
+  initialTotal?: number;
+  initialPages?: number;
+  initialPage?: number;
+  initialLoaded?: boolean;
+}
+
+export default function UpcomingMoviesInteractive({
+  initialMovies = [],
+  initialTotal = 0,
+  initialPages = 1,
+  initialPage = 1,
+  initialLoaded = false,
+}: UpcomingMoviesInteractiveProps) {
+  const [movies, setMovies]           = useState<Movie[]>(initialMovies);
+  const [total, setTotal]             = useState(initialTotal);
+  const [pages, setPages]             = useState(initialPages);
+  const [page, setPage]               = useState(initialPage);
+  const [loading, setLoading]         = useState(!initialLoaded && initialMovies.length === 0);
   const [error, setError]             = useState('');
 
   const router = useRouter();
   const [searchTerm, setSearchTerm]   = useState('');
   const [filterGenre, setFilterGenre] = useState('all');
   const [sortBy, setSortBy]           = useState('anticipation');
+  const skippedInitialFetch = React.useRef(initialLoaded);
+  const skippedInitialSearch = React.useRef(initialLoaded);
 
   // Collect all genres from loaded movies for the filter dropdown
   const allGenres = Array.from(
@@ -176,10 +192,21 @@ export default function UpcomingMoviesInteractive() {
     }
   }, [searchTerm, filterGenre, sortBy]);
 
-  useEffect(() => { fetchMovies(1); }, [fetchMovies]);
+  useEffect(() => {
+    if (skippedInitialFetch.current) {
+      skippedInitialFetch.current = false;
+      return;
+    }
+    fetchMovies(1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // debounced search
   useEffect(() => {
+    if (skippedInitialSearch.current) {
+      skippedInitialSearch.current = false;
+      return;
+    }
     const t = setTimeout(() => fetchMovies(1, searchTerm, filterGenre, sortBy), 400);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps

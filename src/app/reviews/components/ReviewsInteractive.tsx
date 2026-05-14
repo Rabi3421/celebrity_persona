@@ -200,15 +200,27 @@ function AvailableMoviesSkeleton() {
 
 /* ── Component ─────────────────────────────────────────────────────────────── */
 
-export default function ReviewsInteractive() {
-  const [reviews, setReviews]                       = useState<ReviewItem[]>([]);
-  const [meta, setMeta]                             = useState<ReviewMeta>({ total: 0, page: 1, limit: 12, pages: 1 });
-  const [loading, setLoading]                       = useState(true);
+interface ReviewsInteractiveProps {
+  initialReviews?: ReviewItem[];
+  initialMeta?: ReviewMeta;
+  initialAvailableMovies?: AvailableMovie[];
+  initialLoaded?: boolean;
+}
+
+export default function ReviewsInteractive({
+  initialReviews = [],
+  initialMeta,
+  initialAvailableMovies = [],
+  initialLoaded = false,
+}: ReviewsInteractiveProps) {
+  const [reviews, setReviews]                       = useState<ReviewItem[]>(initialReviews);
+  const [meta, setMeta]                             = useState<ReviewMeta>(initialMeta || { total: initialReviews.length, page: 1, limit: 12, pages: 1 });
+  const [loading, setLoading]                       = useState(!initialLoaded && initialReviews.length === 0);
   const [loadingMore, setLoadingMore]               = useState(false);
   const [error, setError]                           = useState<string | null>(null);
 
-  const [availableMovies, setAvailableMovies]       = useState<AvailableMovie[]>([]);
-  const [availableLoading, setAvailableLoading]     = useState(true);
+  const [availableMovies, setAvailableMovies]       = useState<AvailableMovie[]>(initialAvailableMovies);
+  const [availableLoading, setAvailableLoading]     = useState(!initialLoaded && initialAvailableMovies.length === 0);
   const [availableError, setAvailableError]         = useState<string | null>(null);
   const [showAllAvailable, setShowAllAvailable]     = useState(false);
 
@@ -218,6 +230,9 @@ export default function ReviewsInteractive() {
   const [featuredOnly, setFeaturedOnly] = useState(false);
 
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skippedInitialSearch = useRef(initialLoaded);
+  const skippedInitialFilters = useRef(initialLoaded);
+  const skippedInitialAvailable = useRef(initialLoaded);
 
   /* ── Fetch published reviews ──────────────────────────────────────────────── */
   const fetchReviews = useCallback(
@@ -275,10 +290,18 @@ export default function ReviewsInteractive() {
   }, []);
 
   useEffect(() => {
+    if (skippedInitialAvailable.current) {
+      skippedInitialAvailable.current = false;
+      return;
+    }
     fetchAvailableMovies();
   }, [fetchAvailableMovies]);
 
   useEffect(() => {
+    if (skippedInitialSearch.current && !search && minRating === null && sort === 'recent' && !featuredOnly) {
+      skippedInitialSearch.current = false;
+      return;
+    }
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
     searchDebounce.current = setTimeout(() => fetchReviews(1), 380);
     return () => { if (searchDebounce.current) clearTimeout(searchDebounce.current); };
@@ -286,7 +309,13 @@ export default function ReviewsInteractive() {
   }, [search]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchReviews(1); }, [minRating, sort, featuredOnly]);
+  useEffect(() => {
+    if (skippedInitialFilters.current && !search && minRating === null && sort === 'recent' && !featuredOnly) {
+      skippedInitialFilters.current = false;
+      return;
+    }
+    fetchReviews(1);
+  }, [minRating, sort, featuredOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = () => fetchReviews(meta.page + 1, true);
 

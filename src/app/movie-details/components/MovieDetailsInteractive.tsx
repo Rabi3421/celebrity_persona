@@ -69,23 +69,41 @@ const SORTS  = [
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function MovieDetailsInteractive() {
+interface MovieDetailsInteractiveProps {
+  initialMovies?: Movie[];
+  initialPagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+  initialFeatured?: Movie | null;
+  initialLoaded?: boolean;
+}
+
+export default function MovieDetailsInteractive({
+  initialMovies = [],
+  initialPagination,
+  initialFeatured = null,
+  initialLoaded = false,
+}: MovieDetailsInteractiveProps) {
   const router = useRouter();
   const { isAuthenticated, authHeaders, accessToken } = useAuth();
 
-  const [movies,     setMovies]     = useState<Movie[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [page,       setPage]       = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total,      setTotal]      = useState(0);
+  const [movies,     setMovies]     = useState<Movie[]>(initialMovies);
+  const [loading,    setLoading]    = useState(!initialLoaded && initialMovies.length === 0);
+  const [page,       setPage]       = useState(initialPagination?.page || 1);
+  const [totalPages, setTotalPages] = useState(initialPagination?.pages || 1);
+  const [total,      setTotal]      = useState(initialPagination?.total || initialMovies.length);
   const [search,     setSearch]     = useState('');
   const [genre,      setGenre]      = useState('All');
   const [sort,       setSort]       = useState('latest');
   const [view,       setView]       = useState<'grid' | 'list'>('grid');
-  const [featured,   setFeatured]   = useState<Movie | null>(null);
+  const [featured,   setFeatured]   = useState<Movie | null>(initialFeatured);
   const [interactions, setInteractions] = useState<Record<string, { liked: boolean; saved: boolean }>>({});
   const [acting, setActing] = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skippedInitialFetch = useRef(initialLoaded);
 
   const fetchMovies = useCallback(async (p = 1, q = '', g = 'All', s = 'latest') => {
     setLoading(true);
@@ -112,7 +130,13 @@ export default function MovieDetailsInteractive() {
     }
   }, []);
 
-  useEffect(() => { fetchMovies(1); }, []); // eslint-disable-line
+  useEffect(() => {
+    if (skippedInitialFetch.current) {
+      skippedInitialFetch.current = false;
+      return;
+    }
+    fetchMovies(1);
+  }, [fetchMovies]);
 
   // Fetch per-user status for all visible movies
   useEffect(() => {

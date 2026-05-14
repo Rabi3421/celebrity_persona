@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
       const skip = (page - 1) * limit;
 
       const query: Record<string, any> = {
+        status: 'published',
         rating: { $gte: minRating, $lte: maxRating },
       };
       if (search)          query.movieTitle = { $regex: search, $options: 'i' };

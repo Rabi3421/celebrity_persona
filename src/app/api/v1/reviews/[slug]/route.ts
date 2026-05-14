@@ -19,7 +19,7 @@ export async function GET(
 
       const { slug } = await params;
 
-      const review = await MovieReview.findOne({ slug: slug.toLowerCase().trim() })
+      const review = await MovieReview.findOne({ slug: slug.toLowerCase().trim(), status: 'published' })
         .select('-seoData -__v')
         .lean();
 

@@ -2,9 +2,13 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
+import JsonLd from '@/components/seo/JsonLd';
 import MovieDetailPageClient from './components/MovieDetailPageClient';
 import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
+import { createMoviePageMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
+import { releasedMovieQuery } from '@/lib/seo/publicData';
+import { createBreadcrumbSchema, createMovieSchema } from '@/lib/seo/structuredData';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CastMember {
@@ -80,7 +84,7 @@ async function getMovie(slug: string): Promise<ReleasedMovie | null> {
   try {
     await dbConnect();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const movie: any = await Movie.findOne({ slug }).select('-__v').lean();
+    const movie: any = await Movie.findOne({ slug, ...releasedMovieQuery() }).select('-__v').lean();
     if (!movie) return null;
     // Serialize to plain object (converts ObjectIds, Dates, etc.)
     return JSON.parse(JSON.stringify(movie)) as ReleasedMovie;
@@ -97,34 +101,14 @@ export async function generateMetadata(
   const movie = await getMovie(slug);
 
   if (!movie) {
-    return {
-      title: 'Movie Not Found | CelebrityPersona',
-      description: 'The requested movie could not be found.',
-    };
+    return createNoIndexMetadata(
+      'Movie Not Found',
+      'The requested movie could not be found.',
+      '/movie-details'
+    );
   }
 
-  const seo         = movie.seoData ?? {};
-  const title       = seo.metaTitle       || `${movie.title} | Movie Details - CelebrityPersona`;
-  const description = seo.metaDescription || movie.synopsis || `Watch ${movie.title} — cast, director, reviews, trailer and more on CelebrityPersona.`;
-  const ogImage     = seo.ogImage || movie.backdrop || movie.poster || '/assets/images/movie-og.jpg';
-
-  return {
-    title,
-    description,
-    keywords: seo.keywords?.join(', ') || (movie.genre ?? []).join(', '),
-    openGraph: {
-      title:       seo.ogTitle       || title,
-      description: seo.ogDescription || description,
-      type:        'video.movie',
-      images:      [{ url: ogImage, width: 1200, height: 630, alt: movie.title }],
-    },
-    twitter: {
-      card:        'summary_large_image',
-      title:       seo.twitterTitle       || title,
-      description: seo.twitterDescription || description,
-      images:      seo.twitterImage ? [seo.twitterImage] : [ogImage],
-    },
-  };
+  return createMoviePageMetadata(movie, 'released');
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -137,10 +121,22 @@ export default async function MovieDetailPage(
   if (!movie) notFound();
 
   return (
-    <main className="min-h-screen bg-[#0a0a14] text-white">
+    <>
+      <JsonLd
+        data={[
+          createMovieSchema(movie, `/movie-details/${movie.slug}`),
+          createBreadcrumbSchema([
+            { name: 'Home', path: '/' },
+            { name: 'Movie Details', path: '/movie-details' },
+            { name: movie.title, path: `/movie-details/${movie.slug}` },
+          ]),
+        ]}
+      />
       <Header />
-      <MovieDetailPageClient movie={movie} />
+      <main className="min-h-screen bg-[#0a0a14] text-white">
+        <MovieDetailPageClient movie={movie} />
+      </main>
       <Footer />
-    </main>
+    </>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 
@@ -40,6 +40,9 @@ interface Pagination {
 interface CelebrityGridProps {
   searchQuery: string;
   activeFilter: string;
+  initialCelebrities?: CelebrityDoc[];
+  initialPagination?: Pagination;
+  initialLoaded?: boolean;
 }
 
 const LIMIT = 12;
@@ -58,11 +61,18 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-export default function CelebrityGrid({ searchQuery, activeFilter }: CelebrityGridProps) {
-  const [celebrities, setCelebrities] = useState<CelebrityDoc[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: LIMIT, total: 0, pages: 1 });
-  const [loading, setLoading] = useState(true);
+export default function CelebrityGrid({
+  searchQuery,
+  activeFilter,
+  initialCelebrities = [],
+  initialPagination,
+  initialLoaded = false,
+}: CelebrityGridProps) {
+  const [celebrities, setCelebrities] = useState<CelebrityDoc[]>(initialCelebrities);
+  const [pagination, setPagination] = useState<Pagination>(initialPagination || { page: 1, limit: LIMIT, total: initialCelebrities.length, pages: 1 });
+  const [loading, setLoading] = useState(!initialLoaded && initialCelebrities.length === 0);
   const [error, setError] = useState('');
+  const usedInitialData = useRef(initialLoaded);
 
   const fetchCelebrities = useCallback(async (page: number) => {
     setLoading(true);
@@ -88,6 +98,10 @@ export default function CelebrityGrid({ searchQuery, activeFilter }: CelebrityGr
   }, [searchQuery, activeFilter]);
 
   useEffect(() => {
+    if (usedInitialData.current && !searchQuery.trim() && activeFilter === 'all') {
+      usedInitialData.current = false;
+      return;
+    }
     fetchCelebrities(1);
   }, [fetchCelebrities]);
 
