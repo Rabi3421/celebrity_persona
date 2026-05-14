@@ -4,14 +4,9 @@ import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import JsonLd from '@/components/seo/JsonLd';
 import ArticleDetail from '../components/ArticleDetail';
-import {
-  absoluteUrl,
-  createBreadcrumbJsonLd,
-  stripHtml,
-  truncate,
-} from '@/lib/seo/site';
 import { createNewsArticleMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
 import { getNewsArticle } from '@/lib/seo/publicData';
+import { createBreadcrumbSchema, createNewsArticleSchema } from '@/lib/seo/structuredData';
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -36,28 +31,13 @@ export default async function ArticleDetailPage({ params }: Props) {
 
   const { article, related, sidebar } = data;
   const articleUrl = `/celebrity-news/${article.slug}`;
-  const articleSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'NewsArticle',
-    headline: article.title,
-    description: article.excerpt || truncate(article.content, 200),
-    image: article.thumbnail ? [absoluteUrl(article.thumbnail)] : undefined,
-    datePublished: article.publishDate,
-    dateModified: (article as any).updatedAt || article.publishDate,
-    author: { '@type': 'Person', name: article.author || 'CelebrityPersona' },
-    publisher: { '@type': 'Organization', name: 'CelebrityPersona' },
-    mainEntityOfPage: absoluteUrl(articleUrl),
-    articleSection: article.category,
-    keywords: article.tags?.join(', '),
-    articleBody: stripHtml(article.content).slice(0, 5000),
-  };
 
   return (
     <>
       <JsonLd
         data={[
-          articleSchema,
-          createBreadcrumbJsonLd([
+          createNewsArticleSchema(article as any),
+          createBreadcrumbSchema([
             { name: 'Home', path: '/' },
             { name: 'Celebrity News', path: '/celebrity-news' },
             { name: article.title, path: articleUrl },

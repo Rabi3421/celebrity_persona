@@ -1,9 +1,11 @@
+import { dedupeStructuredData, type JsonLdSchema } from '@/lib/seo/structuredData';
+
 type JsonLdProps = {
-  data: Record<string, unknown> | Array<Record<string, unknown>>;
+  data: JsonLdSchema | JsonLdSchema[];
 };
 
 function safeJson(data: JsonLdProps['data']) {
-  return JSON.stringify(data)
+  return JSON.stringify(dedupeStructuredData(data))
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e')
     .replace(/&/g, '\\u0026');

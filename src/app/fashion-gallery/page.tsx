@@ -3,8 +3,9 @@ import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import JsonLd from '@/components/seo/JsonLd';
 import FashionGalleryInteractive from './components/FashionGalleryInteractive';
-import { createBreadcrumbJsonLd, createItemListJsonLd, createMetadata } from '@/lib/seo/site';
+import { createMetadata } from '@/lib/seo/site';
 import { getCommunityOutfits, getOutfitList } from '@/lib/seo/publicData';
+import { createBreadcrumbSchema, createItemListSchema } from '@/lib/seo/structuredData';
 
 export const revalidate = 900;
 
@@ -27,11 +28,11 @@ export default async function FashionGalleryPage() {
     <>
       <JsonLd
         data={[
-          createBreadcrumbJsonLd([
+          createBreadcrumbSchema([
             { name: 'Home', path: '/' },
             { name: 'Fashion Gallery', path: '/fashion-gallery' },
           ]),
-          createItemListJsonLd(
+          createItemListSchema(
             'Celebrity Fashion Gallery',
             '/fashion-gallery',
             outfitPage.data.map((outfit: any) => ({

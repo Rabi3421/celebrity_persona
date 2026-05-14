@@ -3,8 +3,9 @@ import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import JsonLd from '@/components/seo/JsonLd';
 import ReviewsInteractive from './components/ReviewsInteractive';
-import { createBreadcrumbJsonLd, createItemListJsonLd, createMetadata } from '@/lib/seo/site';
+import { createMetadata } from '@/lib/seo/site';
 import { getAvailableForReviewMovies, getReviews } from '@/lib/seo/publicData';
+import { createBreadcrumbSchema, createItemListSchema } from '@/lib/seo/structuredData';
 
 export const revalidate = 900;
 
@@ -26,11 +27,11 @@ export default async function ReviewsPage() {
     <>
       <JsonLd
         data={[
-          createBreadcrumbJsonLd([
+          createBreadcrumbSchema([
             { name: 'Home', path: '/' },
             { name: 'Movie Reviews', path: '/reviews' },
           ]),
-          createItemListJsonLd(
+          createItemListSchema(
             'Movie Reviews',
             '/reviews',
             reviewPage.data.map((review: any) => ({

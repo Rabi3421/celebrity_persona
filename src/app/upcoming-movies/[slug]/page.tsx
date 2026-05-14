@@ -6,9 +6,9 @@ import JsonLd from '@/components/seo/JsonLd';
 import MovieDetailClient from './components/MovieDetailClient';
 import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
-import { absoluteUrl, createBreadcrumbJsonLd, stripHtml } from '@/lib/seo/site';
 import { createMoviePageMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
 import { upcomingMovieQuery } from '@/lib/seo/publicData';
+import { createBreadcrumbSchema, createMovieSchema } from '@/lib/seo/structuredData';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CastMember {
@@ -115,26 +115,12 @@ export default async function MovieDetailPage(
 
   if (!movie) notFound();
 
-  const movieSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'Movie',
-    name: movie.title,
-    url: absoluteUrl(`/upcoming-movies/${movie.slug}`),
-    image: [movie.poster, movie.backdrop].filter(Boolean).map((image) => absoluteUrl(image!)),
-    datePublished: movie.releaseDate,
-    genre: movie.genre,
-    director: movie.director ? { '@type': 'Person', name: movie.director } : undefined,
-    actor: movie.cast?.slice(0, 10).map((member) => ({ '@type': 'Person', name: member.name })) || undefined,
-    description: stripHtml(movie.synopsis || movie.plotSummary || '').slice(0, 500),
-    duration: movie.duration ? `PT${movie.duration}M` : undefined,
-  };
-
   return (
     <>
       <JsonLd
         data={[
-          movieSchema,
-          createBreadcrumbJsonLd([
+          createMovieSchema(movie, `/upcoming-movies/${movie.slug}`),
+          createBreadcrumbSchema([
             { name: 'Home', path: '/' },
             { name: 'Upcoming Movies', path: '/upcoming-movies' },
             { name: movie.title, path: `/upcoming-movies/${movie.slug}` },

@@ -3,8 +3,6 @@ import PublicHeader from '@/components/common/PublicHeader';
 import PublicFooter from '@/components/common/PublicFooter';
 import JsonLd from '@/components/seo/JsonLd';
 import {
-  absoluteUrl,
-  createItemListJsonLd,
   createMetadata,
   stripHtml,
   truncate,
@@ -43,6 +41,7 @@ import {
   type HomeOutfit,
   type HomeUpload,
 } from './components/homepageContent';
+import { createItemListSchema, createWebPageSchema } from '@/lib/seo/structuredData';
 
 export const revalidate = 900;
 
@@ -241,20 +240,13 @@ export default async function Homepage() {
   const heroImage = celebrities[0]?.image || articles[0]?.image || HOME_HERO_IMAGE;
 
   const jsonLd = [
-    {
-      '@context': 'https://schema.org',
-      '@type': 'WebPage',
+    createWebPageSchema({
       name: HOME_TITLE,
       description: HOME_DESCRIPTION,
-      url: absoluteUrl('/'),
-      primaryImageOfPage: absoluteUrl(safeImage(heroImage, HOME_HERO_IMAGE)),
-      isPartOf: {
-        '@type': 'WebSite',
-        name: 'CelebrityPersona',
-        url: absoluteUrl('/'),
-      },
-    },
-    createItemListJsonLd(
+      path: '/',
+      image: safeImage(heroImage, HOME_HERO_IMAGE),
+    }),
+    createItemListSchema(
       'Featured celebrity profiles',
       '/',
       celebrities.slice(0, 6).map((celebrity) => ({
@@ -264,7 +256,7 @@ export default async function Homepage() {
         description: celebrity.description,
       }))
     ),
-    createItemListJsonLd(
+    createItemListSchema(
       'Latest celebrity articles',
       '/',
       articles.slice(0, 6).map((article) => ({

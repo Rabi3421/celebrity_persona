@@ -4,9 +4,9 @@ import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import JsonLd from '@/components/seo/JsonLd';
 import UserOutfitDetail from './components/UserOutfitDetail';
-import { absoluteUrl, createBreadcrumbJsonLd, truncate } from '@/lib/seo/site';
 import { createCommunityOutfitMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
 import { getPublicUserOutfit } from '@/lib/seo/publicData';
+import { createBreadcrumbSchema, createCommunityOutfitArticleSchema } from '@/lib/seo/structuredData';
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
@@ -31,27 +31,12 @@ export default async function UserOutfitPage(
   const outfit: any = await getPublicUserOutfit(slug);
   if (!outfit) notFound();
 
-  const outfitSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'CreativeWork',
-    name: outfit.title,
-    description: outfit.description || truncate(outfit.title, 155),
-    image: outfit.images?.map((image: string) => absoluteUrl(image)) || [],
-    url: absoluteUrl(`/user-outfits/${outfit.slug}`),
-    creator: outfit.userId?.name ? { '@type': 'Person', name: outfit.userId.name } : undefined,
-    datePublished: outfit.createdAt,
-    interactionStatistic: [
-      { '@type': 'InteractionCounter', interactionType: 'https://schema.org/ViewAction', userInteractionCount: outfit.views || 0 },
-      { '@type': 'InteractionCounter', interactionType: 'https://schema.org/LikeAction', userInteractionCount: outfit.likes?.length || 0 },
-    ],
-  };
-
   return (
     <>
       <JsonLd
         data={[
-          outfitSchema,
-          createBreadcrumbJsonLd([
+          createCommunityOutfitArticleSchema(outfit),
+          createBreadcrumbSchema([
             { name: 'Home', path: '/' },
             { name: 'Fashion Gallery', path: '/fashion-gallery' },
             { name: outfit.title, path: `/user-outfits/${outfit.slug}` },

@@ -3,8 +3,9 @@ import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import JsonLd from '@/components/seo/JsonLd';
 import CelebrityNewsInteractive from './components/CelebrityNewsInteractive';
-import { createBreadcrumbJsonLd, createItemListJsonLd, createMetadata } from '@/lib/seo/site';
+import { createMetadata } from '@/lib/seo/site';
 import { getNewsList } from '@/lib/seo/publicData';
+import { createBreadcrumbSchema, createItemListSchema } from '@/lib/seo/structuredData';
 
 export const revalidate = 900;
 
@@ -23,11 +24,11 @@ export default async function CelebrityNewsPage() {
     <>
       <JsonLd
         data={[
-          createBreadcrumbJsonLd([
+          createBreadcrumbSchema([
             { name: 'Home', path: '/' },
             { name: 'Celebrity News', path: '/celebrity-news' },
           ]),
-          createItemListJsonLd(
+          createItemListSchema(
             'Celebrity News',
             '/celebrity-news',
             newsPage.data.map((article: any) => ({

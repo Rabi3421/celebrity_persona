@@ -6,8 +6,8 @@ import JsonLd from '@/components/seo/JsonLd';
 import ReviewDetailClient from './components/ReviewDetailClient';
 import dbConnect from '@/lib/mongodb';
 import MovieReview from '@/models/MovieReview';
-import { absoluteUrl, createBreadcrumbJsonLd, stripHtml } from '@/lib/seo/site';
 import { createMovieReviewMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
+import { createBreadcrumbSchema, createReviewSchema } from '@/lib/seo/structuredData';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -43,42 +43,13 @@ export default async function ReviewDetailPage({ params }: Props) {
   const { slug } = await params;
   const review = await getReview(slug);
   if (!review) notFound();
-  const reviewSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'Review',
-    name: review.title,
-    url: absoluteUrl(`/reviews/${review.slug}`),
-    image: [review.poster, review.backdropImage].filter(Boolean).map((image) => absoluteUrl(image)),
-    datePublished: review.publishDate || review.createdAt,
-    dateModified: review.updatedAt || review.publishDate,
-    reviewBody: stripHtml(review.content || review.excerpt || '').slice(0, 5000),
-    reviewRating: {
-      '@type': 'Rating',
-      ratingValue: review.rating,
-      bestRating: 10,
-      worstRating: 0,
-    },
-    author: {
-      '@type': 'Person',
-      name: review.author?.name || 'CelebrityPersona',
-    },
-    itemReviewed: {
-      '@type': 'Movie',
-      name: review.movieTitle,
-      image: review.poster ? absoluteUrl(review.poster) : undefined,
-      dateCreated: review.movieDetails?.releaseYear,
-      director: review.movieDetails?.director
-        ? { '@type': 'Person', name: review.movieDetails.director }
-        : undefined,
-    },
-  };
 
   return (
     <>
       <JsonLd
         data={[
-          reviewSchema,
-          createBreadcrumbJsonLd([
+          createReviewSchema(review),
+          createBreadcrumbSchema([
             { name: 'Home', path: '/' },
             { name: 'Movie Reviews', path: '/reviews' },
             { name: review.title, path: `/reviews/${review.slug}` },

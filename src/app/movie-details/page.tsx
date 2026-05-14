@@ -3,8 +3,9 @@ import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import JsonLd from '@/components/seo/JsonLd';
 import MovieDetailsInteractive from './components/MovieDetailsInteractive';
-import { createBreadcrumbJsonLd, createItemListJsonLd, createMetadata } from '@/lib/seo/site';
+import { createMetadata } from '@/lib/seo/site';
 import { getReleasedMovies } from '@/lib/seo/publicData';
+import { createBreadcrumbSchema, createItemListSchema } from '@/lib/seo/structuredData';
 
 export const revalidate = 900;
 
@@ -23,11 +24,11 @@ export default async function MovieDetailsPage() {
     <>
       <JsonLd
         data={[
-          createBreadcrumbJsonLd([
+          createBreadcrumbSchema([
             { name: 'Home', path: '/' },
             { name: 'Movie Details', path: '/movie-details' },
           ]),
-          createItemListJsonLd(
+          createItemListSchema(
             'Movie Details',
             '/movie-details',
             moviePage.data.map((movie: any) => ({

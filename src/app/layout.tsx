@@ -9,9 +9,8 @@ import {
   SITE_NAME,
   SITE_URL,
   TWITTER_HANDLE,
-  createOrganizationJsonLd,
-  createWebSiteJsonLd,
 } from '@/lib/seo/site';
+import { createOrganizationSchema, createWebsiteSchema } from '@/lib/seo/structuredData';
 import '../styles/index.css';
 
 export const viewport: Viewport = {
@@ -62,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <JsonLd data={[createWebSiteJsonLd(), createOrganizationJsonLd()]} />
+        <JsonLd data={[createWebsiteSchema(), createOrganizationSchema()]} />
         <AuthProvider>
           <ScrollToTop />
           {children}

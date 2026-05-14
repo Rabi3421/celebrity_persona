@@ -3,8 +3,9 @@ import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import JsonLd from '@/components/seo/JsonLd';
 import CelebrityProfilesInteractive from './components/CelebrityProfilesInteractive';
-import { createBreadcrumbJsonLd, createItemListJsonLd, createMetadata } from '@/lib/seo/site';
+import { createMetadata } from '@/lib/seo/site';
 import { getCelebrityList } from '@/lib/seo/publicData';
+import { createBreadcrumbSchema, createItemListSchema } from '@/lib/seo/structuredData';
 
 export const revalidate = 900;
 
@@ -29,11 +30,11 @@ export default async function CelebrityProfilesPage() {
     <>
       <JsonLd
         data={[
-          createBreadcrumbJsonLd([
+          createBreadcrumbSchema([
             { name: 'Home', path: '/' },
             { name: 'Celebrity Profiles', path: '/celebrity-profiles' },
           ]),
-          createItemListJsonLd(
+          createItemListSchema(
             'Celebrity Profiles',
             '/celebrity-profiles',
             celebrities.map((celebrity) => ({
