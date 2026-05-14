@@ -179,6 +179,28 @@ export function createBreadcrumbSchema(items: BreadcrumbItem[]): JsonLdSchema {
   });
 }
 
+export function createFAQPageSchema(
+  items: Array<{ question: string; answer: string }>,
+  path: string
+): JsonLdSchema {
+  const url = absoluteUrl(path);
+
+  return compact({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    '@id': `${url}/#faq`,
+    url,
+    mainEntity: items.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: truncate(item.answer, 500),
+      },
+    })),
+  });
+}
+
 export function createItemListSchema(
   name: string,
   path: string,

@@ -10,8 +10,14 @@ import dbConnect from '@/lib/mongodb';
 import Celebrity from '@/models/Celebrity';
 import { normalizeStoredNetWorth } from '@/lib/netWorth';
 import { createCelebrityProfileMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
+import { getCelebrityFaqs, getCelebrityHeroImage, getCelebritySummary } from '@/lib/seo/celebrityProfile';
 import { getCelebrityInternalLinks } from '@/lib/seo/internalLinks';
-import { createBreadcrumbSchema, createPersonSchema } from '@/lib/seo/structuredData';
+import {
+  createBreadcrumbSchema,
+  createFAQPageSchema,
+  createPersonSchema,
+  createWebPageSchema,
+} from '@/lib/seo/structuredData';
 
 export const revalidate = 900;
 
@@ -59,23 +65,36 @@ export default async function CelebrityProfilePage(
   const celeb = await fetchCelebrity(slug);
   if (!celeb) notFound();
   const internalLinks = await getCelebrityInternalLinks(celeb);
+  const faqItems = getCelebrityFaqs(celeb);
+  const hasRelatedLinks =
+    internalLinks.contextualLinks.length > 0 ||
+    internalLinks.groups.some((group) => group.items.length > 0);
+  const profilePath = `/celebrity-profiles/${celeb.slug}`;
 
   return (
     <>
       <JsonLd
         data={[
           createPersonSchema(celeb),
+          createWebPageSchema({
+            name: `${celeb.name} Biography, Career, Movies and Facts`,
+            description: getCelebritySummary(celeb),
+            path: profilePath,
+            image: getCelebrityHeroImage(celeb),
+          }),
           createBreadcrumbSchema([
             { name: 'Home', path: '/' },
             { name: 'Celebrity Profiles', path: '/celebrity-profiles' },
-            { name: celeb.name, path: `/celebrity-profiles/${celeb.slug}` },
+            { name: celeb.name, path: profilePath },
           ]),
+          ...(faqItems.length > 0 ? [createFAQPageSchema(faqItems, profilePath)] : []),
         ]}
       />
       <PublicHeader />
       <main className="min-h-screen bg-background">
-        <CelebrityProfileDetail celebrity={celeb} />
+        <CelebrityProfileDetail celebrity={celeb} hasRelatedLinks={hasRelatedLinks} />
         <InternalLinks
+          id="related-coverage"
           links={internalLinks}
           title={`More About ${celeb.name}`}
           description={`Explore ${celeb.name} profiles, movie pages, outfit articles, and celebrity news connected by topic and editorial relevance.`}

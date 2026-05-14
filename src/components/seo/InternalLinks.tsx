@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type { SeoInternalLinkGroup, SeoInternalLinks } from '@/lib/seo/internalLinks';
+import { stripHtml, truncate } from '@/lib/seo/site';
 
 function ContextualLinks({ links }: { links: SeoInternalLinks['contextualLinks'] }) {
   const visibleLinks = links.slice(0, 5);
@@ -29,6 +30,8 @@ function ContextualLinks({ links }: { links: SeoInternalLinks['contextualLinks']
 }
 
 function LinkCard({ item }: { item: SeoInternalLinkGroup['items'][number] }) {
+  const description = item.description ? truncate(stripHtml(item.description), 170) : '';
+
   return (
     <article className="h-full overflow-hidden rounded-xl border border-white/10 bg-white/[0.035] transition-colors hover:border-primary/40 hover:bg-white/[0.06]">
       <Link href={item.href} className="group flex h-full flex-col">
@@ -53,9 +56,9 @@ function LinkCard({ item }: { item: SeoInternalLinkGroup['items'][number] }) {
           <h3 className="font-playfair text-lg font-semibold leading-snug text-white">
             {item.title}
           </h3>
-          {item.description && (
+          {description && (
             <p className="line-clamp-3 text-sm leading-6 text-neutral-400">
-              {item.description}
+              {description}
             </p>
           )}
         </div>
@@ -69,17 +72,19 @@ export default function InternalLinks({
   title = 'Explore Related Coverage',
   description = 'Find connected profiles, movie coverage, fashion articles, and entertainment news from CelebrityPersona.',
   className = '',
+  id,
 }: {
   links: SeoInternalLinks;
   title?: string;
   description?: string;
   className?: string;
+  id?: string;
 }) {
   const groups = links.groups.filter((group) => group.items.length > 0);
   if (groups.length === 0 && links.contextualLinks.length === 0) return null;
 
   return (
-    <section className={`content-visibility-auto border-t border-white/10 bg-[#0b0714] px-6 py-16 md:px-10 ${className}`}>
+    <section id={id} className={`content-visibility-auto border-t border-white/10 bg-[#0b0714] px-6 py-16 md:px-10 ${className}`}>
       <div className="mx-auto max-w-7xl space-y-12">
         <header className="space-y-4">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Related Coverage</p>
