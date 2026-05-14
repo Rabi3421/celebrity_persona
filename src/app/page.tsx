@@ -272,11 +272,7 @@ export default async function Homepage() {
     <>
       <PublicHeader />
       <main id="main-content" className="min-h-screen bg-background">
-        <HeroSection
-          heroImage={heroImage}
-          featuredCelebrity={celebrities[0]}
-          latestArticle={articles[0]}
-        />
+        <HeroSection />
         <CelebrityCarousel celebrities={celebrities} />
         <FashionBentoGrid outfits={outfits} />
         <NewsSection articles={articles} />
