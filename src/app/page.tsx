@@ -273,12 +273,24 @@ export default async function Homepage() {
       <PublicHeader />
       <main id="main-content" className="min-h-screen bg-background">
         <HeroSection />
-        <CelebrityCarousel celebrities={celebrities} />
-        <FashionBentoGrid outfits={outfits} />
-        <NewsSection articles={articles} />
-        <MoviesTimeline movies={movies} />
-        <CommunityUploads uploads={uploads} />
-        <CTASection />
+        <div className="content-visibility-auto">
+          <CelebrityCarousel celebrities={celebrities} />
+        </div>
+        <div className="content-visibility-auto">
+          <FashionBentoGrid outfits={outfits} />
+        </div>
+        <div className="content-visibility-auto">
+          <NewsSection articles={articles} />
+        </div>
+        <div className="content-visibility-auto">
+          <MoviesTimeline movies={movies} />
+        </div>
+        <div className="content-visibility-auto">
+          <CommunityUploads uploads={uploads} />
+        </div>
+        <div className="content-visibility-auto">
+          <CTASection />
+        </div>
       </main>
       <JsonLd data={jsonLd} />
       <PublicFooter />

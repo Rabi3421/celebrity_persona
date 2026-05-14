@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import Header from '@/components/common/Header';
-import Footer from '@/components/common/Footer';
+import PublicHeader from '@/components/common/PublicHeader';
+import PublicFooter from '@/components/common/PublicFooter';
 import JsonLd from '@/components/seo/JsonLd';
 import FashionGalleryInteractive from './components/FashionGalleryInteractive';
 import { createMetadata } from '@/lib/seo/site';
@@ -44,7 +44,7 @@ export default async function FashionGalleryPage() {
           ),
         ]}
       />
-      <Header />
+      <PublicHeader />
       <main className="min-h-screen bg-background pt-32">
         <FashionGalleryInteractive
           initialOutfits={outfitPage.data}
@@ -56,7 +56,7 @@ export default async function FashionGalleryPage() {
           initialLoaded
         />
       </main>
-      <Footer />
+      <PublicFooter />
     </>
   );
 }

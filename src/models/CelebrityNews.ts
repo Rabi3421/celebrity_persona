@@ -208,6 +208,8 @@ celebrityNewsSchema.index({ category: 1 });
 celebrityNewsSchema.index({ status: 1 });
 celebrityNewsSchema.index({ publishDate: -1 });
 celebrityNewsSchema.index({ featured: 1 });
+celebrityNewsSchema.index({ status: 1, celebrity: 1, publishDate: -1 });
+celebrityNewsSchema.index({ status: 1, category: 1, tags: 1, publishDate: -1 });
 celebrityNewsSchema.index(
   { title: 'text', excerpt: 'text', author: 'text' },
   { name: 'news_text_search' }

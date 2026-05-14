@@ -114,6 +114,9 @@ userOutfitSchema.pre('save', function () {
   }
 });
 
+userOutfitSchema.index({ isPublished: 1, isApproved: 1, category: 1, tags: 1, updatedAt: -1 });
+userOutfitSchema.index({ isPublished: 1, isApproved: 1, brand: 1, updatedAt: -1 });
+
 // ── Model (with cache-clear to avoid hot-reload issues) ───────────────────────
 if (mongoose.models.UserOutfit) {
   delete (mongoose.models as Record<string, unknown>).UserOutfit;

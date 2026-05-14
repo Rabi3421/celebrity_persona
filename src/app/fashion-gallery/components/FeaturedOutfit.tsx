@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Icon from '@/components/ui/AppIcon';
 import type { OutfitDoc } from './FashionGalleryInteractive';
 
@@ -38,8 +39,15 @@ export default function FeaturedOutfit({ outfit }: Props) {
             {/* Main Image */}
             <div className="lg:col-span-3 relative aspect-[3/4] lg:aspect-auto min-h-[400px]">
               {img ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={img} alt={outfit.title} className="w-full h-full object-cover" />
+                <Image
+                  src={img}
+                  alt={outfit.title}
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 60vw, 100vw"
+                  quality={82}
+                  className="object-cover"
+                />
               ) : (
                 <div className="w-full h-full bg-white/5 flex items-center justify-center">
                   <Icon name="PhotoIcon" size={48} className="text-neutral-700" />
@@ -58,12 +66,11 @@ export default function FeaturedOutfit({ outfit }: Props) {
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
                   {images.map((src, i) => (
                     <button key={i} onClick={() => setImgIdx(i)}
-                      className={`w-10 h-10 rounded-lg overflow-hidden border-2 transition-all ${
+                      className={`relative w-10 h-10 rounded-lg overflow-hidden border-2 transition-all ${
                         i === imgIdx ? 'border-yellow-500' : 'border-white/20'
                       }`}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt="" className="w-full h-full object-cover" />
+                      <Image src={src} alt="" fill sizes="40px" quality={60} className="object-cover" />
                     </button>
                   ))}
                 </div>

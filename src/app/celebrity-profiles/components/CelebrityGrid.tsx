@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 
@@ -167,7 +168,7 @@ export default function CelebrityGrid({
 
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {celebrities.map((celebrity) => {
+        {celebrities.map((celebrity, index) => {
           const img = celebrity.profileImage || celebrity.coverImage;
           const catMeta: Record<string, { accent: string; verifiedBg: string }> = {
             movie:   { accent: '#fbbf24', verifiedBg: '#22c55e' },
@@ -198,11 +199,14 @@ export default function CelebrityGrid({
                 {/* Photo — rounded inside card, not full bleed */}
                 <div className="relative mx-3 mt-3 rounded-[20px] overflow-hidden" style={{ height: '260px' }}>
                   {img ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={img}
                       alt={celebrity.name}
-                      className="w-full h-full object-cover object-top"
+                      fill
+                      priority={index === 0}
+                      sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 100vw"
+                      quality={72}
+                      className="object-cover object-top"
                     />
                   ) : (
                     <div className="w-full h-full" style={{ background: 'linear-gradient(135deg,#2d1b4e,#1a0f2e)' }} />
@@ -280,11 +284,13 @@ export default function CelebrityGrid({
                 style={{ minHeight: '420px' }}>
                 {/* Full-bleed photo */}
                 {img && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
                     src={img}
                     alt={celebrity.name}
-                    className="absolute inset-0 w-full h-full object-cover object-top scale-105 transition-transform duration-700"
+                    fill
+                    sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 100vw"
+                    quality={72}
+                    className="object-cover object-top scale-105 transition-transform duration-700"
                   />
                 )}
                 {/* Dark gradient overlay */}

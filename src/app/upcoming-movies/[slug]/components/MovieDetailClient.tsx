@@ -1,10 +1,36 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
-import MovieInteractions from './MovieInteractions';
+
+const MovieInteractions = dynamic(() => import('./MovieInteractions'), {
+  ssr: false,
+  loading: () => <div className="h-24 rounded-2xl border border-white/10 bg-white/5" />,
+});
+
+function createStaticMotion<T extends keyof React.JSX.IntrinsicElements>(Tag: T) {
+  return function StaticMotion({
+    initial: _initial,
+    animate,
+    transition: _transition,
+    layout: _layout,
+    ...props
+  }: any) {
+    const animatedStyle =
+      animate && typeof animate === 'object' && 'width' in animate
+        ? { ...props.style, width: (animate as { width: string }).width }
+        : props.style;
+
+    return React.createElement(Tag, { ...props, style: animatedStyle });
+  };
+}
+
+const motion = {
+  div: createStaticMotion('div'),
+  section: createStaticMotion('section'),
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function stripHtml(html: string): string {
@@ -148,16 +174,6 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
   return (
     <div className="min-h-screen bg-[#0a0a14] text-white">
 
-      {/* ── Back Link ── */}
-      <div className="container mx-auto px-4 pt-24 pb-2">
-        <Link
-          href="/upcoming-movies"
-          className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-yellow-400 transition-colors"
-        >
-          ← Back to Upcoming Movies
-        </Link>
-      </div>
-
       {/* ── Hero / Backdrop ── */}
       <section className="relative w-full h-[55vh] md:h-[65vh] overflow-hidden">
         {movie.backdrop || movie.poster ? (
@@ -166,6 +182,8 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
             alt={movie.title}
             fill
             priority
+            fetchPriority="high"
+            quality={82}
             className="object-cover object-top"
             sizes="100vw"
           />

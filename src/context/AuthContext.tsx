@@ -44,6 +44,22 @@ function msUntilExpiry(token: string): number {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function needsImmediateSessionCheck(pathname: string): boolean {
+  return /^\/(admin|dashboard|superadmin|login|signup|reset-password|init-superadmin)(\/|$)/.test(pathname);
+}
+
+function scheduleIdleTask(callback: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+
+  if ('requestIdleCallback' in window) {
+    const id = window.requestIdleCallback(callback, { timeout: 3000 });
+    return () => window.cancelIdleCallback(id);
+  }
+
+  const id = globalThis.setTimeout(callback, 1800);
+  return () => globalThis.clearTimeout(id);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   // Access token lives ONLY in memory — never touches any browser storage
   const [user, setUser]               = useState<User | null>(null);
@@ -82,9 +98,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ─── on mount: restore session via /api/auth/me (cookie-authenticated) ───
   useEffect(() => {
-    (async () => {
+    let cancelled = false;
+
+    const restoreSession = async (showLoading: boolean) => {
+      if (showLoading) setLoading(true);
       try {
         const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (cancelled) return;
         if (res.ok) {
           const data = await res.json();
           setAccessToken(data.accessToken);
@@ -92,9 +112,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           scheduleRefresh(data.accessToken);
         }
       } catch { /* network error — stay logged out */ }
-      finally { setLoading(false); }
-    })();
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+      finally {
+        if (!cancelled && showLoading) setLoading(false);
+      }
+    };
+
+    const pathname = window.location.pathname;
+    const immediate = needsImmediateSessionCheck(pathname);
+
+    if (immediate) {
+      void restoreSession(true);
+    } else {
+      setLoading(false);
+      const cancelIdleTask = scheduleIdleTask(() => {
+        void restoreSession(false);
+      });
+
+      return () => {
+        cancelled = true;
+        cancelIdleTask();
+        if (timerRef.current) clearTimeout(timerRef.current);
+      };
+    }
+
+    return () => {
+      cancelled = true;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── login ────────────────────────────────────────────────────────────────

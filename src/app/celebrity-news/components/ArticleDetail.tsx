@@ -346,7 +346,14 @@ export default function ArticleDetail({
         {/* Featured Image */}
         {article.thumbnail && (
           <div className="relative aspect-video rounded-2xl overflow-hidden mb-8">
-            <AppImage src={article.thumbnail} alt={article.title} className="w-full h-full object-cover" />
+            <AppImage
+              src={article.thumbnail}
+              alt={article.title}
+              className="w-full h-full object-cover"
+              priority
+              sizes="(min-width: 1024px) 768px, 100vw"
+              quality={82}
+            />
           </div>
         )}
 

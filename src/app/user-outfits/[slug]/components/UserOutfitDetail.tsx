@@ -212,7 +212,14 @@ export default function UserOutfitDetail({ slug, initialOutfit = null }: { slug:
             className="relative rounded-3xl overflow-hidden h-[420px] md:h-[520px] cursor-zoom-in glass-card"
             onClick={() => setLightbox(true)}
           >
-            <AppImage src={outfit.images[activeImg] || ''} alt={outfit.title} className="w-full h-full object-cover" />
+            <AppImage
+              src={outfit.images[activeImg] || ''}
+              alt={outfit.title}
+              className="w-full h-full object-cover"
+              priority={activeImg === 0}
+              sizes="(min-width: 768px) 50vw, 100vw"
+              quality={82}
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
             <div className="absolute top-4 right-4 glass-card px-2 py-1 rounded-full text-xs text-neutral-300 flex items-center gap-1">
               <Icon name="MagnifyingGlassPlusIcon" size={12} />Zoom
@@ -223,7 +230,7 @@ export default function UserOutfitDetail({ slug, initialOutfit = null }: { slug:
               {outfit.images.map((img, i) => (
                 <button key={i} onClick={() => setActiveImg(i)}
                   className={`shrink-0 w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all ${i === activeImg ? 'border-primary' : 'border-transparent hover:border-white/30'}`}>
-                  <AppImage src={img} alt="" className="w-full h-full object-cover" />
+                  <AppImage src={img} alt="" className="w-full h-full object-cover" sizes="80px" quality={60} />
                 </button>
               ))}
             </div>

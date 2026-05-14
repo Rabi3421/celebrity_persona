@@ -10,6 +10,7 @@ import {
   stripHtml,
   truncate,
 } from './site';
+import { getCelebrityKeywordSet } from './celebrityProfile';
 
 type AnyRecord = Record<string, any>;
 
@@ -224,7 +225,7 @@ export function createCelebrityProfileMetadata(celebrity: AnyRecord): Metadata {
     images: [celebrity.coverImage, celebrity.profileImage],
     imageAlt: `${name} celebrity profile`,
     type: 'profile',
-    keywords: [name, occupation, celebrity.nationality, 'celebrity profile', 'celebrity biography', 'celebrity fashion'],
+    keywords: getCelebrityKeywordSet(celebrity),
     publishedTime: celebrity.createdAt,
     modifiedTime: celebrity.updatedAt,
   });

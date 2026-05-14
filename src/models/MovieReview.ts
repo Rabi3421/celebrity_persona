@@ -274,6 +274,8 @@ movieReviewSchema.index({ slug: 1 }, { unique: true, sparse: true });
 movieReviewSchema.index({ publishDate: -1 });
 movieReviewSchema.index({ rating: -1 });
 movieReviewSchema.index({ featured: 1 });
+movieReviewSchema.index({ status: 1, movieTitle: 1, publishDate: -1 });
+movieReviewSchema.index({ status: 1, 'movieDetails.genre': 1, publishDate: -1 });
 movieReviewSchema.index({ title: 'text', movieTitle: 'text', excerpt: 'text' });
 
 const MovieReview: Model<IMovieReview> =

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import Image from 'next/image';
 import Icon from '@/components/ui/AppIcon';
 import type { OutfitDoc } from './FashionGalleryInteractive';
 
@@ -63,8 +64,15 @@ export default function OutfitGallery({ outfits, loading }: Props) {
           >
             <div className="relative w-full h-full">
               {img ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={img} alt={outfit.title} className="w-full h-full object-cover" />
+                <Image
+                  src={img}
+                  alt={outfit.title}
+                  fill
+                  priority={index === 0}
+                  sizes={isLarge ? '(min-width: 1024px) 50vw, 100vw' : '(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 100vw'}
+                  quality={72}
+                  className="object-cover"
+                />
               ) : (
                 <div className="w-full h-full bg-white/5 flex items-center justify-center">
                   <Icon name="PhotoIcon" size={40} className="text-neutral-700" />
@@ -123,4 +131,3 @@ export default function OutfitGallery({ outfits, loading }: Props) {
     </div>
   );
 }
-

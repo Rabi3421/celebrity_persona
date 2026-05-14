@@ -253,6 +253,8 @@ celebrityOutfitSchema.index({ status: 1 });
 celebrityOutfitSchema.index({ brand: 1 });
 celebrityOutfitSchema.index({ category: 1 });
 celebrityOutfitSchema.index({ isActive: 1, isFeatured: 1 });
+celebrityOutfitSchema.index({ status: 1, isActive: 1, celebrity: 1, updatedAt: -1 });
+celebrityOutfitSchema.index({ status: 1, isActive: 1, category: 1, tags: 1, updatedAt: -1 });
 celebrityOutfitSchema.index({ title: 'text', description: 'text', brand: 'text', designer: 'text' });
 
 // Delete cached model in dev so hot-reload always uses the latest schema

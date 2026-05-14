@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import Header from '@/components/common/Header';
-import Footer from '@/components/common/Footer';
+import PublicHeader from '@/components/common/PublicHeader';
+import PublicFooter from '@/components/common/PublicFooter';
 import JsonLd from '@/components/seo/JsonLd';
 import CelebrityNewsInteractive from './components/CelebrityNewsInteractive';
 import { createMetadata } from '@/lib/seo/site';
@@ -40,7 +40,7 @@ export default async function CelebrityNewsPage() {
           ),
         ]}
       />
-      <Header />
+      <PublicHeader />
       <main className="min-h-screen bg-background pt-32">
         <CelebrityNewsInteractive
           initialArticles={newsPage.data}
@@ -50,7 +50,7 @@ export default async function CelebrityNewsPage() {
           initialLoaded
         />
       </main>
-      <Footer />
+      <PublicFooter />
     </>
   );
 }

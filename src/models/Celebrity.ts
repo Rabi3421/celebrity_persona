@@ -446,6 +446,7 @@ celebritySchema.index({ status: 1 });
 // Note: slug index is already created by `unique: true` on the schema field.
 celebritySchema.index({ viewCount: -1 });
 celebritySchema.index({ popularityScore: -1 });
+celebritySchema.index({ status: 1, categories: 1, tags: 1, popularityScore: -1 });
 
 // Delete cached model in development to pick up schema changes on hot-reload
 if (process.env.NODE_ENV === 'development') {
