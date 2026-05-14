@@ -1,54 +1,53 @@
 import type { Metadata } from 'next';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
+import JsonLd from '@/components/seo/JsonLd';
 import UpcomingMoviesInteractive from './components/UpcomingMoviesInteractive';
+import { createBreadcrumbJsonLd, createItemListJsonLd, createMetadata } from '@/lib/seo/site';
+import { getUpcomingMovies } from '@/lib/seo/publicData';
 
-export const metadata: Metadata = {
-  title: 'Upcoming Movies 2026 | Latest Trailers & Release Dates - CelebrityPersona',
+export const revalidate = 900;
+
+export const metadata: Metadata = createMetadata({
+  title: 'Upcoming Movies 2026',
   description:
-    'Discover the most anticipated upcoming movies of 2026. Watch exclusive trailers, check release dates, explore cast details, and get early reviews. Stay ahead with Hollywood\'s biggest releases.',
-  keywords: 'upcoming movies 2026, movie trailers, release dates, Hollywood movies, cinema releases, movie previews',
-  openGraph: {
-    title: 'Upcoming Movies 2026 | Latest Trailers & Release Dates',
-    description: 'Discover the most anticipated upcoming movies of 2026. Watch exclusive trailers and get early access to reviews.',
-    type: 'website',
-    images: [{
-      url: '/assets/images/upcoming-movies-og.jpg',
-      width: 1200,
-      height: 630,
-      alt: 'Upcoming Movies 2026 Preview'
-    }]
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Upcoming Movies 2026 | Latest Trailers & Release Dates',
-    description: 'Discover the most anticipated upcoming movies of 2026. Watch exclusive trailers and get early access to reviews.'
-  }
-};
+    'Discover upcoming movies with trailers, release dates, cast details, genres, tickets, and anticipation scores.',
+  path: '/upcoming-movies',
+  keywords: ['upcoming movies 2026', 'movie trailers', 'release dates', 'cinema releases'],
+});
 
-export default function UpcomingMoviesPage() {
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    "name": "Upcoming Movies 2026",
-    "description": "Discover the most anticipated upcoming movies of 2026 with trailers, release dates, and cast information.",
-    "url": "https://celebritypersona.com/upcoming-movies",
-    "mainEntity": {
-      "@type": "ItemList",
-      "name": "Upcoming Movies 2026",
-      "description": "A curated list of the most anticipated movies releasing in 2026"
-    }
-  };
+export default async function UpcomingMoviesPage() {
+  const moviePage = await getUpcomingMovies({ page: 1, limit: 12 });
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      <JsonLd
+        data={[
+          createBreadcrumbJsonLd([
+            { name: 'Home', path: '/' },
+            { name: 'Upcoming Movies', path: '/upcoming-movies' },
+          ]),
+          createItemListJsonLd(
+            'Upcoming Movies 2026',
+            '/upcoming-movies',
+            moviePage.data.map((movie: any) => ({
+              name: movie.title,
+              path: `/upcoming-movies/${movie.slug}`,
+              image: movie.poster || movie.backdrop,
+              description: movie.synopsis || movie.plotSummary,
+            }))
+          ),
+        ]}
       />
       <Header />
       <main className="min-h-screen bg-background pt-32">
-        <UpcomingMoviesInteractive />
+        <UpcomingMoviesInteractive
+          initialMovies={moviePage.data}
+          initialTotal={moviePage.total}
+          initialPages={moviePage.pages}
+          initialPage={moviePage.page}
+          initialLoaded
+        />
       </main>
       <Footer />
     </>

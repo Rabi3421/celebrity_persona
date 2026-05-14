@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const sort       = searchParams.get('sort') || 'latest';
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filter: Record<string, any> = {};
+    const filter: Record<string, any> = { status: 'published' };
 
     if (q) {
       filter.$or = [

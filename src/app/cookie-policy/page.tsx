@@ -2,11 +2,13 @@ import type { Metadata } from 'next';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import LegalPage from '@/components/common/LegalPage';
+import { createMetadata } from '@/lib/seo/site';
 
-export const metadata: Metadata = {
-	title: 'Cookie Policy – CelebrityPersona',
+export const metadata: Metadata = createMetadata({
+	title: 'Cookie Policy',
 	description: 'Learn about how CelebrityPersona uses cookies and similar tracking technologies.',
-};
+	path: '/cookie-policy',
+});
 
 const sections = [
 	{

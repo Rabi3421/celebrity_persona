@@ -22,12 +22,12 @@ export async function GET(
     void Celebrity.modelName;
 
     // Try slug first, fall back to ObjectId
-    let article: any = await CelebrityNews.findOne({ slug })
+    let article: any = await CelebrityNews.findOne({ slug, status: 'published' })
       .populate('celebrity', 'name slug profileImage')
       .lean();
 
     if (!article && slug.match(/^[a-f\d]{24}$/i)) {
-      article = await CelebrityNews.findById(slug)
+      article = await CelebrityNews.findOne({ _id: slug, status: 'published' })
         .populate('celebrity', 'name slug profileImage')
         .lean();
     }
@@ -56,6 +56,7 @@ export async function GET(
     // Fetch related: same category, latest 3
     const related = await CelebrityNews.find({
       _id:      { $ne: article._id },
+      status:   'published',
       category: article.category || { $exists: true },
     })
       .select('title slug thumbnail category publishDate excerpt')
@@ -106,4 +107,3 @@ export async function GET(
     );
   }
 }
-

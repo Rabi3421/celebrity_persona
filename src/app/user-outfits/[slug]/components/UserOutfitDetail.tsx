@@ -40,29 +40,34 @@ interface UserOutfit {
   userId?: { _id?: string; name: string; avatar?: string };
 }
 
-export default function UserOutfitDetail({ slug }: { slug: string }) {
+export default function UserOutfitDetail({ slug, initialOutfit = null }: { slug: string; initialOutfit?: UserOutfit | null }) {
   const { user, authHeaders } = useAuth();
   const router = useRouter();
 
-  const [outfit, setOutfit]         = useState<UserOutfit | null>(null);
-  const [loading, setLoading]       = useState(true);
+  const [outfit, setOutfit]         = useState<UserOutfit | null>(initialOutfit);
+  const [loading, setLoading]       = useState(!initialOutfit);
   const [error, setError]           = useState<string | null>(null);
   const [activeImg, setActiveImg]   = useState(0);
   const [lightbox, setLightbox]     = useState(false);
 
   // interaction state
   const [liked, setLiked]           = useState(false);
-  const [likeCount, setLikeCount]   = useState(0);
+  const [likeCount, setLikeCount]   = useState(initialOutfit?.likes.length ?? 0);
   const [faved, setFaved]           = useState(false);
-  const [favCount, setFavCount]     = useState(0);
-  const [comments, setComments]     = useState<Comment[]>([]);
+  const [favCount, setFavCount]     = useState(initialOutfit?.favourites?.length ?? 0);
+  const [comments, setComments]     = useState<Comment[]>(initialOutfit?.comments ?? []);
   const [commentText, setCommentText] = useState('');
   const [postingComment, setPostingComment] = useState(false);
   const [actioning, setActioning]   = useState(false);
   const commentRef = useRef<HTMLTextAreaElement>(null);
+  const skippedInitialFetch = useRef(!!initialOutfit);
 
   useEffect(() => {
     if (!slug) return;
+    if (skippedInitialFetch.current) {
+      skippedInitialFetch.current = false;
+      return;
+    }
     fetch(`/api/user-outfits/${slug}`)
       .then((r) => r.json())
       .then((json) => {

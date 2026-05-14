@@ -1,20 +1,55 @@
 import type { Metadata } from 'next';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
+import JsonLd from '@/components/seo/JsonLd';
 import ReviewsInteractive from './components/ReviewsInteractive';
+import { createBreadcrumbJsonLd, createItemListJsonLd, createMetadata } from '@/lib/seo/site';
+import { getAvailableForReviewMovies, getReviews } from '@/lib/seo/publicData';
 
-export const metadata: Metadata = {
-  title: 'Reviews - CelebrityPersona',
+export const revalidate = 900;
+
+export const metadata: Metadata = createMetadata({
+  title: 'Movie Reviews',
   description:
-    'Browse user ratings, detailed reviews, and aggregated IMDb and Rotten Tomatoes scores. Filter reviews by rating to find the most helpful insights.',
-};
+    'Browse movie reviews, critic ratings, audience scores, verdicts, pros and cons, and aggregated entertainment insights.',
+  path: '/reviews',
+  keywords: ['movie reviews', 'film ratings', 'critic reviews', 'audience scores'],
+});
 
-export default function ReviewsPage() {
+export default async function ReviewsPage() {
+  const [reviewPage, availableMovies] = await Promise.all([
+    getReviews({ page: 1, limit: 12 }),
+    getAvailableForReviewMovies({ limit: 20 }),
+  ]);
+
   return (
     <>
+      <JsonLd
+        data={[
+          createBreadcrumbJsonLd([
+            { name: 'Home', path: '/' },
+            { name: 'Movie Reviews', path: '/reviews' },
+          ]),
+          createItemListJsonLd(
+            'Movie Reviews',
+            '/reviews',
+            reviewPage.data.map((review: any) => ({
+              name: review.title,
+              path: `/reviews/${review.slug}`,
+              image: review.poster || review.backdropImage,
+              description: review.excerpt,
+            }))
+          ),
+        ]}
+      />
       <Header />
       <main className="min-h-screen bg-background pt-32">
-        <ReviewsInteractive />
+        <ReviewsInteractive
+          initialReviews={reviewPage.data}
+          initialMeta={reviewPage.pagination}
+          initialAvailableMovies={availableMovies}
+          initialLoaded
+        />
       </main>
       <Footer />
     </>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import AppImage from '@/components/ui/AppImage';
 import Icon from '@/components/ui/AppIcon';
 
@@ -103,7 +104,8 @@ export default function NewsSection() {
         </div>
 
         {/* Featured Article */}
-        <div
+        <Link
+          href="/celebrity-news"
           className="glass-card rounded-3xl overflow-hidden mb-12 hover:glow-emerald transition-all duration-500 cursor-pointer"
           style={{ opacity: isHydrated ? 1 : 0 }}>
           
@@ -133,13 +135,13 @@ export default function NewsSection() {
                 {featuredArticle.celebrity} makes history with groundbreaking achievement at
                 the prestigious ceremony.
               </p>
-              <button className="flex items-center gap-2 text-accent hover:gap-4 transition-all">
+              <div className="flex items-center gap-2 text-accent group-hover:gap-4 transition-all">
                 <span className="text-sm font-medium">Read Full Story</span>
                 <Icon name="ArrowRightIcon" size={16} />
-              </button>
+              </div>
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* News Grid with Marquee */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -181,7 +183,8 @@ export default function NewsSection() {
           {/* Regular News Grid */}
           <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
             {newsItems.slice(0, 4).map((item) =>
-            <div
+            <Link
+              href="/celebrity-news"
               key={item.id}
               className="glass-card rounded-2xl overflow-hidden hover:scale-[1.02] hover:glow-emerald transition-all duration-500 cursor-pointer">
               
@@ -211,16 +214,16 @@ export default function NewsSection() {
                     <span className="text-sm text-neutral-400">{item.celebrity}</span>
                   </div>
                 </div>
-              </div>
+              </Link>
             )}
           </div>
         </div>
 
         {/* View All Button */}
         <div className="text-center mt-12">
-          <button className="glass-card px-8 py-4 rounded-full hover:glow-emerald transition-all">
+          <Link href="/celebrity-news" className="glass-card px-8 py-4 rounded-full hover:glow-emerald transition-all inline-flex">
             <span className="text-base font-medium text-white">View All News</span>
-          </button>
+          </Link>
         </div>
       </div>
     </section>);

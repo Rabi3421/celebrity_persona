@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function CTASection() {
   return (
     <section className="py-24 px-6 relative overflow-hidden">
@@ -16,12 +18,12 @@ export default function CTASection() {
             thousands of fashion enthusiasts worldwide.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button className="glass-card px-8 py-4 rounded-full bg-primary hover:bg-primary/90 transition-all w-full sm:w-auto">
+            <Link href="/dashboard?section=uploads" className="glass-card px-8 py-4 rounded-full bg-primary hover:bg-primary/90 transition-all w-full sm:w-auto">
               <span className="text-base font-medium text-black">Upload Your Outfit</span>
-            </button>
-            <button className="glass-card px-8 py-4 rounded-full border-2 border-white/20 hover:border-primary/50 transition-all w-full sm:w-auto">
+            </Link>
+            <Link href="/fashion-gallery" className="glass-card px-8 py-4 rounded-full border-2 border-white/20 hover:border-primary/50 transition-all w-full sm:w-auto">
               <span className="text-base font-medium text-white">Browse More Styles</span>
-            </button>
+            </Link>
           </div>
         </div>
       </div>

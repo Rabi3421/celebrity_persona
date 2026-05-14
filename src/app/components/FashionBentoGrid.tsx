@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import AppImage from '@/components/ui/AppImage';
 import Icon from '@/components/ui/AppIcon';
 
@@ -185,7 +186,8 @@ export default function FashionBentoGrid() {
             const isMedium = index % 7 === 2 || index % 7 === 5;
 
             return (
-              <div
+              <Link
+                href="/fashion-gallery"
                 key={outfit.id}
                 className={`group relative glass-card rounded-2xl overflow-hidden hover:scale-[1.02] hover:glow-rose transition-all duration-500 cursor-pointer ${
                 isLarge ? 'md:col-span-2 md:row-span-2' : isMedium ? 'md:row-span-2' : ''}`
@@ -234,22 +236,22 @@ export default function FashionBentoGrid() {
                         </span>
                       </div>
                     </div>
-                    <button className="w-full glass-card px-4 py-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <div className="w-full glass-card px-4 py-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <span className="text-sm font-medium text-white">View Details</span>
                       <Icon name="ArrowRightIcon" size={16} className="text-white" />
-                    </button>
+                    </div>
                   </div>
                 </div>
-              </div>);
+              </Link>);
 
           })}
         </div>
 
         {/* View More Button */}
         <div className="text-center mt-12">
-          <button className="glass-card px-8 py-4 rounded-full hover:glow-rose transition-all">
+          <Link href="/fashion-gallery" className="glass-card px-8 py-4 rounded-full hover:glow-rose transition-all inline-flex">
             <span className="text-base font-medium text-white">Load More Outfits</span>
-          </button>
+          </Link>
         </div>
       </div>
     </section>);

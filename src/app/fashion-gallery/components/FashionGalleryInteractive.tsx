@@ -48,14 +48,32 @@ interface UserOutfitDoc {
 
 const API_KEY = process.env.NEXT_PUBLIC_X_API_KEY || '';
 
-export default function FashionGalleryInteractive() {
-  const [outfits, setOutfits]       = useState<OutfitDoc[]>([]);
-  const [featured, setFeatured]     = useState<OutfitDoc | null>(null);
-  const [loading, setLoading]       = useState(true);
+interface FashionGalleryInteractiveProps {
+  initialOutfits?: OutfitDoc[];
+  initialFeatured?: OutfitDoc | null;
+  initialCommunityOutfits?: UserOutfitDoc[];
+  initialPage?: number;
+  initialPages?: number;
+  initialTotal?: number;
+  initialLoaded?: boolean;
+}
+
+export default function FashionGalleryInteractive({
+  initialOutfits = [],
+  initialFeatured = null,
+  initialCommunityOutfits = [],
+  initialPage = 1,
+  initialPages = 1,
+  initialTotal = 0,
+  initialLoaded = false,
+}: FashionGalleryInteractiveProps) {
+  const [outfits, setOutfits]       = useState<OutfitDoc[]>(initialOutfits);
+  const [featured, setFeatured]     = useState<OutfitDoc | null>(initialFeatured);
+  const [loading, setLoading]       = useState(!initialLoaded && initialOutfits.length === 0);
   const [error, setError]           = useState<string | null>(null);
-  const [page, setPage]             = useState(1);
-  const [pages, setPages]           = useState(1);
-  const [total, setTotal]           = useState(0);
+  const [page, setPage]             = useState(initialPage);
+  const [pages, setPages]           = useState(initialPages);
+  const [total, setTotal]           = useState(initialTotal);
   const [search, setSearch]         = useState('');
   const searchInputRef              = useRef<HTMLInputElement>(null);
   const [filters, setFilters]       = useState({
@@ -65,8 +83,10 @@ export default function FashionGalleryInteractive() {
   });
 
   // Community outfits
-  const [communityOutfits, setCommunityOutfits]   = useState<UserOutfitDoc[]>([]);
-  const [communityLoading, setCommunityLoading]   = useState(true);
+  const [communityOutfits, setCommunityOutfits]   = useState<UserOutfitDoc[]>(initialCommunityOutfits);
+  const [communityLoading, setCommunityLoading]   = useState(!initialLoaded && initialCommunityOutfits.length === 0);
+  const skippedInitialOutfits = useRef(initialLoaded);
+  const skippedInitialCommunity = useRef(initialLoaded);
 
   const fetchOutfits = useCallback(async (p = 1, q = search, f = filters) => {
     setLoading(true); setError(null);
@@ -101,10 +121,20 @@ export default function FashionGalleryInteractive() {
     }
   }, [search, filters]);
 
-  useEffect(() => { fetchOutfits(1); }, [fetchOutfits]);
+  useEffect(() => {
+    if (skippedInitialOutfits.current && !search && filters.category === 'all' && filters.event === 'all' && filters.brand === 'all') {
+      skippedInitialOutfits.current = false;
+      return;
+    }
+    fetchOutfits(1);
+  }, [fetchOutfits, search, filters]);
 
   // ── Fetch community (user) outfits ─────────────────────────────────────────
   useEffect(() => {
+    if (skippedInitialCommunity.current) {
+      skippedInitialCommunity.current = false;
+      return;
+    }
     setCommunityLoading(true);
     fetch('/api/user-outfits?limit=8&sort=latest', {
       headers: { 'x-api-key': API_KEY },

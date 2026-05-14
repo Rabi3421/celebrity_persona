@@ -2,9 +2,12 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
+import JsonLd from '@/components/seo/JsonLd';
 import MovieDetailPageClient from './components/MovieDetailPageClient';
 import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
+import { absoluteUrl, createBreadcrumbJsonLd, createMetadata, stripHtml, truncate } from '@/lib/seo/site';
+import { releasedMovieQuery } from '@/lib/seo/publicData';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CastMember {
@@ -80,7 +83,7 @@ async function getMovie(slug: string): Promise<ReleasedMovie | null> {
   try {
     await dbConnect();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const movie: any = await Movie.findOne({ slug }).select('-__v').lean();
+    const movie: any = await Movie.findOne({ slug, ...releasedMovieQuery() }).select('-__v').lean();
     if (!movie) return null;
     // Serialize to plain object (converts ObjectIds, Dates, etc.)
     return JSON.parse(JSON.stringify(movie)) as ReleasedMovie;
@@ -105,26 +108,18 @@ export async function generateMetadata(
 
   const seo         = movie.seoData ?? {};
   const title       = seo.metaTitle       || `${movie.title} | Movie Details - CelebrityPersona`;
-  const description = seo.metaDescription || movie.synopsis || `Watch ${movie.title} — cast, director, reviews, trailer and more on CelebrityPersona.`;
+  const description = seo.metaDescription || truncate(movie.synopsis || movie.plotSummary || `Watch ${movie.title} — cast, director, reviews, trailer and more on CelebrityPersona.`);
   const ogImage     = seo.ogImage || movie.backdrop || movie.poster || '/assets/images/movie-og.jpg';
 
-  return {
+  return createMetadata({
     title,
     description,
+    path: seo.canonicalUrl || `/movie-details/${movie.slug}`,
+    image: seo.twitterImage || ogImage,
+    type: 'video.movie',
     keywords: seo.keywords?.join(', ') || (movie.genre ?? []).join(', '),
-    openGraph: {
-      title:       seo.ogTitle       || title,
-      description: seo.ogDescription || description,
-      type:        'video.movie',
-      images:      [{ url: ogImage, width: 1200, height: 630, alt: movie.title }],
-    },
-    twitter: {
-      card:        'summary_large_image',
-      title:       seo.twitterTitle       || title,
-      description: seo.twitterDescription || description,
-      images:      seo.twitterImage ? [seo.twitterImage] : [ogImage],
-    },
-  };
+    noIndex: (seo as any).robotsIndex === false,
+  });
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -136,11 +131,40 @@ export default async function MovieDetailPage(
 
   if (!movie) notFound();
 
+  const movieSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Movie',
+    name: movie.title,
+    url: absoluteUrl(`/movie-details/${movie.slug}`),
+    image: [movie.poster, movie.backdrop].filter(Boolean).map((image) => absoluteUrl(image!)),
+    datePublished: movie.releaseDate,
+    genre: movie.genre,
+    director: movie.director ? { '@type': 'Person', name: movie.director } : undefined,
+    actor: movie.cast?.slice(0, 10).map((member) => ({ '@type': 'Person', name: member.name })) || undefined,
+    description: stripHtml(movie.synopsis || movie.plotSummary || '').slice(0, 500),
+    duration: movie.duration ? `PT${movie.duration}M` : undefined,
+    aggregateRating: movie.anticipationScore
+      ? { '@type': 'AggregateRating', ratingValue: movie.anticipationScore, bestRating: 10, ratingCount: 1 }
+      : undefined,
+  };
+
   return (
-    <main className="min-h-screen bg-[#0a0a14] text-white">
+    <>
+      <JsonLd
+        data={[
+          movieSchema,
+          createBreadcrumbJsonLd([
+            { name: 'Home', path: '/' },
+            { name: 'Movie Details', path: '/movie-details' },
+            { name: movie.title, path: `/movie-details/${movie.slug}` },
+          ]),
+        ]}
+      />
       <Header />
-      <MovieDetailPageClient movie={movie} />
+      <main className="min-h-screen bg-[#0a0a14] text-white">
+        <MovieDetailPageClient movie={movie} />
+      </main>
       <Footer />
-    </main>
+    </>
   );
 }

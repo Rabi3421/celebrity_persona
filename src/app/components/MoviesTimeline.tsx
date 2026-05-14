@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import AppImage from '@/components/ui/AppImage';
 import Icon from '@/components/ui/AppIcon';
 
@@ -228,12 +229,12 @@ export default function MoviesTimeline() {
 
             {/* Actions */}
             <div className="flex gap-4">
-              <button className="glass-card px-8 py-4 rounded-full hover:glow-gold transition-all flex-1">
-                <span className="text-base font-medium text-white">Watch Trailer</span>
-              </button>
-              <button className="glass-card p-4 rounded-full hover:glow-gold transition-all">
+              <Link href="/upcoming-movies" className="glass-card px-8 py-4 rounded-full hover:glow-gold transition-all flex-1 text-center">
+                <span className="text-base font-medium text-white">View Upcoming Movies</span>
+              </Link>
+              <Link href="/upcoming-movies" className="glass-card p-4 rounded-full hover:glow-gold transition-all" aria-label="Upcoming movies">
                 <Icon name="BookmarkIcon" size={20} className="text-white" />
-              </button>
+              </Link>
             </div>
           </div>
         </div>

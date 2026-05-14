@@ -49,6 +49,9 @@ interface RelatedArticle {
 
 interface ArticleDetailProps {
   articleId: string;
+  initialArticle?: ArticleData | null;
+  initialRelated?: RelatedArticle[];
+  initialSidebarNews?: RelatedArticle[];
 }
 
 function readTime(text: string) {
@@ -72,22 +75,27 @@ function timeAgo(raw: string) {
   return formatDate(raw);
 }
 
-export default function ArticleDetail({ articleId }: ArticleDetailProps) {
+export default function ArticleDetail({
+  articleId,
+  initialArticle = null,
+  initialRelated = [],
+  initialSidebarNews = [],
+}: ArticleDetailProps) {
   const { user, authHeaders } = useAuth();
 
-  const [article,     setArticle]     = useState<ArticleData | null>(null);
-  const [related,     setRelated]     = useState<RelatedArticle[]>([]);
-  const [sidebarNews, setSidebarNews] = useState<RelatedArticle[]>([]);
-  const [loading,     setLoading]     = useState(true);
+  const [article,     setArticle]     = useState<ArticleData | null>(initialArticle);
+  const [related,     setRelated]     = useState<RelatedArticle[]>(initialRelated);
+  const [sidebarNews, setSidebarNews] = useState<RelatedArticle[]>(initialSidebarNews);
+  const [loading,     setLoading]     = useState(!initialArticle);
   const [error,       setError]       = useState('');
 
   // Interaction state
-  const [liked,       setLiked]       = useState(false);
-  const [likeCount,   setLikeCount]   = useState(0);
-  const [saved,       setSaved]       = useState(false);
-  const [saveCount,   setSaveCount]   = useState(0);
-  const [comments,    setComments]    = useState<NewsComment[]>([]);
-  const [commentCount, setCommentCount] = useState(0);
+  const [liked,       setLiked]       = useState(initialArticle?.liked ?? false);
+  const [likeCount,   setLikeCount]   = useState(initialArticle?.likeCount ?? 0);
+  const [saved,       setSaved]       = useState(initialArticle?.saved ?? false);
+  const [saveCount,   setSaveCount]   = useState(initialArticle?.saveCount ?? 0);
+  const [comments,    setComments]    = useState<NewsComment[]>(initialArticle?.comments ?? []);
+  const [commentCount, setCommentCount] = useState(initialArticle?.commentCount ?? 0);
   const [likeLoading,  setLikeLoading]  = useState(false);
   const [saveLoading,  setSaveLoading]  = useState(false);
 
@@ -100,10 +108,15 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
 
   // Share
   const [copied, setCopied] = useState(false);
+  const skippedInitialFetch = useRef(!!initialArticle && !user);
 
   // ── Fetch article ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!articleId) return;
+    if (skippedInitialFetch.current) {
+      skippedInitialFetch.current = false;
+      return;
+    }
     setLoading(true);
     setError('');
     const headers = user ? authHeaders() : {};

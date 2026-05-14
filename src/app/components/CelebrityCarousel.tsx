@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import AppImage from '@/components/ui/AppImage';
 import Icon from '@/components/ui/AppIcon';
 
@@ -146,7 +147,8 @@ export default function CelebrityCarousel() {
             }}>
             
             {celebrities.map((celebrity) =>
-            <div
+            <Link
+              href="/celebrity-profiles"
               key={celebrity.id}
               className="min-w-full md:min-w-[calc(33.333%-16px)] glass-card rounded-2xl overflow-hidden hover:scale-105 hover:glow-gold transition-all duration-500 cursor-pointer">
               
@@ -182,7 +184,7 @@ export default function CelebrityCarousel() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             )}
           </div>
         </div>

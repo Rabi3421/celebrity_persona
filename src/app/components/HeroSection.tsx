@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import AppImage from '@/components/ui/AppImage';
 
 interface FloatingCard {
@@ -101,12 +102,12 @@ export default function HeroSection() {
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-300">
-          <button className="glass-card px-8 py-4 rounded-full hover:glow-gold transition-all group">
+          <Link href="/fashion-gallery" className="glass-card px-8 py-4 rounded-full hover:glow-gold transition-all group">
             <span className="text-base font-medium text-white">Explore Now</span>
-          </button>
-          <button className="glass-card px-8 py-4 rounded-full border-2 border-white/20 hover:border-primary/50 transition-all">
+          </Link>
+          <Link href="/celebrity-profiles" className="glass-card px-8 py-4 rounded-full border-2 border-white/20 hover:border-primary/50 transition-all">
             <span className="text-base font-medium text-neutral-300">View Profiles</span>
-          </button>
+          </Link>
         </div>
       </div>
 

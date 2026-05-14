@@ -2,13 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 
 export default function Footer() {
 	const [email, setEmail] = useState('');
 	const [subscribed, setSubscribed] = useState(false);
-	const router = useRouter();
 
 	const footerLinks = {
 		explore: [
@@ -40,9 +38,8 @@ export default function Footer() {
 		{ id: 'social_linkedin', name: 'LinkedIn', icon: 'LinkIcon', href: 'https://linkedin.com' },
 	];
 
-	function handleNavClick(href: string) {
+	function scrollTop() {
 		window.scrollTo({ top: 0, behavior: 'smooth' });
-		router.push(href);
 	}
 
 	function handleSubscribe(e: React.FormEvent) {
@@ -86,8 +83,9 @@ export default function Footer() {
 				<div className="grid grid-cols-1 md:grid-cols-6 gap-8 mt-8">
 					{/* Left: logo + description */}
 					<div className="md:col-span-2">
-						<button
-							onClick={() => handleNavClick('/')}
+						<Link
+							href="/"
+							onClick={scrollTop}
 							className="flex items-start gap-3 mb-4 text-left hover:opacity-80 transition-opacity"
 						>
 							<div className="w-12 h-12 flex items-center justify-center rounded-full bg-card border border-border flex-shrink-0">
@@ -97,7 +95,7 @@ export default function Footer() {
 								<h4 className="font-playfair text-lg">CelebrityPersona</h4>
 								<p className="text-sm text-muted-foreground mt-2">CelebrityPersona brings together celebrity styles, reviews and curated looks. Sign up now for free to take advantage of exclusive content.</p>
 							</div>
-						</button>
+						</Link>
 
 						<div className="flex items-center gap-3 mt-4">
 							{socialLinks.map((s) => (
@@ -120,13 +118,14 @@ export default function Footer() {
 						<h5 className="text-xs uppercase tracking-wider text-gradient-gold mb-4 font-montserrat">Explore</h5>
 						<div className="space-y-2">
 							{footerLinks.explore.map((link) => (
-								<button
+								<Link
 									key={link.id}
-									onClick={() => handleNavClick(link.href)}
+									href={link.href}
+									onClick={scrollTop}
 									className="block text-sm text-muted-foreground hover:text-card-foreground transition-colors text-left w-full"
 								>
 									{link.label}
-								</button>
+								</Link>
 							))}
 						</div>
 					</div>
@@ -136,13 +135,14 @@ export default function Footer() {
 						<h5 className="text-xs uppercase tracking-wider text-gradient-rose mb-4 font-montserrat">Account</h5>
 						<div className="space-y-2">
 							{footerLinks.account.map((link) => (
-								<button
+								<Link
 									key={link.id}
-									onClick={() => handleNavClick(link.href)}
+									href={link.href}
+									onClick={scrollTop}
 									className="block text-sm text-muted-foreground hover:text-card-foreground transition-colors text-left w-full"
 								>
 									{link.label}
-								</button>
+								</Link>
 							))}
 						</div>
 					</div>
@@ -152,13 +152,14 @@ export default function Footer() {
 						<h5 className="text-xs uppercase tracking-wider text-accent mb-4 font-montserrat">Legal</h5>
 						<div className="space-y-2">
 							{footerLinks.legal.map((link) => (
-								<button
+								<Link
 									key={link.id}
-									onClick={() => handleNavClick(link.href)}
+									href={link.href}
+									onClick={scrollTop}
 									className="block text-sm text-muted-foreground hover:text-card-foreground transition-colors text-left w-full"
 								>
 									{link.label}
-								</button>
+								</Link>
 							))}
 						</div>
 					</div>
@@ -178,13 +179,14 @@ export default function Footer() {
 								<Icon name="EnvelopeIcon" size={14} className="mt-0.5 flex-shrink-0 text-primary/60" />
 								<span>info@celebritypersona.com</span>
 							</a>
-							<button
-								onClick={() => handleNavClick('/dashboard')}
+							<Link
+								href="/dashboard"
+								onClick={scrollTop}
 								className="flex items-start gap-2 hover:text-card-foreground transition-colors text-left"
 							>
 								<Icon name="UserCircleIcon" size={14} className="mt-0.5 flex-shrink-0 text-primary/60" />
 								<span>Customer Dashboard</span>
-							</button>
+							</Link>
 						</div>
 					</div>
 				</div>
@@ -194,13 +196,14 @@ export default function Footer() {
 					<p className="text-sm text-muted-foreground">© 2026 CelebrityPersona. All rights reserved.</p>
 					<div className="flex items-center gap-6">
 						{footerLinks.legal.map((link) => (
-							<button
+							<Link
 								key={link.id + '_bottom'}
-								onClick={() => handleNavClick(link.href)}
+								href={link.href}
+								onClick={scrollTop}
 								className="text-sm text-muted-foreground hover:text-card-foreground transition-colors"
 							>
 								{link.label}
-							</button>
+							</Link>
 						))}
 					</div>
 				</div>

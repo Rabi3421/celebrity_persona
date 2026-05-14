@@ -2,9 +2,12 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
+import JsonLd from '@/components/seo/JsonLd';
 import MovieDetailClient from './components/MovieDetailClient';
 import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
+import { absoluteUrl, createBreadcrumbJsonLd, createMetadata, stripHtml, truncate } from '@/lib/seo/site';
+import { upcomingMovieQuery } from '@/lib/seo/publicData';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CastMember {
@@ -76,7 +79,7 @@ async function getMovie(slug: string): Promise<Movie | null> {
   try {
     await dbConnect();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const movie: any = await Movie.findOne({ slug }).select('-__v').lean();
+    const movie: any = await Movie.findOne({ slug, ...upcomingMovieQuery() }).select('-__v').lean();
     if (!movie) return null;
     return JSON.parse(JSON.stringify(movie)) as Movie;
   } catch {
@@ -100,26 +103,18 @@ export async function generateMetadata(
 
   const seo = movie.seoData ?? {};
   const title       = seo.metaTitle       || `${movie.title} | Upcoming Movies - CelebrityPersona`;
-  const description = seo.metaDescription || movie.synopsis || `Everything about ${movie.title} — release date, cast, trailers, and tickets.`;
+  const description = seo.metaDescription || truncate(movie.synopsis || movie.plotSummary || `Everything about ${movie.title} — release date, cast, trailers, and tickets.`);
   const ogImage     = seo.ogImage || movie.poster || '/assets/images/upcoming-movies-og.jpg';
 
-  return {
+  return createMetadata({
     title,
     description,
+    path: seo.canonicalUrl || `/upcoming-movies/${movie.slug}`,
+    image: seo.twitterImage || ogImage,
+    type: 'video.movie',
     keywords: seo.keywords?.join(', ') || (movie.genre ?? []).join(', '),
-    openGraph: {
-      title:       seo.ogTitle       || title,
-      description: seo.ogDescription || description,
-      type:        'video.movie',
-      images:      [{ url: ogImage, width: 1200, height: 630, alt: movie.title }],
-    },
-    twitter: {
-      card:        'summary_large_image',
-      title:       seo.twitterTitle       || title,
-      description: seo.twitterDescription || description,
-      images:      seo.twitterImage ? [seo.twitterImage] : [ogImage],
-    },
-  };
+    noIndex: (seo as any).robotsIndex === false,
+  });
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -131,11 +126,37 @@ export default async function MovieDetailPage(
 
   if (!movie) notFound();
 
+  const movieSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Movie',
+    name: movie.title,
+    url: absoluteUrl(`/upcoming-movies/${movie.slug}`),
+    image: [movie.poster, movie.backdrop].filter(Boolean).map((image) => absoluteUrl(image!)),
+    datePublished: movie.releaseDate,
+    genre: movie.genre,
+    director: movie.director ? { '@type': 'Person', name: movie.director } : undefined,
+    actor: movie.cast?.slice(0, 10).map((member) => ({ '@type': 'Person', name: member.name })) || undefined,
+    description: stripHtml(movie.synopsis || movie.plotSummary || '').slice(0, 500),
+    duration: movie.duration ? `PT${movie.duration}M` : undefined,
+  };
+
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <>
+      <JsonLd
+        data={[
+          movieSchema,
+          createBreadcrumbJsonLd([
+            { name: 'Home', path: '/' },
+            { name: 'Upcoming Movies', path: '/upcoming-movies' },
+            { name: movie.title, path: `/upcoming-movies/${movie.slug}` },
+          ]),
+        ]}
+      />
       <Header />
-      <MovieDetailClient movie={movie} />
+      <main className="min-h-screen bg-background text-foreground">
+        <MovieDetailClient movie={movie} />
+      </main>
       <Footer />
-    </main>
+    </>
   );
 }

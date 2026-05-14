@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import AppImage from '@/components/ui/AppImage';
 import Icon from '@/components/ui/AppIcon';
@@ -55,16 +55,31 @@ function SkeletonCard() {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function CelebrityNewsInteractive() {
-  const [articles,    setArticles]    = useState<NewsArticleDB[]>([]);
-  const [loading,     setLoading]     = useState(true);
+interface CelebrityNewsInteractiveProps {
+  initialArticles?: NewsArticleDB[];
+  initialPage?: number;
+  initialTotalPages?: number;
+  initialTotalCount?: number;
+  initialLoaded?: boolean;
+}
+
+export default function CelebrityNewsInteractive({
+  initialArticles = [],
+  initialPage = 1,
+  initialTotalPages = 1,
+  initialTotalCount = 0,
+  initialLoaded = false,
+}: CelebrityNewsInteractiveProps) {
+  const [articles,    setArticles]    = useState<NewsArticleDB[]>(initialArticles);
+  const [loading,     setLoading]     = useState(!initialLoaded && initialArticles.length === 0);
   const [error,       setError]       = useState<string | null>(null);
   const [search,      setSearch]      = useState('');
   const [category,    setCategory]    = useState('all');
   const [sort,        setSort]        = useState('latest');
-  const [page,        setPage]        = useState(1);
-  const [totalPages,  setTotalPages]  = useState(1);
-  const [totalCount,  setTotalCount]  = useState(0);
+  const [page,        setPage]        = useState(initialPage);
+  const [totalPages,  setTotalPages]  = useState(initialTotalPages);
+  const [totalCount,  setTotalCount]  = useState(initialTotalCount);
+  const skippedInitialFetch = useRef(initialLoaded);
 
   const LIMIT = 12;
 
@@ -95,7 +110,13 @@ export default function CelebrityNewsInteractive() {
     }
   }, [search, category, sort]);
 
-  useEffect(() => { fetchNews(1); }, [fetchNews]);
+  useEffect(() => {
+    if (skippedInitialFetch.current && !search && category === 'all' && sort === 'latest') {
+      skippedInitialFetch.current = false;
+      return;
+    }
+    fetchNews(1);
+  }, [fetchNews, search, category, sort]);
 
   // ── derived ────────────────────────────────────────────────────────────────
   const featured  = articles.find((a) => a.featured) || articles[0];

@@ -15,7 +15,13 @@ async function fetchOutfit(slug: string) {
   try {
     await dbConnect();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const outfit: any = await CelebrityOutfit.findOne({ slug })
+    const outfit: any = await CelebrityOutfit.findOne({
+      slug,
+      $and: [
+        { $or: [{ isActive: { $exists: false } }, { isActive: true }] },
+        { $or: [{ status: { $exists: false } }, { status: 'published' }] },
+      ],
+    })
       .populate('celebrity', 'name slug profileImage')
       .lean();
     if (!outfit) return null;
@@ -69,7 +75,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description,
     keywords,
     alternates: { canonical },
-    robots: { index: true, follow: true },
+    robots: { index: !o.seo?.noindex, follow: !o.seo?.nofollow },
     openGraph: {
       title,
       description,
@@ -153,4 +159,3 @@ export default async function CelebrityOutfitPage({ params }: Props) {
     </>
   );
 }
-

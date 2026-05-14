@@ -8,12 +8,15 @@ import NewsSection from './components/NewsSection';
 import MoviesTimeline from './components/MoviesTimeline';
 import CommunityUploads from './components/CommunityUploads';
 import CTASection from './components/CTASection';
+import { createMetadata } from '@/lib/seo/site';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createMetadata({
   title: 'CelebrityPersona - Discover Celebrity Style, Fashion & Movies',
   description:
     'Your one-stop destination for celebrity profiles, fashion inspiration with buying links, entertainment news, and movie updates. Join our community of fashion enthusiasts.',
-};
+  path: '/',
+  keywords: ['celebrity style', 'celebrity profiles', 'celebrity fashion', 'movie reviews'],
+});
 
 export default function Homepage() {
   return (

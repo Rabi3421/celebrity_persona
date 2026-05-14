@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import AppImage from '@/components/ui/AppImage';
 import Icon from '@/components/ui/AppIcon';
 
@@ -131,10 +132,10 @@ export default function CommunityUploads() {
               See how our community recreates celebrity fashion
             </p>
           </div>
-          <button className="glass-card px-8 py-4 rounded-full hover:glow-rose transition-all flex items-center gap-2">
+          <Link href="/dashboard?section=uploads" className="glass-card px-8 py-4 rounded-full hover:glow-rose transition-all flex items-center gap-2">
             <Icon name="ArrowUpTrayIcon" size={20} className="text-secondary" />
             <span className="text-base font-medium text-white">Upload Yours</span>
-          </button>
+          </Link>
         </div>
 
         {/* Masonry Grid */}
@@ -191,9 +192,9 @@ export default function CommunityUploads() {
 
         {/* Load More */}
         <div className="text-center mt-12">
-          <button className="glass-card px-8 py-4 rounded-full hover:glow-rose transition-all">
+          <Link href="/fashion-gallery" className="glass-card px-8 py-4 rounded-full hover:glow-rose transition-all inline-flex">
             <span className="text-base font-medium text-white">Load More Uploads</span>
-          </button>
+          </Link>
         </div>
       </div>
     </section>);
