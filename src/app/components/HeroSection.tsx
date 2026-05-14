@@ -1,146 +1,118 @@
-"use client";
-
-import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
-import AppImage from '@/components/ui/AppImage';
+import { ArrowRightIcon } from '@heroicons/react/24/outline';
+import {
+  HOME_DESCRIPTION,
+  HOME_HERO_IMAGE,
+  type HomeArticle,
+  type HomeCelebrity,
+  safeImage,
+} from './homepageContent';
 
-interface FloatingCard {
-  id: string;
-  type: 'celebrity' | 'fashion' | 'news' | 'movie';
-  image: string;
-  alt: string;
-  title: string;
-  subtitle: string;
-  position: string;
-}
+type HeroSectionProps = {
+  heroImage?: string;
+  featuredCelebrity?: HomeCelebrity;
+  latestArticle?: HomeArticle;
+};
 
-export default function HeroSection() {
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
-  const floatingCards: FloatingCard[] = [
-  {
-    id: 'hero_card_1',
-    type: 'celebrity',
-    image: "https://img.rocket.new/generatedImages/rocket_gen_img_1d4aad93b-1770398321397.png",
-    alt: 'Young woman with long brown hair in elegant black dress',
-    title: 'Emma Watson',
-    subtitle: 'Latest: Fashion Week 2026',
-    position: 'top-[15%] left-[10%]'
-  },
-  {
-    id: 'hero_card_2',
-    type: 'fashion',
-    image: "https://img.rocket.new/generatedImages/rocket_gen_img_105afe58d-1768666763976.png",
-    alt: 'Elegant beige blazer with gold buttons and white shirt',
-    title: 'Trending Outfit',
-    subtitle: 'Shop the Look',
-    position: 'top-[20%] right-[10%]'
-  },
-  {
-    id: 'hero_card_3',
-    type: 'news',
-    image: "https://img.rocket.new/generatedImages/rocket_gen_img_173546b70-1770609263557.png",
-    alt: 'Entertainment event with red carpet and spotlights',
-    title: 'Breaking News',
-    subtitle: 'Oscars 2026 Nominations',
-    position: 'bottom-[20%] left-[12%]'
-  },
-  {
-    id: 'hero_card_4',
-    type: 'movie',
-    image: "https://img.rocket.new/generatedImages/rocket_gen_img_1d7ea8e06-1766296438771.png",
-    alt: 'Cinematic movie poster with dramatic lighting and city skyline',
-    title: 'Upcoming Movie',
-    subtitle: 'Releases March 2026',
-    position: 'bottom-[15%] right-[16%]'
-  }];
-
-
-  const getGlowClass = (type: string) => {
-    switch (type) {
-      case 'celebrity':
-        return 'glow-gold';
-      case 'fashion':
-        return 'glow-rose';
-      case 'news':
-        return 'glow-emerald';
-      default:
-        return '';
-    }
-  };
+export default function HeroSection({
+  heroImage = HOME_HERO_IMAGE,
+  featuredCelebrity,
+  latestArticle,
+}: HeroSectionProps) {
+  const spotlightHref = featuredCelebrity?.path || '/celebrity-profiles';
+  const articleHref = latestArticle?.path || '/celebrity-news';
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-32 pb-20 px-6">
-      {/* Ambient Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-96 bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
+    <section
+      id="home-hero"
+      aria-labelledby="home-hero-title"
+      className="relative min-h-[82vh] overflow-hidden px-4 pb-14 pt-36 sm:px-6 lg:pt-40"
+    >
+      <Image
+        src={safeImage(heroImage, HOME_HERO_IMAGE)}
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover"
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/82 to-background/35" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background/45" />
 
-      {/* Hero Content */}
-      <div className="relative z-10 text-center max-w-4xl mx-auto">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 glass-card px-4 py-2 rounded-full mb-8 animate-fade-in-blur">
-          <span className="w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
-          <span className="text-sm font-medium text-neutral-300">
-            Trending Celebrity Fashion
-          </span>
-        </div>
+      <div className="relative z-10 mx-auto flex max-w-7xl flex-col justify-end gap-10">
+        <div className="max-w-3xl">
+          <p className="mb-5 inline-flex rounded-full border border-white/15 bg-black/35 px-4 py-2 text-sm font-medium text-primary backdrop-blur">
+            Celebrity fashion, profiles, movies, and news
+          </p>
+          <h1
+            id="home-hero-title"
+            className="font-playfair text-5xl font-bold leading-tight text-white sm:text-6xl lg:text-7xl"
+          >
+            Discover celebrity style, stories, and screen culture.
+          </h1>
+          <p className="mt-6 max-w-2xl text-base leading-8 text-neutral-300 sm:text-lg">
+            {HOME_DESCRIPTION}
+          </p>
 
-        {/* Main Headline */}
-        <h1 className="font-playfair text-6xl md:text-8xl font-bold text-white mb-6 leading-tight animate-fade-in-up delay-100">
-          Discover
-          <br />
-          <span className="text-gradient-gold">Celebrity Style</span>
-        </h1>
-
-        {/* Subheadline */}
-        <p className="font-inter text-lg md:text-xl text-neutral-400 mb-12 max-w-2xl mx-auto animate-fade-in-up delay-200">
-          Fashion, Profiles, Movies & More - Your one-stop destination for celebrity-inspired style
-        </p>
-
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-300">
-          <Link href="/fashion-gallery" className="glass-card px-8 py-4 rounded-full hover:glow-gold transition-all group">
-            <span className="text-base font-medium text-white">Explore Now</span>
-          </Link>
-          <Link href="/celebrity-profiles" className="glass-card px-8 py-4 rounded-full border-2 border-white/20 hover:border-primary/50 transition-all">
-            <span className="text-base font-medium text-neutral-300">View Profiles</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Floating Cards - Hidden on Mobile */}
-      <div className="hidden lg:block">
-        {floatingCards.map((card, index) =>
-        <div
-          key={card.id}
-          className={`absolute ${card.position} w-64 glass-card rounded-2xl overflow-hidden hover:scale-105 transition-all duration-500 ${getGlowClass(
-            card.type
-          )} animate-float`}
-          style={{
-            animationDelay: `${index * 0.5}s`,
-            opacity: isHydrated ? 1 : 0
-          }}>
-          
-            <div className="relative aspect-[4/5]">
-              <AppImage
-              src={card.image}
-              alt={card.alt}
-              className="w-full h-full object-cover" />
-            
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            </div>
-            <div className="p-4">
-              <h3 className="font-playfair text-lg font-semibold text-white mb-1">
-                {card.title}
-              </h3>
-              <p className="text-sm text-neutral-400">{card.subtitle}</p>
-            </div>
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/fashion-gallery"
+              className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-black transition hover:bg-primary/90"
+            >
+              Explore Fashion Gallery
+              <ArrowRightIcon width={16} height={16} aria-hidden="true" className="ml-2" />
+            </Link>
+            <Link
+              href="/celebrity-profiles"
+              className="inline-flex items-center justify-center rounded-full border border-white/20 bg-black/25 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition hover:border-primary/60 hover:text-primary"
+            >
+              Browse Celebrity Profiles
+            </Link>
           </div>
-        )}
-      </div>
-    </section>);
+        </div>
 
+        <nav aria-label="Homepage feature links" className="grid gap-3 md:grid-cols-3">
+          <Link
+            href={spotlightHref}
+            className="rounded-lg border border-white/10 bg-black/35 p-4 backdrop-blur transition hover:border-primary/50"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary">Featured celebrity</span>
+            <span className="mt-2 block font-playfair text-xl font-semibold text-white">
+              {featuredCelebrity?.name || 'Celebrity profiles'}
+            </span>
+            <span className="mt-1 block text-sm text-neutral-400">
+              {featuredCelebrity?.profession || 'Profiles, biographies, style notes, and career highlights'}
+            </span>
+          </Link>
+
+          <Link
+            href={articleHref}
+            className="rounded-lg border border-white/10 bg-black/35 p-4 backdrop-blur transition hover:border-accent/50"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wider text-accent">Latest article</span>
+            <span className="mt-2 block font-playfair text-xl font-semibold text-white">
+              {latestArticle?.title || 'Celebrity news'}
+            </span>
+            <span className="mt-1 block text-sm text-neutral-400">
+              {latestArticle?.excerpt || 'Entertainment news, awards coverage, and celebrity updates'}
+            </span>
+          </Link>
+
+          <Link
+            href="/upcoming-movies"
+            className="rounded-lg border border-white/10 bg-black/35 p-4 backdrop-blur transition hover:border-secondary/50"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wider text-secondary">Movie tracker</span>
+            <span className="mt-2 block font-playfair text-xl font-semibold text-white">
+              Upcoming movies
+            </span>
+            <span className="mt-1 block text-sm text-neutral-400">
+              Release dates, cast updates, posters, reviews, and movie details
+            </span>
+          </Link>
+        </nav>
+      </div>
+    </section>
+  );
 }
