@@ -10,6 +10,7 @@ import CelebrityOutfit from '@/models/CelebrityOutfit';
 import CelebrityNews from '@/models/CelebrityNews';
 import Movie from '@/models/Movie';
 import { normalizeStoredNetWorth } from '@/lib/netWorth';
+import { createCelebrityProfileMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://celebritypersona.com';
 
@@ -315,49 +316,14 @@ export async function generateMetadata(
   const { slug } = await params;
   const celeb = await fetchCelebrity(slug);
   if (!celeb) {
-    return {
-      title: 'Celebrity Not Found | CelebrityPersona',
-      description: 'The celebrity profile you are looking for does not exist.',
-    };
+    return createNoIndexMetadata(
+      'Celebrity Not Found',
+      'The celebrity profile you are looking for does not exist.',
+      '/celebrity-profiles'
+    );
   }
 
-  const seo   = celeb.seo || {};
-  const name  = celeb.name;
-  const prof  = Array.isArray(celeb.occupation) ? celeb.occupation.join(', ') : '';
-  const intro = celeb.introduction?.slice(0, 155) || `Explore the full profile of ${name} — biography, movies, career, and fashion.`;
-
-  const title       = seo.metaTitle        || `${name} — Celebrity Profile | CelebrityPersona`;
-  const description = seo.metaDescription  || intro;
-  const canonical   = seo.canonicalUrl     || `${SITE_URL}/celebrity-profiles/${celeb.slug}`;
-  const ogImage     = seo.ogImages?.[0]    || celeb.coverImage || celeb.profileImage || '';
-
-  return {
-    title,
-    description,
-    keywords: seo.metaKeywords?.join(', ') || `${name}, celebrity profile, ${prof}`,
-    alternates: { canonical },
-    robots: {
-      index:  !seo.noindex,
-      follow: !seo.nofollow,
-    },
-    openGraph: {
-      title:       seo.ogTitle       || title,
-      description: seo.ogDescription || description,
-      url:         canonical,
-      siteName:    seo.ogSiteName    || 'CelebrityPersona',
-      locale:      seo.ogLocale      || 'en_US',
-      type:        'profile',
-      ...(ogImage ? { images: [{ url: ogImage, alt: name }] } : {}),
-    },
-    twitter: {
-      card:        (seo.twitterCard as 'summary_large_image') || 'summary_large_image',
-      title:       seo.twitterTitle       || title,
-      description: seo.twitterDescription || description,
-      ...(seo.twitterImage || ogImage ? { images: [seo.twitterImage || ogImage] } : {}),
-      site:    seo.twitterSite    || '@CelebrityPersona',
-      creator: seo.twitterCreator || '@CelebrityPersona',
-    },
-  };
+  return createCelebrityProfileMetadata(celeb);
 }
 
 // ── JSON-LD structured data ───────────────────────────────────────────────────

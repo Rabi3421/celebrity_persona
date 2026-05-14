@@ -68,7 +68,7 @@ function firstString(...values: unknown[]) {
   return '';
 }
 
-function firstImage(...values: unknown[]) {
+function firstImage(...values: unknown[]): string {
   for (const value of values) {
     if (Array.isArray(value) && value.length > 0) {
       const image = firstImage(...value);

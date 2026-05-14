@@ -6,7 +6,8 @@ import JsonLd from '@/components/seo/JsonLd';
 import MovieDetailClient from './components/MovieDetailClient';
 import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
-import { absoluteUrl, createBreadcrumbJsonLd, createMetadata, stripHtml, truncate } from '@/lib/seo/site';
+import { absoluteUrl, createBreadcrumbJsonLd, stripHtml } from '@/lib/seo/site';
+import { createMoviePageMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
 import { upcomingMovieQuery } from '@/lib/seo/publicData';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -95,26 +96,14 @@ export async function generateMetadata(
   const movie = await getMovie(slug);
 
   if (!movie) {
-    return {
-      title: 'Movie Not Found | CelebrityPersona',
-      description: 'The requested movie could not be found.',
-    };
+    return createNoIndexMetadata(
+      'Movie Not Found',
+      'The requested movie could not be found.',
+      '/upcoming-movies'
+    );
   }
 
-  const seo = movie.seoData ?? {};
-  const title       = seo.metaTitle       || `${movie.title} | Upcoming Movies - CelebrityPersona`;
-  const description = seo.metaDescription || truncate(movie.synopsis || movie.plotSummary || `Everything about ${movie.title} — release date, cast, trailers, and tickets.`);
-  const ogImage     = seo.ogImage || movie.poster || '/assets/images/upcoming-movies-og.jpg';
-
-  return createMetadata({
-    title,
-    description,
-    path: seo.canonicalUrl || `/upcoming-movies/${movie.slug}`,
-    image: seo.twitterImage || ogImage,
-    type: 'video.movie',
-    keywords: seo.keywords?.join(', ') || (movie.genre ?? []).join(', '),
-    noIndex: (seo as any).robotsIndex === false,
-  });
+  return createMoviePageMetadata(movie, 'upcoming');
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────

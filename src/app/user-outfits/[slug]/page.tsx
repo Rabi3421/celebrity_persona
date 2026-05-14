@@ -4,7 +4,8 @@ import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import JsonLd from '@/components/seo/JsonLd';
 import UserOutfitDetail from './components/UserOutfitDetail';
-import { absoluteUrl, createBreadcrumbJsonLd, createMetadata, truncate } from '@/lib/seo/site';
+import { absoluteUrl, createBreadcrumbJsonLd, truncate } from '@/lib/seo/site';
+import { createCommunityOutfitMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
 import { getPublicUserOutfit } from '@/lib/seo/publicData';
 
 export async function generateMetadata(
@@ -13,21 +14,14 @@ export async function generateMetadata(
   const { slug } = await params;
   const outfit: any = await getPublicUserOutfit(slug);
   if (!outfit) {
-    return createMetadata({
-      title: 'User Outfit Not Found',
-      description: 'The community outfit you are looking for is not available.',
-      path: '/fashion-gallery',
-      noIndex: true,
-    });
+    return createNoIndexMetadata(
+      'User Outfit Not Found',
+      'The community outfit you are looking for is not available.',
+      '/fashion-gallery'
+    );
   }
 
-  return createMetadata({
-    title: `${outfit.title} - Community Outfit`,
-    description: outfit.description || `Browse ${outfit.title} on CelebrityPersona.`,
-    path: `/user-outfits/${outfit.slug}`,
-    image: outfit.images?.[0],
-    keywords: [outfit.title, outfit.brand, outfit.category, ...(outfit.tags || [])].filter(Boolean),
-  });
+  return createCommunityOutfitMetadata(outfit);
 }
 
 export default async function UserOutfitPage(

@@ -6,7 +6,8 @@ import JsonLd from '@/components/seo/JsonLd';
 import ReviewDetailClient from './components/ReviewDetailClient';
 import dbConnect from '@/lib/mongodb';
 import MovieReview from '@/models/MovieReview';
-import { absoluteUrl, createBreadcrumbJsonLd, createMetadata, stripHtml, truncate } from '@/lib/seo/site';
+import { absoluteUrl, createBreadcrumbJsonLd, stripHtml } from '@/lib/seo/site';
+import { createMovieReviewMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -27,25 +28,15 @@ async function getReview(slug: string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const review = await getReview(slug);
-  if (!review) return { title: 'Review Not Found' };
+  if (!review) {
+    return createNoIndexMetadata(
+      'Review Not Found',
+      'The movie review you are looking for could not be found.',
+      '/reviews'
+    );
+  }
 
-  const seo = review.seoData ?? review.seo ?? {};
-  const title = seo.metaTitle ?? `${review.title} | CelebrityPersona`;
-  const description = seo.metaDescription ?? review.excerpt ?? truncate(review.content, 155);
-  const image = seo.ogImages?.[0] || seo.twitterImage || review.backdropImage || review.poster;
-
-  return createMetadata({
-    title,
-    description,
-    path: seo.canonicalUrl || `/reviews/${review.slug}`,
-    image,
-    type: 'article',
-    keywords: seo.metaKeywords,
-    noIndex: seo.noindex,
-    publishedTime: review.publishDate,
-    modifiedTime: review.updatedAt,
-    authors: [review.author?.name].filter(Boolean),
-  });
+  return createMovieReviewMetadata(review);
 }
 
 export default async function ReviewDetailPage({ params }: Props) {

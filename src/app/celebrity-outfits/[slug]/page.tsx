@@ -5,6 +5,7 @@ import Footer from '@/components/common/Footer';
 import CelebrityOutfitDetail from './components/CelebrityOutfitDetail';
 import dbConnect from '@/lib/mongodb';
 import CelebrityOutfit from '@/models/CelebrityOutfit';
+import { createCelebrityOutfitMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
 import '@/models/Celebrity';
 
 interface Props { params: Promise<{ slug: string }> }
@@ -53,46 +54,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const o = await fetchOutfit(slug);
 
   if (!o) {
-    return {
-      title: 'Outfit Not Found | CelebrityPersona',
-      description: 'This celebrity outfit could not be found.',
-    };
+    return createNoIndexMetadata(
+      'Outfit Not Found',
+      'This celebrity outfit could not be found.',
+      '/fashion-gallery'
+    );
   }
 
-  const celebName  = typeof o.celebrity === 'object' ? o.celebrity?.name : o.celebrity || 'Celebrity';
-  const title      = o.seo?.metaTitle       || `${o.title} | ${celebName} Outfit | CelebrityPersona`;
-  const description = o.seo?.metaDescription ||
-    o.description?.slice(0, 155) ||
-    `Shop ${celebName}'s ${o.title}. ${o.brand ? `Brand: ${o.brand}.` : ''} ${o.price ? `Price: ${o.price}.` : ''} Get the celebrity look now.`;
-  const canonical  = o.seo?.canonicalUrl    || `${SITE_URL}/celebrity-outfits/${slug}`;
-  const ogImage    = o.seo?.ogImages?.[0]   || o.images?.[0] || '';
-  const keywords   = o.seo?.metaKeywords?.join(', ') ||
-    [celebName, o.title, o.brand, o.designer, o.category, o.event, 'celebrity outfit', 'shop the look', 'celebrity fashion']
-      .filter(Boolean).join(', ');
-
-  return {
-    title,
-    description,
-    keywords,
-    alternates: { canonical },
-    robots: { index: !o.seo?.noindex, follow: !o.seo?.nofollow },
-    openGraph: {
-      title,
-      description,
-      url:         canonical,
-      siteName:    'CelebrityPersona',
-      locale:      'en_US',
-      type:        'website',
-      ...(ogImage ? { images: [{ url: ogImage, alt: o.title }] } : {}),
-    },
-    twitter: {
-      card:        'summary_large_image',
-      title,
-      description,
-      ...(ogImage ? { images: [ogImage] } : {}),
-      site:    '@CelebrityPersona',
-    },
-  };
+  return createCelebrityOutfitMetadata(o);
 }
 
 // ── JSON-LD Product Schema ────────────────────────────────────────────────────

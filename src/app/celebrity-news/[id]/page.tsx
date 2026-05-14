@@ -7,10 +7,10 @@ import ArticleDetail from '../components/ArticleDetail';
 import {
   absoluteUrl,
   createBreadcrumbJsonLd,
-  createMetadata,
   stripHtml,
   truncate,
 } from '@/lib/seo/site';
+import { createNewsArticleMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
 import { getNewsArticle } from '@/lib/seo/publicData';
 
 type Props = { params: Promise<{ id: string }> };
@@ -19,32 +19,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const data = await getNewsArticle(id);
   if (!data) {
-    return createMetadata({
-      title: 'Article Not Found',
-      description: 'The celebrity news article you are looking for could not be found.',
-      path: '/celebrity-news',
-      noIndex: true,
-    });
+    return createNoIndexMetadata(
+      'Article Not Found',
+      'The celebrity news article you are looking for could not be found.',
+      '/celebrity-news'
+    );
   }
 
-  const { article } = data;
-  const seo = (article as any).seo || {};
-  const title = seo.metaTitle || article.title;
-  const description = seo.metaDescription || article.excerpt || truncate(article.content, 155);
-  const image = seo.ogImages?.[0] || seo.twitterImage || article.thumbnail;
-
-  return createMetadata({
-    title,
-    description,
-    path: `/celebrity-news/${article.slug}`,
-    image,
-    type: 'article',
-    keywords: seo.metaKeywords || article.tags,
-    noIndex: seo.noindex,
-    publishedTime: article.publishDate,
-    modifiedTime: (article as any).updatedAt,
-    authors: [seo.authorName || article.author].filter(Boolean),
-  });
+  return createNewsArticleMetadata(data.article as any);
 }
 
 export default async function ArticleDetailPage({ params }: Props) {

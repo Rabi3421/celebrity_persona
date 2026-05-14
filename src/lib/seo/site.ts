@@ -7,18 +7,31 @@ export const DEFAULT_DESCRIPTION =
   'CelebrityPersona covers celebrity profiles, fashion inspiration, entertainment news, movie details, and reviews.';
 export const DEFAULT_OG_IMAGE = '/assets/images/no_image.png';
 
-type MetadataInput = {
+export type MetadataInput = {
   title: string;
   description?: string;
   path?: string;
   image?: string;
   images?: string[];
+  imageAlt?: string;
   keywords?: string | string[];
-  type?: 'website' | 'article' | 'profile' | 'video.movie';
+  type?: 'website' | 'article' | 'profile' | 'video.movie' | string;
   noIndex?: boolean;
+  noFollow?: boolean;
   publishedTime?: string;
   modifiedTime?: string;
   authors?: string[];
+  ogTitle?: string;
+  ogDescription?: string;
+  ogType?: string;
+  ogSiteName?: string;
+  ogLocale?: string;
+  twitterCard?: 'summary' | 'summary_large_image' | 'app' | 'player' | string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImages?: string[];
+  twitterSite?: string;
+  twitterCreator?: string;
 };
 
 export function absoluteUrl(pathOrUrl = '/'): string {
@@ -48,64 +61,90 @@ export function truncate(value = '', length = 155): string {
   return `${text.slice(0, length - 1).trimEnd()}...`;
 }
 
+export function withSiteTitle(title: string): string {
+  const trimmed = stripHtml(title || SITE_NAME);
+  return trimmed.toLowerCase().includes(SITE_NAME.toLowerCase())
+    ? trimmed
+    : `${trimmed} | ${SITE_NAME}`;
+}
+
 export function createMetadata({
   title,
   description = DEFAULT_DESCRIPTION,
   path = '/',
   image,
   images,
+  imageAlt,
   keywords,
   type = 'website',
   noIndex = false,
+  noFollow = false,
   publishedTime,
   modifiedTime,
   authors,
+  ogTitle,
+  ogDescription,
+  ogType,
+  ogSiteName,
+  ogLocale,
+  twitterCard = 'summary_large_image',
+  twitterTitle,
+  twitterDescription,
+  twitterImages,
+  twitterSite,
+  twitterCreator,
 }: MetadataInput): Metadata {
   const canonical = absoluteUrl(path);
-  const fullTitle = title.includes(SITE_NAME) ? title : `${title} | ${SITE_NAME}`;
+  const fullTitle = withSiteTitle(title);
+  const finalDescription = truncate(description || DEFAULT_DESCRIPTION, 160);
   const imageList = (images?.length ? images : [image || DEFAULT_OG_IMAGE]).filter(Boolean).map(absoluteUrl);
+  const twitterImageList = (twitterImages?.length ? twitterImages : imageList).filter(Boolean).map(absoluteUrl);
   const keywordList = Array.isArray(keywords) ? keywords.join(', ') : keywords;
+  const socialTitle = withSiteTitle(ogTitle || title);
+  const socialDescription = truncate(ogDescription || finalDescription, 200);
+  const xTitle = withSiteTitle(twitterTitle || ogTitle || title);
+  const xDescription = truncate(twitterDescription || ogDescription || finalDescription, 200);
 
   return {
     title: { absolute: fullTitle },
-    description,
+    description: finalDescription,
     ...(keywordList ? { keywords: keywordList } : {}),
     alternates: { canonical },
     robots: {
       index: !noIndex,
-      follow: !noIndex,
+      follow: !noFollow,
       googleBot: {
         index: !noIndex,
-        follow: !noIndex,
+        follow: !noFollow,
         'max-image-preview': 'large',
         'max-snippet': -1,
         'max-video-preview': -1,
       },
     },
     openGraph: {
-      title: fullTitle,
-      description,
+      title: socialTitle,
+      description: socialDescription,
       url: canonical,
-      siteName: SITE_NAME,
-      locale: 'en_US',
-      type: type as any,
+      siteName: ogSiteName || SITE_NAME,
+      locale: ogLocale || 'en_US',
+      type: (ogType || type) as any,
       images: imageList.map((url) => ({
         url,
         width: 1200,
         height: 630,
-        alt: title,
+        alt: imageAlt || stripHtml(title),
       })),
       ...(publishedTime ? { publishedTime } : {}),
       ...(modifiedTime ? { modifiedTime } : {}),
       ...(authors?.length ? { authors } : {}),
     },
     twitter: {
-      card: 'summary_large_image',
-      title: fullTitle,
-      description,
-      site: TWITTER_HANDLE,
-      creator: TWITTER_HANDLE,
-      images: imageList,
+      card: twitterCard as any,
+      title: xTitle,
+      description: xDescription,
+      site: twitterSite || TWITTER_HANDLE,
+      creator: twitterCreator || TWITTER_HANDLE,
+      images: twitterImageList,
     },
   };
 }
