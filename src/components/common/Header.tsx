@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -40,7 +40,7 @@ export default function Header() {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     document.addEventListener('mousedown', handleClickOutside);
-    
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       document.removeEventListener('mousedown', handleClickOutside);
@@ -67,10 +67,10 @@ export default function Header() {
     const baseLinks = [
       { id: 'nav_profiles', label: 'Celebrity Profiles', href: '/celebrity-profiles' },
       { id: 'nav_fashion', label: 'Fashion Gallery', href: '/fashion-gallery' },
-      { id: 'nav_movies', label: 'Movie Details', href: '/movie-details' },
+      { id: 'nav_movies', label: 'Movies', href: '/movie-details' },
       { id: 'nav_upcoming', label: 'Upcoming Movies', href: '/upcoming-movies' },
       { id: 'nav_news', label: 'Celebrity News', href: '/celebrity-news' },
-      { id: 'nav_reviews', label: 'Movie Reviews', href: '/reviews' },
+      { id: 'nav_reviews', label: 'Reviews', href: '/reviews' },
     ];
 
     // if (isAuthenticated && user) {
@@ -87,12 +87,12 @@ export default function Header() {
   };
 
   const navLinks = getNavLinks();
+  const isActivePath = (href?: string) =>
+    Boolean(href && (pathname === href || pathname.startsWith(`${href}/`)));
 
   // Keep these as primary links in the header (logo still links home)
   const primaryOrder = ['nav_profiles', 'nav_fashion', 'nav_news'];
-  const primaryLinks = primaryOrder
-    .map((id) => navLinks.find((l) => l.id === id))
-    .filter(Boolean);
+  const primaryLinks = primaryOrder.map((id) => navLinks.find((l) => l.id === id)).filter(Boolean);
 
   // Everything else goes into the More dropdown (including role links)
   const moreLinks = navLinks.filter((l) => !primaryOrder.includes(l.id));
@@ -121,12 +121,11 @@ export default function Header() {
               key={link?.id}
               href={link?.href ?? '/'}
               className={`relative text-sm font-medium transition-colors ${
-                pathname === link?.href
-                  ? 'text-primary' :'text-neutral-300 hover:text-white'
+                isActivePath(link?.href) ? 'text-primary' : 'text-neutral-300 hover:text-white'
               }`}
             >
               {link?.label}
-              {pathname === link?.href && (
+              {isActivePath(link?.href) && (
                 <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary rounded-full" />
               )}
             </Link>
@@ -150,7 +149,7 @@ export default function Header() {
                       key={link?.id}
                       href={link?.href ?? '/'}
                       onClick={() => setShowMore(false)}
-                      className={`block px-3 py-2 text-sm ${pathname === link?.href ? 'text-primary' : 'text-neutral-300 hover:text-white'}`}
+                      className={`block px-3 py-2 text-sm ${isActivePath(link?.href) ? 'text-primary' : 'text-neutral-300 hover:text-white'}`}
                     >
                       {link?.label}
                     </Link>
@@ -185,7 +184,7 @@ export default function Header() {
                 <span className="truncate text-sm font-medium text-white">{user.name}</span>
                 <Icon name="ChevronDownIcon" size={16} className="text-white" />
               </button>
-              
+
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-48 glass-card rounded-2xl p-2 space-y-1">
                   <div className="px-3 py-2 border-b border-white/10">
@@ -194,7 +193,13 @@ export default function Header() {
                     <p className="text-xs text-primary capitalize">{user.role}</p>
                   </div>
                   <Link
-                    href={user.role === 'superadmin' ? '/superadmin' : user.role === 'admin' ? '/admin' : '/dashboard'}
+                    href={
+                      user.role === 'superadmin'
+                        ? '/superadmin'
+                        : user.role === 'admin'
+                          ? '/admin'
+                          : '/dashboard'
+                    }
                     onClick={() => setShowUserMenu(false)}
                     className="block px-3 py-2 text-sm text-neutral-300 hover:text-white hover:bg-white/5 rounded-lg transition-all"
                   >
@@ -250,15 +255,16 @@ export default function Header() {
               href={link?.href ?? '/'}
               onClick={() => setIsMobileMenuOpen(false)}
               className={`block rounded-xl px-3 py-2.5 text-base font-medium transition-colors ${
-                pathname === link?.href
-                  ? 'bg-primary text-black' :'text-neutral-300 hover:bg-white/5 hover:text-white'
+                isActivePath(link?.href)
+                  ? 'bg-primary text-black'
+                  : 'text-neutral-300 hover:bg-white/5 hover:text-white'
               }`}
             >
               {link?.label}
             </Link>
           ))}
           <div className="pt-4 border-t border-white/10 space-y-3">
-              {isAuthenticated && user ? (
+            {isAuthenticated && user ? (
               <>
                 <div className="px-3 py-2 bg-white/5 rounded-lg">
                   <p className="text-sm font-medium text-white">{user.name}</p>
