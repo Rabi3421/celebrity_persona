@@ -137,7 +137,7 @@ const seoDataSchema = new Schema<IMovieSEO>(
     ogTitle:            { type: String },
     ogDescription:      { type: String },
     ogImage:            { type: String, trim: true },
-    ogType:             { type: String, trim: true, default: 'movie' },
+    ogType:             { type: String, trim: true, default: 'video.movie' },
     twitterTitle:       { type: String },
     twitterDescription: { type: String },
     twitterImage:       { type: String, trim: true },

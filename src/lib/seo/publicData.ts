@@ -269,18 +269,55 @@ export async function getUpcomingMovies({ page = 1, limit = 12 } = {}) {
   }
 }
 
-export async function getReviews({ page = 1, limit = 12 } = {}) {
+export async function getReviews({
+  page = 1,
+  limit = 12,
+  search = '',
+  minRating,
+  featured = false,
+  sort = 'latest',
+}: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  minRating?: number | null;
+  featured?: boolean;
+  sort?: 'latest' | 'oldest' | 'rating_high' | 'rating_low' | 'title';
+} = {}) {
   try {
     await dbConnect();
-    const safePage = Math.max(1, page);
-    const safeLimit = Math.min(50, Math.max(1, limit));
-    const query = { status: 'published', rating: { $gte: 0, $lte: 10 } };
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const safeLimit = Number.isFinite(limit) ? Math.min(50, Math.max(1, Math.floor(limit))) : 12;
+    const safeMinRating = typeof minRating === 'number' && Number.isFinite(minRating)
+      ? Math.min(10, Math.max(0, minRating))
+      : 0;
+    const query: Record<string, any> = {
+      status: 'published',
+      rating: { $gte: safeMinRating, $lte: 10 },
+    };
+    const trimmedSearch = search.trim();
+    if (trimmedSearch) {
+      query.$or = [
+        { title: { $regex: trimmedSearch, $options: 'i' } },
+        { movieTitle: { $regex: trimmedSearch, $options: 'i' } },
+        { excerpt: { $regex: trimmedSearch, $options: 'i' } },
+      ];
+    }
+    if (featured) query.featured = true;
+
+    const sortMap: Record<string, any> = {
+      latest: { publishDate: -1, createdAt: -1 },
+      oldest: { publishDate: 1, createdAt: 1 },
+      rating_high: { rating: -1, publishDate: -1 },
+      rating_low: { rating: 1, publishDate: -1 },
+      title: { movieTitle: 1, title: 1 },
+    };
     const skip = (safePage - 1) * safeLimit;
 
     const [reviews, total] = await Promise.all([
       MovieReview.find(query)
         .select('title slug movieTitle poster backdropImage rating excerpt author publishDate featured scores pros cons verdict stats createdAt')
-        .sort({ publishDate: -1, createdAt: -1 })
+        .sort(sortMap[sort] || sortMap.latest)
         .skip(skip)
         .limit(safeLimit)
         .lean(),

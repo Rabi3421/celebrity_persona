@@ -245,7 +245,7 @@ export function createCelebrityOutfitMetadata(outfit: AnyRecord): Metadata {
     path: `/celebrity-outfits/${outfit.slug}`,
     images: Array.isArray(outfit.images) ? outfit.images : [outfit.image],
     imageAlt: `${title} celebrity outfit`,
-    type: 'website',
+    type: 'article',
     keywords: [
       celebrityName,
       title,
@@ -276,7 +276,7 @@ export function createCommunityOutfitMetadata(outfit: AnyRecord): Metadata {
     path: `/user-outfits/${outfit.slug}`,
     images: Array.isArray(outfit.images) ? outfit.images : [outfit.image],
     imageAlt: `${title} community outfit`,
-    type: 'website',
+    type: 'article',
     keywords: [
       title,
       outfit.brand,
