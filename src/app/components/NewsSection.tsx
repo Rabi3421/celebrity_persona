@@ -12,13 +12,13 @@ export default function NewsSection({ articles = [] }: NewsSectionProps) {
   const [featuredArticle, ...latestArticles] = items;
 
   return (
-    <section id="latest-articles" aria-labelledby="latest-articles-heading" className="px-4 py-20 sm:px-6">
+    <section id="latest-articles" aria-labelledby="latest-articles-heading" className="px-4 py-16 sm:px-6 lg:py-20">
       <div className="mx-auto max-w-7xl">
         <div className="mb-10 text-center">
           <p className="font-montserrat text-xs font-semibold uppercase tracking-wider text-accent">
             Latest articles
           </p>
-          <h2 id="latest-articles-heading" className="mt-3 font-playfair text-4xl font-bold text-white md:text-5xl">
+          <h2 id="latest-articles-heading" className="mt-3 font-playfair text-3xl font-bold text-white sm:text-4xl md:text-5xl">
             Celebrity News
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-neutral-400">
@@ -38,7 +38,7 @@ export default function NewsSection({ articles = [] }: NewsSectionProps) {
                   className="object-cover transition duration-500 group-hover:scale-105"
                 />
               </div>
-              <div className="flex flex-col justify-center p-6 md:p-10">
+              <div className="flex flex-col justify-center p-5 sm:p-6 md:p-10">
                 <div className="mb-4 flex flex-wrap items-center gap-3 text-xs font-medium uppercase tracking-wider text-neutral-500">
                   <span className="text-accent">{featuredArticle.category}</span>
                   {featuredArticle.dateTime ? (
@@ -48,7 +48,7 @@ export default function NewsSection({ articles = [] }: NewsSectionProps) {
                   )}
                   <span>{featuredArticle.readTime}</span>
                 </div>
-                <h3 className="font-playfair text-3xl font-bold leading-tight text-white md:text-4xl">
+                <h3 className="font-playfair text-2xl font-bold leading-tight text-white sm:text-3xl md:text-4xl">
                   {featuredArticle.title}
                 </h3>
                 <p className="mt-4 text-base leading-7 text-neutral-400">{featuredArticle.excerpt}</p>

@@ -345,12 +345,12 @@ export default function ApiPricingContent() {
       )}
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <div className="text-center py-14">
+      <div className="text-center py-10 sm:py-14">
         <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-widest mb-5">
           <Icon name="CreditCardIcon" size={13} />
           API Pricing
         </span>
-        <h1 className="font-playfair text-4xl md:text-5xl font-bold text-white mb-4">
+        <h1 className="font-playfair text-3xl font-bold text-white mb-4 sm:text-4xl md:text-5xl">
           Simple, transparent pricing
         </h1>
         <p className="text-neutral-400 max-w-2xl mx-auto text-base leading-relaxed">
@@ -386,42 +386,46 @@ export default function ApiPricingContent() {
       <div className="mb-16">
         <h2 className="font-playfair text-2xl font-bold text-white text-center mb-8">Compare plans</h2>
         <div className="glass-card border border-border rounded-2xl overflow-hidden">
-          {/* Header */}
-          <div className="grid grid-cols-5 border-b border-white/10">
-            <div className="px-5 py-4 text-xs uppercase tracking-widest text-neutral-500 font-semibold col-span-1">Feature</div>
-            {API_PLANS.map((p) => (
-              <div key={p.id} className={`px-4 py-4 text-center text-sm font-semibold ${p.highlighted ? 'text-primary bg-primary/5' : 'text-white'}`}>
-                {p.label}
-                {p.badge && <span className={`block text-[10px] font-bold mt-0.5 ${p.highlighted ? 'text-primary' : 'text-secondary'}`}>{p.badge}</span>}
+          <div className="touch-scroll-x">
+            <div className="min-w-[700px]">
+              {/* Header */}
+              <div className="grid grid-cols-5 border-b border-white/10">
+                <div className="px-5 py-4 text-xs uppercase tracking-widest text-neutral-500 font-semibold col-span-1">Feature</div>
+                {API_PLANS.map((p) => (
+                  <div key={p.id} className={`px-4 py-4 text-center text-sm font-semibold ${p.highlighted ? 'text-primary bg-primary/5' : 'text-white'}`}>
+                    {p.label}
+                    {p.badge && <span className={`block text-[10px] font-bold mt-0.5 ${p.highlighted ? 'text-primary' : 'text-secondary'}`}>{p.badge}</span>}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Rows */}
-          {[
-            { label: 'Monthly requests', values: ['100', '1,000', '10,000', '50,000'] },
-            { label: 'All 5 endpoints', values: ['✓', '✓', '✓', '✓'] },
-            { label: 'Pagination & filters', values: ['✓', '✓', '✓', '✓'] },
-            { label: 'Priority support', values: ['—', '✓', '✓', '✓'] },
-            { label: 'Usage analytics', values: ['—', '—', '✓', '✓'] },
-            { label: 'SLA guarantee', values: ['—', '—', '—', '✓'] },
-            { label: 'Dedicated support', values: ['—', '—', '—', '✓'] },
-            { label: 'Price / month', values: ['Free', '₹199', '₹499', '₹999'] },
-          ].map((row, ri) => (
-            <div key={row.label} className={`grid grid-cols-5 ${ri < 7 ? 'border-b border-white/5' : ''} hover:bg-white/[0.015] transition-colors`}>
-              <div className="px-5 py-3.5 text-sm text-neutral-400 col-span-1">{row.label}</div>
-              {row.values.map((v, i) => (
-                <div
-                  key={i}
-                  className={`px-4 py-3.5 text-center text-sm ${
-                    v === '✓' ? 'text-accent' : v === '—' ? 'text-neutral-700' : API_PLANS[i].highlighted ? 'text-primary font-semibold' : 'text-white'
-                  } ${API_PLANS[i].highlighted ? 'bg-primary/[0.03]' : ''}`}
-                >
-                  {v}
+              {/* Rows */}
+              {[
+                { label: 'Monthly requests', values: ['100', '1,000', '10,000', '50,000'] },
+                { label: 'All 5 endpoints', values: ['✓', '✓', '✓', '✓'] },
+                { label: 'Pagination & filters', values: ['✓', '✓', '✓', '✓'] },
+                { label: 'Priority support', values: ['—', '✓', '✓', '✓'] },
+                { label: 'Usage analytics', values: ['—', '—', '✓', '✓'] },
+                { label: 'SLA guarantee', values: ['—', '—', '—', '✓'] },
+                { label: 'Dedicated support', values: ['—', '—', '—', '✓'] },
+                { label: 'Price / month', values: ['Free', '₹199', '₹499', '₹999'] },
+              ].map((row, ri) => (
+                <div key={row.label} className={`grid grid-cols-5 ${ri < 7 ? 'border-b border-white/5' : ''} hover:bg-white/[0.015] transition-colors`}>
+                  <div className="px-5 py-3.5 text-sm text-neutral-400 col-span-1">{row.label}</div>
+                  {row.values.map((v, i) => (
+                    <div
+                      key={i}
+                      className={`px-4 py-3.5 text-center text-sm ${
+                        v === '✓' ? 'text-accent' : v === '—' ? 'text-neutral-700' : API_PLANS[i].highlighted ? 'text-primary font-semibold' : 'text-white'
+                      } ${API_PLANS[i].highlighted ? 'bg-primary/[0.03]' : ''}`}
+                    >
+                      {v}
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
-          ))}
+          </div>
         </div>
       </div>
 

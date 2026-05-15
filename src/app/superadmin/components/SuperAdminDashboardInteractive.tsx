@@ -214,8 +214,8 @@ function OverviewSection() {
   const { user } = useAuth();
   return (
     <div className="space-y-8">
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-yellow-500/10 to-orange-600/10 border border-yellow-500/20">
-        <h2 className="font-playfair text-3xl font-bold text-white mb-1">
+      <div className="rounded-2xl bg-gradient-to-r from-yellow-500/10 to-orange-600/10 border border-yellow-500/20 p-4 sm:p-6">
+        <h2 className="font-playfair text-2xl font-bold text-white mb-1 sm:text-3xl">
           Welcome, {user?.name?.split(' ')[0]}! ⭐
         </h2>
         <p className="text-neutral-400">You have full platform access. Use these powers responsibly.</p>

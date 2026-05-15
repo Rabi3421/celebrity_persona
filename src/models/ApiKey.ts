@@ -16,7 +16,7 @@ export interface IApiKeyEndpointHit {
   lastHitAt: Date;
 }
 
-export interface IApiKey extends Document {
+export interface IApiKey extends Document<string> {
   _id: string;
   userId: mongoose.Types.ObjectId;
   key: string;                         // cp_live_<random hex>

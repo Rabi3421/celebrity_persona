@@ -652,7 +652,7 @@ function CodeBlock({ code, lang = 'bash', filename }: { code: string; lang?: str
 function ParamTable({ params, isPath = false }: { params: Param[]; isPath?: boolean }) {
   return (
     <div className="rounded-xl border border-white/10 overflow-hidden text-xs">
-      <div className="grid grid-cols-[110px_70px_60px_1fr] bg-white/5 border-b border-white/10 px-4 py-2.5 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">
+      <div className="hidden sm:grid sm:grid-cols-[110px_70px_60px_minmax(0,1fr)] bg-white/5 border-b border-white/10 px-4 py-2.5 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">
         <span>Parameter</span>
         <span>Type</span>
         <span>{isPath ? 'Path' : 'Required'}</span>
@@ -661,14 +661,22 @@ function ParamTable({ params, isPath = false }: { params: Param[]; isPath?: bool
       {params.map((p, i) => (
         <div
           key={p.name}
-          className={`grid grid-cols-[110px_70px_60px_1fr] px-4 py-3 gap-2 ${i < params.length - 1 ? 'border-b border-white/5' : ''} hover:bg-white/[0.02] transition-colors`}
+          className={`grid grid-cols-1 px-4 py-3 gap-2 sm:grid-cols-[110px_70px_60px_minmax(0,1fr)] ${i < params.length - 1 ? 'border-b border-white/5' : ''} hover:bg-white/[0.02] transition-colors`}
         >
-          <span className="font-mono text-primary font-semibold self-start">{p.name}</span>
-          <span className="text-purple-300 self-start">{p.type}</span>
+          <span className="font-mono text-primary font-semibold self-start">
+            <span className="mr-2 font-sans text-[10px] uppercase tracking-wider text-neutral-600 sm:hidden">Param</span>
+            {p.name}
+          </span>
+          <span className="text-purple-300 self-start">
+            <span className="mr-2 font-sans text-[10px] uppercase tracking-wider text-neutral-600 sm:hidden">Type</span>
+            {p.type}
+          </span>
           <span className={`self-start font-medium ${isPath || p.required ? 'text-rose-400' : 'text-neutral-500'}`}>
+            <span className="mr-2 font-sans text-[10px] uppercase tracking-wider text-neutral-600 sm:hidden">{isPath ? 'Path' : 'Required'}</span>
             {isPath ? 'required' : p.required ? 'yes' : 'no'}
           </span>
           <span className="text-neutral-400 leading-relaxed">
+            <span className="mb-1 block font-sans text-[10px] uppercase tracking-wider text-neutral-600 sm:hidden">Description</span>
             {p.description}
             {p.default && <span className="ml-1.5 text-neutral-600">Default: <code className="text-primary">{p.default}</code></span>}
             {p.values && (
@@ -896,13 +904,13 @@ function ErrorsSection() {
         />
 
         <div className="rounded-xl border border-white/10 overflow-hidden">
-          <div className="grid grid-cols-[70px_1fr_2fr] bg-white/5 border-b border-white/10 px-4 py-2.5 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">
+          <div className="hidden sm:grid sm:grid-cols-[70px_minmax(0,1fr)_minmax(0,2fr)] bg-white/5 border-b border-white/10 px-4 py-2.5 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">
             <span>Code</span>
             <span>Status</span>
             <span>Meaning</span>
           </div>
           {errors.map((e, i) => (
-            <div key={e.code} className={`grid grid-cols-[70px_1fr_2fr] px-4 py-3 ${i < errors.length - 1 ? 'border-b border-white/5' : ''} hover:bg-white/[0.02] transition-colors`}>
+            <div key={e.code} className={`grid grid-cols-1 gap-2 px-4 py-3 sm:grid-cols-[70px_minmax(0,1fr)_minmax(0,2fr)] ${i < errors.length - 1 ? 'border-b border-white/5' : ''} hover:bg-white/[0.02] transition-colors`}>
               <span className={`font-mono font-bold text-sm ${e.color}`}>{e.code}</span>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded self-start w-fit ${e.bg} ${e.color}`}>{e.status}</span>
               <span className="text-neutral-400 text-xs leading-relaxed">{e.desc}</span>
@@ -924,7 +932,7 @@ function RateLimitsSection() {
         </p>
 
         <div className="rounded-xl border border-white/10 overflow-hidden">
-          <div className="grid grid-cols-[100px_1fr_1fr_1fr] bg-white/5 border-b border-white/10 px-4 py-2.5 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">
+          <div className="hidden sm:grid sm:grid-cols-[100px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] bg-white/5 border-b border-white/10 px-4 py-2.5 text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">
             <span>Plan</span>
             <span>Requests / month</span>
             <span>Price</span>
@@ -936,11 +944,11 @@ function RateLimitsSection() {
             { plan: 'Pro',        requests: '10,000', price: 'Contact us',   access: 'All endpoints', highlight: true },
             { plan: 'Enterprise', requests: 'Unlimited', price: 'Contact us', access: 'All endpoints + priority support', highlight: false },
           ].map((t, i) => (
-            <div key={t.plan} className={`grid grid-cols-[100px_1fr_1fr_1fr] px-4 py-3 text-xs ${i < 3 ? 'border-b border-white/5' : ''} ${t.highlight ? 'bg-primary/5' : 'hover:bg-white/[0.02]'} transition-colors`}>
+            <div key={t.plan} className={`grid grid-cols-2 gap-x-4 gap-y-2 px-4 py-3 text-xs sm:grid-cols-[100px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] ${i < 3 ? 'border-b border-white/5' : ''} ${t.highlight ? 'bg-primary/5' : 'hover:bg-white/[0.02]'} transition-colors`}>
               <span className={`font-semibold ${t.highlight ? 'text-primary' : 'text-white'}`}>{t.plan}</span>
-              <span className={t.highlight ? 'text-primary' : 'text-neutral-300'}>{t.requests}</span>
-              <span className="text-neutral-400">{t.price}</span>
-              <span className="text-neutral-500">{t.access}</span>
+              <span className={t.highlight ? 'text-primary' : 'text-neutral-300'}><span className="mr-1 text-neutral-600 sm:hidden">Requests:</span>{t.requests}</span>
+              <span className="text-neutral-400"><span className="mr-1 text-neutral-600 sm:hidden">Price:</span>{t.price}</span>
+              <span className="col-span-2 text-neutral-500 sm:col-span-1">{t.access}</span>
             </div>
           ))}
         </div>
@@ -1153,10 +1161,10 @@ export default function ApiDocsContent() {
   );
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 pb-24">
+    <div className="max-w-[1400px] mx-auto px-4 pb-20 sm:pb-24">
 
       {/* ── Page hero ──────────────────────────────────────────────────────── */}
-      <div className="mb-10 py-10 px-6 rounded-2xl glass-card border border-border relative overflow-hidden">
+      <div className="mb-8 rounded-2xl glass-card border border-border relative overflow-hidden px-4 py-8 sm:mb-10 sm:px-6 sm:py-10">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/5 pointer-events-none" />
         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div>
@@ -1173,17 +1181,17 @@ export default function ApiDocsContent() {
               Everything you need to query celebrities, outfits, news, movies, and reviews programmatically. All endpoints are GET-only and require an API key.
             </p>
           </div>
-          <div className="flex flex-col gap-2 flex-shrink-0">
+          <div className="flex w-full flex-col gap-2 flex-shrink-0 md:w-auto">
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-black font-semibold text-sm hover:glow-gold transition-all"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-black font-semibold text-sm hover:glow-gold transition-all"
             >
               <Icon name="KeyIcon" size={16} />
               Get your API key
             </Link>
             <a
               href="mailto:info@celebritypersona.com?subject=API Support"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-neutral-300 hover:text-white hover:border-white/30 font-medium text-sm transition-all"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-border text-neutral-300 hover:text-white hover:border-white/30 font-medium text-sm transition-all"
             >
               <Icon name="EnvelopeIcon" size={16} />
               API support
@@ -1225,7 +1233,7 @@ export default function ApiDocsContent() {
       </div>
 
       {/* ── Two-column layout ─────────────────────────────────────────────── */}
-      <div className="flex gap-8 items-start">
+      <div className="flex gap-8 items-start min-w-0">
 
         {/* Left sidebar — sticky nav */}
         <aside className="hidden lg:block w-56 xl:w-64 flex-shrink-0 sticky top-24">

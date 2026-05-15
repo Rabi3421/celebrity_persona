@@ -52,7 +52,7 @@ export interface IOutfitComment {
 }
 
 // ── Main interface ────────────────────────────────────────────────────────────
-export interface ICelebrityOutfit extends Document {
+export interface ICelebrityOutfit extends Document<string> {
   _id: string;
   title: string;
   slug: string;
@@ -242,12 +242,12 @@ const celebrityOutfitSchema = new Schema<ICelebrityOutfit>(
   },
   {
     timestamps: true,
-    strictPopulate: false,
   }
 );
 
+(celebrityOutfitSchema as any).set('strictPopulate', false);
+
 // ── Indexes ───────────────────────────────────────────────────────────────────
-celebrityOutfitSchema.index({ slug: 1 });
 celebrityOutfitSchema.index({ celebrity: 1 });
 celebrityOutfitSchema.index({ status: 1 });
 celebrityOutfitSchema.index({ brand: 1 });

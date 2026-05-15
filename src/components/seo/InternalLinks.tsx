@@ -84,7 +84,7 @@ export default function InternalLinks({
   if (groups.length === 0 && links.contextualLinks.length === 0) return null;
 
   return (
-    <section id={id} className={`content-visibility-auto border-t border-white/10 bg-[#0b0714] px-6 py-16 md:px-10 ${className}`}>
+    <section id={id} className={`content-visibility-auto border-t border-white/10 bg-[#0b0714] px-4 py-14 sm:px-6 md:px-10 md:py-16 ${className}`}>
       <div className="mx-auto max-w-7xl space-y-12">
         <header className="space-y-4">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Related Coverage</p>

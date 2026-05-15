@@ -45,17 +45,17 @@ export default function SearchBar({ onSearch, onFilterChange }: SearchBarProps) 
           value={searchQuery}
           onChange={handleSearch}
           placeholder="Search celebrities..."
-          className="w-full glass-card pl-12 pr-4 py-4 rounded-full text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="w-full glass-card pl-12 pr-4 py-3.5 sm:py-4 rounded-full text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary/50"
         />
       </div>
 
       {/* Filter Chips */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-2 sm:gap-3">
         {filters.map((filter) => (
           <button
             key={filter.id}
             onClick={() => handleFilterClick(filter.value)}
-            className={`px-6 py-2.5 rounded-full font-medium text-sm transition-all ${
+            className={`px-4 py-2.5 rounded-full font-medium text-sm transition-all sm:px-6 ${
               activeFilter === filter.value
                 ? 'bg-primary text-black' :'glass-card text-neutral-400 hover:text-white'
             }`}

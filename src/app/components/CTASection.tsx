@@ -2,9 +2,9 @@ import Link from 'next/link';
 
 export default function CTASection() {
   return (
-    <section aria-labelledby="homepage-cta-heading" className="px-4 py-20 sm:px-6">
-      <div className="mx-auto max-w-5xl border-y border-white/10 py-14 text-center">
-        <h2 id="homepage-cta-heading" className="font-playfair text-4xl font-bold leading-tight text-white md:text-6xl">
+    <section aria-labelledby="homepage-cta-heading" className="px-4 py-16 sm:px-6 lg:py-20">
+      <div className="mx-auto max-w-5xl border-y border-white/10 py-12 text-center sm:py-14">
+        <h2 id="homepage-cta-heading" className="font-playfair text-3xl font-bold leading-tight text-white sm:text-4xl md:text-6xl">
           Join the Celebrity Fashion Community
         </h2>
         <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-neutral-400 md:text-lg">

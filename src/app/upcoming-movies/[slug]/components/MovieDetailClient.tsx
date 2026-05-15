@@ -175,7 +175,7 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
     <div className="min-h-screen bg-[#0a0a14] text-white">
 
       {/* ── Hero / Backdrop ── */}
-      <section className="relative w-full h-[55vh] md:h-[65vh] overflow-hidden">
+      <section className="relative w-full h-[68svh] min-h-[560px] overflow-hidden md:h-[65vh] md:min-h-0">
         {movie.backdrop || movie.poster ? (
           <Image
             src={movie.backdrop || movie.poster!}
@@ -197,7 +197,7 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
         <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a14]/80 via-transparent to-transparent" />
 
         {/* Countdown badge */}
-        <div className="absolute top-6 right-6">
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
           <span className={`inline-block px-4 py-1.5 rounded-full text-sm font-bold backdrop-blur-sm ${
             isReleased
               ? 'bg-emerald-500/80 text-white'
@@ -208,7 +208,7 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
         </div>
 
         {/* Bottom content */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 flex items-end gap-8">
+        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 md:p-10 flex items-end gap-6 md:gap-8">
           {/* Poster thumbnail */}
           {movie.poster && (
             <div className="hidden md:block w-36 h-52 rounded-xl overflow-hidden border-2 border-white/20 shadow-2xl shrink-0 relative">
@@ -236,7 +236,7 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
               )}
             </div>
 
-            <h1 className="text-4xl md:text-6xl font-black text-white leading-tight mb-3 drop-shadow-2xl">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-white leading-tight mb-3 drop-shadow-2xl break-anywhere">
               {movie.title}
             </h1>
 
@@ -250,13 +250,13 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
             </div>
 
             {/* CTA buttons */}
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col gap-3 min-[420px]:flex-row min-[420px]:flex-wrap">
               {movie.trailer && (
                 <a
                   href={movie.trailer}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors shadow-lg"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors shadow-lg sm:px-6"
                 >
                   ▶ Watch Trailer
                 </a>
@@ -267,7 +267,7 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
                   href={t.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm transition-colors shadow-lg"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm transition-colors shadow-lg sm:px-6"
                 >
                   🎟 {t.platform}
                 </a>
@@ -279,10 +279,10 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
 
       {/* ── Body ── */}
       <div className="container mx-auto px-4 py-10 max-w-7xl">
-        <div className="grid lg:grid-cols-3 gap-10">
+        <div className="grid gap-8 lg:grid-cols-3 lg:gap-10">
 
           {/* ── LEFT: Main content ── */}
-          <div className="lg:col-span-2 space-y-10">
+          <div className="min-w-0 lg:col-span-2 space-y-8 sm:space-y-10">
 
             {/* Anticipation score */}
             {movie.anticipationScore !== undefined && (
@@ -290,11 +290,11 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-white/5 border border-white/10 rounded-2xl p-6"
+                className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-6"
               >
                 <h2 className="text-xs font-semibold text-neutral-400 uppercase tracking-widest mb-4">Audience Anticipation</h2>
-                <div className="flex items-end gap-5">
-                  <span className={`text-6xl font-black ${scoreColor(movie.anticipationScore)}`}>
+                <div className="flex items-end gap-4 sm:gap-5">
+                  <span className={`text-5xl sm:text-6xl font-black ${scoreColor(movie.anticipationScore)}`}>
                     {movie.anticipationScore.toFixed(1)}
                   </span>
                   <div className="flex-1 pb-2">
@@ -530,7 +530,7 @@ export default function MovieDetailClient({ movie }: { movie: Movie }) {
           </div>
 
           {/* ── RIGHT: Sidebar ── */}
-          <aside className="space-y-6">
+          <aside className="min-w-0 space-y-6">
 
             {/* Movie Info Card */}
             <motion.div

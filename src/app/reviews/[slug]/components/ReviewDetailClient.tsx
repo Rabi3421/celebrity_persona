@@ -130,7 +130,7 @@ export default function ReviewDetailClient({ review }: { review: Review }) {
     <div>
 
       {/* ── Backdrop hero ─────────────────────────────────────────────────── */}
-      <div className="relative h-[60vh] min-h-[420px] max-h-[680px] overflow-hidden">
+      <div className="relative h-[64svh] min-h-[520px] max-h-[680px] overflow-hidden sm:min-h-[420px]">
         {review.backdropImage ? (
           <Image src={review.backdropImage} alt={review.movieTitle} fill
             className="object-cover scale-105" priority fetchPriority="high" quality={82} sizes="100vw" />
@@ -157,7 +157,7 @@ export default function ReviewDetailClient({ review }: { review: Review }) {
 
         {/* Hero content */}
         <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-8">
-          <div className="flex items-end gap-6">
+          <div className="flex items-end gap-4 sm:gap-6">
             {/* Poster */}
             {review.poster && (
               <div className="relative w-28 sm:w-36 h-40 sm:h-52 rounded-2xl overflow-hidden shrink-0
@@ -187,7 +187,7 @@ export default function ReviewDetailClient({ review }: { review: Review }) {
               </p>
 
               {/* Review title */}
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-playfair text-white leading-tight mb-4 max-w-3xl">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-playfair text-white leading-tight mb-4 max-w-3xl break-anywhere">
                 {review.title}
               </h1>
 
@@ -225,14 +225,14 @@ export default function ReviewDetailClient({ review }: { review: Review }) {
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
 
           {/* ── Left: main content ────────────────────────────────────────── */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="min-w-0 lg:col-span-2 space-y-8">
 
             {/* Excerpt */}
             {review.excerpt && (
-              <div className="relative p-6 rounded-2xl bg-white/[0.03] border border-white/[0.08]">
+              <div className="relative rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4 sm:p-6">
                 <div className="absolute top-0 left-6 w-12 h-0.5 bg-gradient-to-r from-yellow-500 to-transparent" />
                 <p className="text-neutral-300 text-base font-montserrat leading-relaxed italic">
                   "{review.excerpt}"
@@ -241,7 +241,7 @@ export default function ReviewDetailClient({ review }: { review: Review }) {
             )}
 
             {/* Review content */}
-            <div className="rounded-2xl bg-white/[0.02] border border-white/[0.06] p-6 lg:p-8">
+            <div className="rounded-2xl bg-white/[0.02] border border-white/[0.06] p-4 sm:p-6 lg:p-8">
               <h2 className="text-white font-bold text-lg font-playfair mb-6 flex items-center gap-3">
                 <div className="w-1 h-6 rounded-full bg-gradient-to-b from-yellow-500 to-amber-400" />
                 Full Review
@@ -412,12 +412,12 @@ export default function ReviewDetailClient({ review }: { review: Review }) {
           </div>
 
           {/* ── Right: sidebar ─────────────────────────────────────────────── */}
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
 
             {/* Our Score */}
             <div className={`rounded-2xl ${rc.bg} border ${rc.border} p-6 text-center`}>
               <p className="text-neutral-400 text-xs font-montserrat uppercase tracking-widest mb-3">Our Score</p>
-              <div className={`text-7xl font-bold font-playfair ${rc.text} mb-1`}>{review.rating.toFixed(1)}</div>
+              <div className={`text-5xl font-bold font-playfair ${rc.text} mb-1 sm:text-7xl`}>{review.rating.toFixed(1)}</div>
               <p className="text-neutral-500 text-sm font-montserrat">/10</p>
               <div className="mt-4 h-2 rounded-full bg-white/[0.08] overflow-hidden">
                 <div className={`h-full rounded-full bg-gradient-to-r ${rc.bar} transition-all duration-1000`}

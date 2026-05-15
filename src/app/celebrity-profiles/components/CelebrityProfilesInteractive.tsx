@@ -33,14 +33,14 @@ export default function CelebrityProfilesInteractive({
   return (
     <>
       {/* ── Hero Section ─────────────────────────────────────────── */}
-      <section className="py-24 px-6">
+      <section className="px-4 py-16 sm:px-6 sm:py-20 lg:py-24">
         <div className="max-w-7xl mx-auto">
           {/* Page Header */}
-          <div className="text-center mb-16">
-            <h1 className="font-playfair text-5xl md:text-7xl font-bold text-white mb-4">
+          <div className="text-center mb-12 sm:mb-16">
+            <h1 className="font-playfair text-4xl font-bold text-white mb-4 sm:text-5xl md:text-7xl">
               Celebrity Profiles
             </h1>
-            <p className="font-inter text-lg md:text-xl text-neutral-400 max-w-2xl mx-auto">
+            <p className="font-inter text-base leading-7 text-neutral-400 max-w-2xl mx-auto md:text-xl">
               Wikipedia-level detailed information on your favorite stars
             </p>
           </div>

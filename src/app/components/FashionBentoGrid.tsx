@@ -14,7 +14,7 @@ export default function FashionBentoGrid({ outfits = [] }: FashionBentoGridProps
     <section
       id="trending-outfits"
       aria-labelledby="trending-outfits-heading"
-      className="bg-card px-4 py-20 sm:px-6"
+      className="bg-card px-4 py-16 sm:px-6 lg:py-20"
     >
       <div className="mx-auto max-w-7xl">
         <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -22,14 +22,14 @@ export default function FashionBentoGrid({ outfits = [] }: FashionBentoGridProps
             <p className="font-montserrat text-xs font-semibold uppercase tracking-wider text-secondary">
               Fashion gallery
             </p>
-            <h2 id="trending-outfits-heading" className="mt-3 font-playfair text-4xl font-bold text-white md:text-5xl">
+            <h2 id="trending-outfits-heading" className="mt-3 font-playfair text-3xl font-bold text-white sm:text-4xl md:text-5xl">
               Trending Celebrity Outfits
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-400">
               Shoppable celebrity-inspired looks with crawlable outfit pages and internal links to the full gallery.
             </p>
           </div>
-          <Link href="/fashion-gallery" className="text-sm font-semibold text-secondary hover:text-white">
+          <Link href="/fashion-gallery" className="inline-flex text-sm font-semibold text-secondary hover:text-white">
             Browse the fashion gallery
           </Link>
         </div>
@@ -63,8 +63,8 @@ export default function FashionBentoGrid({ outfits = [] }: FashionBentoGridProps
                         {outfit.price}
                       </div>
                     )}
-                    <div className="absolute bottom-0 left-0 right-0 p-5">
-                      <h3 className="font-playfair text-2xl font-bold text-white">{outfit.celebrityName}</h3>
+                    <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
+                      <h3 className="font-playfair text-xl font-bold text-white sm:text-2xl">{outfit.celebrityName}</h3>
                       <p className="mt-1 text-sm text-neutral-300">{outfit.title}</p>
                     </div>
                   </div>

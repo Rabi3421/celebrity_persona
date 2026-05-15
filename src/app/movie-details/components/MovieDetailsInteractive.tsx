@@ -200,7 +200,7 @@ export default function MovieDetailsInteractive({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="relative w-full h-[55vh] md:h-[65vh] overflow-hidden"
+            className="relative w-full h-[60svh] min-h-[520px] overflow-hidden md:h-[65vh] md:min-h-0"
           >
             {(featured.backdrop || featured.poster) && (
               <Image src={featured.backdrop || featured.poster!} alt={featured.title}
@@ -209,7 +209,7 @@ export default function MovieDetailsInteractive({
             <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a14] via-[#0a0a14]/60 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a14] via-[#0a0a14]/20 to-transparent" />
             <div className="absolute inset-0 flex items-end">
-              <div className="container mx-auto px-6 pb-12 md:pb-16 flex gap-6 items-end">
+              <div className="container mx-auto px-4 sm:px-6 pb-10 md:pb-16 flex gap-4 sm:gap-6 items-end">
                 {featured.poster && (
                   <div className="hidden md:block w-36 h-52 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl shrink-0 relative">
                     <Image src={featured.poster} alt={featured.title} fill className="object-cover" sizes="144px" />
@@ -219,7 +219,7 @@ export default function MovieDetailsInteractive({
                   {featured.featured && (
                     <span className="inline-block bg-primary text-black text-xs font-bold px-3 py-1 rounded-full mb-3">⭐ Featured</span>
                   )}
-                  <h1 className="font-playfair text-3xl md:text-5xl font-black text-white leading-tight mb-3 drop-shadow-2xl line-clamp-2">
+                  <h1 className="font-playfair text-2xl sm:text-3xl md:text-5xl font-black text-white leading-tight mb-3 drop-shadow-2xl line-clamp-3 sm:line-clamp-2">
                     {featured.title}
                   </h1>
                   <div className="flex flex-wrap items-center gap-3 mb-4 text-sm">
@@ -236,14 +236,14 @@ export default function MovieDetailsInteractive({
                   {featured.synopsis && (
                     <p className="text-neutral-300 text-sm leading-relaxed line-clamp-2 max-w-xl mb-5">{featured.synopsis}</p>
                   )}
-                  <div className="flex gap-3 flex-wrap">
+                  <div className="flex flex-col gap-3 min-[420px]:flex-row min-[420px]:flex-wrap">
                     <Link href={`/movie-details/${featured.slug}`}
-                      className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-black font-bold px-6 py-2.5 rounded-xl text-sm transition-all hover:glow-gold">
+                      className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-black font-bold px-5 py-2.5 rounded-xl text-sm transition-all hover:glow-gold sm:px-6">
                       <Icon name="InformationCircleIcon" size={16} /> View Details
                     </Link>
                     {featured.trailer && (
                       <a href={featured.trailer} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold px-6 py-2.5 rounded-xl text-sm transition-all backdrop-blur-sm">
+                        className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold px-5 py-2.5 rounded-xl text-sm transition-all backdrop-blur-sm sm:px-6">
                         <Icon name="PlayIcon" size={16} /> Trailer
                       </a>
                     )}
@@ -291,7 +291,7 @@ export default function MovieDetailsInteractive({
             )}
           </div>
           <select value={sort} onChange={e => handleSort(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-primary/50 min-w-[160px]">
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-primary/50 sm:w-auto sm:min-w-[160px]">
             {SORTS.map(s => <option key={s.value} value={s.value} className="bg-[#1a1a2e]">{s.label}</option>)}
           </select>
         </div>
@@ -308,7 +308,7 @@ export default function MovieDetailsInteractive({
 
         {/* Movies */}
         {loading ? (
-          <div className={view === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 animate-pulse' : 'space-y-4 animate-pulse'}>
+          <div className={view === 'grid' ? 'grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 animate-pulse' : 'space-y-4 animate-pulse'}>
             {[...Array(8)].map((_, i) => (
               <div key={i} className={view === 'grid' ? 'h-80 bg-white/5 rounded-2xl' : 'h-28 bg-white/5 rounded-2xl'} />
             ))}
@@ -320,7 +320,7 @@ export default function MovieDetailsInteractive({
             <p className="text-neutral-500 text-sm">Try adjusting your search or filters.</p>
           </div>
         ) : view === 'grid' ? (
-          <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+          <motion.div layout className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
             {movies.map((movie, i) => {
               const ia = interactions[movie._id];
               return (

@@ -154,7 +154,7 @@ async function updateCelebrity(request: AuthenticatedRequest, { params }: { para
     // Update fields
     Object.keys(data).forEach(key => {
       if (data[key] !== undefined && key !== '_id' && key !== 'createdAt') {
-        celebrity[key] = data[key];
+        celebrity.set(key, data[key]);
       }
     });
 

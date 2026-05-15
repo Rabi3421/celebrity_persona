@@ -30,7 +30,7 @@ export default function OutfitGallery({ outfits, loading }: Props) {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[300px]">
+      <div className="grid grid-cols-1 auto-rows-[300px] gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4">
         {Array.from({ length: SKELETON_COUNT }).map((_, i) => {
           const isLarge  = i % 7 === 0 || i % 7 === 4;
           const isMedium = i % 7 === 2 || i % 7 === 5;
@@ -47,7 +47,7 @@ export default function OutfitGallery({ outfits, loading }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[300px]">
+    <div className="grid grid-cols-1 auto-rows-[300px] gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4">
       {outfits.map((outfit, index) => {
         const isLarge  = index % 7 === 0 || index % 7 === 4;
         const isMedium = index % 7 === 2 || index % 7 === 5;
@@ -97,7 +97,7 @@ export default function OutfitGallery({ outfits, loading }: Props) {
                 </div>
               )}
 
-              <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-2 group-hover:translate-y-0 transition-transform">
+              <div className="absolute bottom-0 left-0 right-0 p-4 transform translate-y-2 group-hover:translate-y-0 transition-transform sm:p-6">
                 <h3 className="font-playfair text-xl font-bold text-white mb-1">
                   {celebName(outfit.celebrity)}
                 </h3>

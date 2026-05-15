@@ -162,22 +162,22 @@ export default function FashionGalleryInteractive({
       {!loading && featured && <FeaturedOutfit outfit={featured} />}
 
       {/* Page Header */}
-      <div className="text-center mb-12 px-6 mt-24">
-        <h1 className="font-playfair text-5xl md:text-7xl font-bold text-white mb-4">
+      <div className="text-center mb-10 px-4 mt-16 sm:px-6 sm:mt-24 sm:mb-12">
+        <h1 className="font-playfair text-4xl font-bold text-white mb-4 sm:text-5xl md:text-7xl">
           Celebrity Fashion Gallery
         </h1>
-        <p className="font-inter text-lg md:text-xl text-neutral-400 max-w-2xl mx-auto">
+        <p className="font-inter text-base leading-7 text-neutral-400 max-w-2xl mx-auto md:text-xl">
           Shop the exact outfits worn by your favourite celebrities
         </p>
 
         {/* Search */}
-        <form onSubmit={handleSearch} className="mt-8 flex items-center gap-3 max-w-xl mx-auto">
+        <form onSubmit={handleSearch} className="mt-8 flex flex-col gap-3 max-w-xl mx-auto min-[430px]:flex-row min-[430px]:items-center">
           <input
             ref={searchInputRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by title, brand, designer…"
-            className="flex-1 px-5 py-3 rounded-full bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+            className="min-w-0 flex-1 px-5 py-3 rounded-full bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
           />
           <button type="submit"
             className="px-6 py-3 rounded-full bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all">
@@ -186,7 +186,7 @@ export default function FashionGalleryInteractive({
         </form>
       </div>
 
-      <div className="px-6 pb-24">
+      <div className="px-4 pb-20 sm:px-6 sm:pb-24">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Filter Sidebar */}
           <div className="lg:col-span-1">
@@ -209,9 +209,9 @@ export default function FashionGalleryInteractive({
 
             {/* Pagination */}
             {!loading && !error && pages > 1 && (
-              <div className="flex items-center justify-center gap-3 mt-12">
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-12 sm:gap-3">
                 <button disabled={page <= 1} onClick={() => fetchOutfits(page - 1)}
-                  className="px-5 py-2.5 rounded-full glass-card text-neutral-400 hover:text-white disabled:opacity-30 text-sm font-montserrat transition-all">
+                  className="px-4 py-2.5 rounded-full glass-card text-neutral-400 hover:text-white disabled:opacity-30 text-sm font-montserrat transition-all sm:px-5">
                   ← Prev
                 </button>
                 {Array.from({ length: Math.min(pages, 7) }, (_, i) => i + 1).map((n) => (
@@ -223,7 +223,7 @@ export default function FashionGalleryInteractive({
                   </button>
                 ))}
                 <button disabled={page >= pages} onClick={() => fetchOutfits(page + 1)}
-                  className="px-5 py-2.5 rounded-full glass-card text-neutral-400 hover:text-white disabled:opacity-30 text-sm font-montserrat transition-all">
+                  className="px-4 py-2.5 rounded-full glass-card text-neutral-400 hover:text-white disabled:opacity-30 text-sm font-montserrat transition-all sm:px-5">
                   Next →
                 </button>
               </div>
@@ -241,10 +241,10 @@ export default function FashionGalleryInteractive({
 
       {/* ── Community Outfits Section ──────────────────────────────────────── */}
       {(communityLoading || communityOutfits.length > 0) && (
-        <div className="px-6 pb-24">
+        <div className="px-4 pb-20 sm:px-6 sm:pb-24">
           <div className="max-w-7xl mx-auto">
             {/* Section header */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col gap-4 mb-8 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="font-playfair text-3xl md:text-4xl font-bold text-white mb-2">
                   Community Outfits
@@ -262,7 +262,7 @@ export default function FashionGalleryInteractive({
 
             {/* Grid */}
             {communityLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-pulse">
+              <div className="grid grid-cols-1 min-[380px]:grid-cols-2 md:grid-cols-4 gap-4 animate-pulse">
                 {[...Array(8)].map((_, i) => (
                   <div key={i} className="h-64 bg-white/5 rounded-2xl" />
                 ))}
@@ -278,7 +278,7 @@ export default function FashionGalleryInteractive({
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 min-[380px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {communityOutfits.map((outfit) => (
                     <Link
                       key={outfit._id}

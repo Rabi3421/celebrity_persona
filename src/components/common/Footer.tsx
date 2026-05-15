@@ -50,10 +50,10 @@ export default function Footer() {
 	}
 
 	return (
-		<footer className="bg-card text-card-foreground mt-24 border-t border-border">
-			<div className="max-w-7xl mx-auto px-6 py-12">
+		<footer className="bg-card text-card-foreground mt-16 border-t border-border sm:mt-24">
+			<div className="max-w-7xl mx-auto px-4 py-10 sm:px-6 sm:py-12">
 				{/* Newsletter */}
-				<div className="bg-card-foreground/3 border border-border rounded-lg p-8 mb-8">
+				<div className="bg-card-foreground/3 border border-border rounded-lg p-5 mb-8 sm:p-8">
 					<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 						<div className="md:flex-1">
 							<h3 className="text-xl font-semibold text-card-foreground">Sign up for our newsletter!</h3>
@@ -61,13 +61,13 @@ export default function Footer() {
 						</div>
 
 						<form onSubmit={handleSubscribe} className="w-full md:w-auto md:flex-1">
-							<div className="flex gap-3">
+							<div className="flex flex-col gap-3 sm:flex-row">
 								<input
 									type="email"
 									value={email}
 									onChange={(e) => setEmail(e.target.value)}
 									placeholder="Enter your email address here"
-									className="flex-1 bg-input border border-border rounded-lg px-4 py-3 placeholder:text-muted-foreground text-card-foreground focus:outline-none"
+									className="min-w-0 flex-1 bg-input border border-border rounded-lg px-4 py-3 placeholder:text-muted-foreground text-card-foreground focus:outline-none"
 								/>
 								<button type="submit" className="rounded-lg bg-primary text-card-foreground px-5 py-3 font-medium hover:glow-gold transition-all">
 									{subscribed ? '✓ Subscribed!' : 'Subscribe'}
@@ -80,9 +80,9 @@ export default function Footer() {
 				<div className="border-t border-border pt-10" />
 
 				{/* Main columns */}
-				<div className="grid grid-cols-1 md:grid-cols-6 gap-8 mt-8">
+				<div className="grid grid-cols-1 gap-8 mt-8 sm:grid-cols-2 lg:grid-cols-6">
 					{/* Left: logo + description */}
-					<div className="md:col-span-2">
+					<div className="sm:col-span-2 lg:col-span-2">
 						<Link
 							href="/"
 							onClick={scrollTop}
@@ -114,7 +114,7 @@ export default function Footer() {
 					</div>
 
 					{/* Column 1: Explore */}
-					<div className="md:col-span-1">
+					<div className="lg:col-span-1">
 						<h5 className="text-xs uppercase tracking-wider text-gradient-gold mb-4 font-montserrat">Explore</h5>
 						<div className="space-y-2">
 							{footerLinks.explore.map((link) => (
@@ -131,7 +131,7 @@ export default function Footer() {
 					</div>
 
 					{/* Column 2: Account */}
-					<div className="md:col-span-1">
+					<div className="lg:col-span-1">
 						<h5 className="text-xs uppercase tracking-wider text-gradient-rose mb-4 font-montserrat">Account</h5>
 						<div className="space-y-2">
 							{footerLinks.account.map((link) => (
@@ -148,7 +148,7 @@ export default function Footer() {
 					</div>
 
 					{/* Column 3: Legal */}
-					<div className="md:col-span-1">
+					<div className="lg:col-span-1">
 						<h5 className="text-xs uppercase tracking-wider text-accent mb-4 font-montserrat">Legal</h5>
 						<div className="space-y-2">
 							{footerLinks.legal.map((link) => (
@@ -165,7 +165,7 @@ export default function Footer() {
 					</div>
 
 					{/* Column 4: Contact details */}
-					<div className="md:col-span-1">
+					<div className="lg:col-span-1">
 						<h5 className="text-xs uppercase tracking-wider text-accent mb-4 font-montserrat">Contact</h5>
 						<div className="space-y-2 text-sm text-muted-foreground">
 							<div className="flex items-start gap-2">
@@ -192,9 +192,9 @@ export default function Footer() {
 				</div>
 
 				{/* Bottom bar */}
-				<div className="mt-10 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
+				<div className="mt-10 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
 					<p className="text-sm text-muted-foreground">© 2026 CelebrityPersona. All rights reserved.</p>
-					<div className="flex items-center gap-6">
+					<div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
 						{footerLinks.legal.map((link) => (
 							<Link
 								key={link.id + '_bottom'}

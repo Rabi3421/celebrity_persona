@@ -137,7 +137,7 @@ export default function ProfileSection() {
   if (loading) {
     return (
       <div className="space-y-8 animate-pulse">
-        <div className="glass-card rounded-3xl p-8 flex gap-8">
+        <div className="glass-card rounded-3xl p-5 sm:p-8 flex flex-col gap-6 sm:flex-row sm:gap-8">
           <div className="w-32 h-32 rounded-full bg-white/10 flex-shrink-0" />
           <div className="flex-1 space-y-4 pt-2">
             <div className="h-7 w-48 bg-white/10 rounded-xl" />
@@ -146,7 +146,7 @@ export default function ProfileSection() {
             <div className="h-16 w-full bg-white/5 rounded-xl" />
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 md:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="glass-card rounded-2xl p-6 h-28 bg-white/5" />
           ))}
@@ -159,8 +159,8 @@ export default function ProfileSection() {
     <div className="space-y-8">
 
       {/* ── Profile Card ─────────────────────────────────────────────── */}
-      <div className="glass-card rounded-3xl p-8">
-        <div className="flex flex-col md:flex-row gap-8">
+      <div className="glass-card rounded-3xl p-5 sm:p-8">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8">
 
           {/* Avatar */}
           <div className="flex-shrink-0 flex flex-col items-center gap-3">
@@ -208,12 +208,12 @@ export default function ProfileSection() {
 
           {/* Profile Info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between mb-6 gap-4">
-              <div>
+            <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <h2 className="font-playfair text-3xl font-bold text-white mb-1 break-words">
                   {profile?.name || authUser?.name}
                 </h2>
-                <p className="text-neutral-400 text-sm mb-1">{profile?.email || authUser?.email}</p>
+                <p className="break-anywhere text-neutral-400 text-sm mb-1">{profile?.email || authUser?.email}</p>
                 {joinLabel && (
                   <p className="text-neutral-500 text-xs">Member since {joinLabel}</p>
                 )}
@@ -221,7 +221,7 @@ export default function ProfileSection() {
               {!isEditing && (
                 <button
                   onClick={openEdit}
-                  className="glass-card px-4 py-2 rounded-full text-sm text-white hover:text-primary transition-colors flex items-center gap-2 flex-shrink-0"
+                  className="inline-flex items-center justify-center gap-2 glass-card px-4 py-2 rounded-full text-sm text-white hover:text-primary transition-colors flex-shrink-0"
                 >
                   <Icon name="PencilIcon" size={16} />
                   Edit
@@ -273,7 +273,7 @@ export default function ProfileSection() {
                   </p>
                 )}
 
-                <div className="flex items-center gap-3 pt-1">
+                <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center">
                   <button
                     onClick={handleSave}
                     disabled={saving}
@@ -320,14 +320,14 @@ export default function ProfileSection() {
       </div>
 
       {/* ── Stats Grid ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 md:grid-cols-4">
         {[
           { label: 'Saved Outfits',      value: stats ? stats.savedOutfits      : null, icon: 'HeartIcon',    color: 'text-secondary' },
           { label: 'Uploads',            value: stats ? stats.uploads            : null, icon: 'PhotoIcon',    color: 'text-primary'   },
           { label: 'Following',          value: stats ? stats.following          : null, icon: 'UserGroupIcon',color: 'text-accent'    },
           { label: 'Liked Celebrities',  value: stats ? stats.likedCelebrities   : null, icon: 'StarIcon',     color: 'text-warning'   },
         ].map((stat) => (
-          <div key={stat.label} className="glass-card rounded-2xl p-6 text-center">
+          <div key={stat.label} className="glass-card rounded-2xl p-4 text-center sm:p-6">
             <Icon name={stat.icon as never} size={24} className={`${stat.color} mx-auto mb-3`} />
             {stat.value === null ? (
               <div className="h-9 w-12 mx-auto mb-1 rounded-lg bg-white/10 animate-pulse" />

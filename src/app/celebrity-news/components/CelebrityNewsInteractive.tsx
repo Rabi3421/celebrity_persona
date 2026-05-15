@@ -129,7 +129,7 @@ export default function CelebrityNewsInteractive({
   const articleHref = (a: NewsArticleDB) => `/celebrity-news/${a.slug || a._id}`;
 
   return (
-    <section className="py-12 px-6">
+    <section className="px-4 py-10 sm:px-6 sm:py-12">
       <div className="max-w-7xl mx-auto">
 
         {/* ── Header ── */}
@@ -137,10 +137,10 @@ export default function CelebrityNewsInteractive({
           <span className="font-montserrat text-xs uppercase tracking-wider text-accent mb-4 block">
             Latest Updates
           </span>
-          <h1 className="font-playfair text-4xl md:text-6xl font-bold text-white mb-4">
+          <h1 className="font-playfair text-3xl font-bold text-white mb-4 sm:text-4xl md:text-6xl">
             Celebrity News
           </h1>
-          <p className="font-inter text-lg text-neutral-400 max-w-2xl mx-auto">
+          <p className="font-inter text-base leading-7 text-neutral-400 max-w-2xl mx-auto sm:text-lg">
             Stay updated with the latest entertainment news and celebrity updates
           </p>
         </div>
@@ -164,7 +164,7 @@ export default function CelebrityNewsInteractive({
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value)}
-            className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
+            className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer md:w-auto"
           >
             <option value="latest">Latest First</option>
             <option value="oldest">Oldest First</option>
@@ -175,7 +175,7 @@ export default function CelebrityNewsInteractive({
           <button
             onClick={() => fetchNews(1)}
             disabled={loading}
-            className="px-3 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-40"
+            className="inline-flex min-h-10 items-center justify-center px-3 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-40"
           >
             <Icon name="ArrowPathIcon" size={16} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -257,13 +257,13 @@ export default function CelebrityNewsInteractive({
                 </div>
 
                 {/* Content */}
-                <div className="p-8 lg:p-12 flex flex-col justify-center">
-                  <div className="flex items-center gap-4 mb-4">
+                  <div className="p-5 sm:p-8 lg:p-12 flex flex-col justify-center">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4">
                     <span className="text-sm text-neutral-400">{formatDate(featured.publishDate || featured.createdAt)}</span>
                     <span className="w-1 h-1 rounded-full bg-neutral-600" />
                     <span className="text-sm text-neutral-400">{readTime(featured.excerpt)}</span>
                   </div>
-                  <h2 className="font-playfair text-3xl md:text-4xl font-bold text-white mb-4 leading-tight">
+                  <h2 className="font-playfair text-2xl font-bold text-white mb-4 leading-tight sm:text-3xl md:text-4xl">
                     {featured.title}
                   </h2>
                   {featured.excerpt && (
@@ -271,7 +271,7 @@ export default function CelebrityNewsInteractive({
                       {featured.excerpt}
                     </p>
                   )}
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2 text-accent hover:gap-4 transition-all">
                       <span className="text-sm font-medium">Read Full Story</span>
                       <Icon name="ArrowRightIcon" size={16} />
@@ -338,7 +338,7 @@ export default function CelebrityNewsInteractive({
                           )}
                         </div>
                         <div className="p-6">
-                          <div className="flex items-center gap-2 mb-3 text-xs text-neutral-500">
+                          <div className="flex flex-wrap items-center gap-2 mb-3 text-xs text-neutral-500">
                             <span>{formatDate(article.publishDate || article.createdAt)}</span>
                             <span>•</span>
                             <span>{readTime(article.excerpt)}</span>
@@ -349,10 +349,10 @@ export default function CelebrityNewsInteractive({
                           {article.excerpt && (
                             <p className="text-sm text-neutral-500 line-clamp-2 mb-3">{article.excerpt}</p>
                           )}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-2">
                               <Icon name="UserIcon" size={14} className="text-neutral-500" />
-                              <span className="text-sm text-neutral-400">
+                              <span className="truncate text-sm text-neutral-400">
                                 {article.celebrity?.name || article.author || 'Staff Writer'}
                               </span>
                             </div>

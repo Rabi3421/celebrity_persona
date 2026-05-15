@@ -28,6 +28,7 @@ const menuItems: { id: SectionType; label: string; icon: string; desc: string }[
 export default function DashboardInteractive() {
   const [activeSection, setActiveSection] = useState<SectionType>('profile');
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -64,21 +65,37 @@ export default function DashboardInteractive() {
   return (
     <div className="flex min-h-screen bg-background">
 
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      <aside className={`fixed top-0 left-0 bottom-0 z-40 flex flex-col glass-card border-r border-white/10 transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-64'}`}>
+      <aside className={`fixed top-0 left-0 bottom-0 z-40 flex w-64 flex-col glass-card border-r border-white/10 transition-all duration-300 ${
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      } lg:translate-x-0 ${collapsed ? 'lg:w-[72px]' : 'lg:w-64'}`}>
 
         {/* Brand */}
-        <div className={`flex items-center gap-3 px-5 py-5 border-b border-white/10 ${collapsed ? 'justify-center px-0' : ''}`}>
-          <Link href="/" className="flex items-center gap-2 shrink-0">
+        <div className={`flex items-center gap-3 px-5 py-5 border-b border-white/10 ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}>
+          <Link href="/" className="flex items-center gap-2 shrink-0" onClick={() => setMobileOpen(false)}>
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0">
               <Icon name="SparklesIcon" size={18} className="text-black" />
             </div>
-            {!collapsed && <span className="font-playfair text-lg font-bold text-white">CelebrityPersona</span>}
+            <span className={`font-playfair text-lg font-bold text-white ${collapsed ? 'lg:hidden' : ''}`}>CelebrityPersona</span>
           </Link>
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="ml-auto rounded-lg p-1 text-neutral-400 hover:text-white lg:hidden"
+            aria-label="Close dashboard menu"
+          >
+            <Icon name="XMarkIcon" size={20} />
+          </button>
         </div>
 
         {/* User card */}
-        {!collapsed && (
+        <div className={`${collapsed ? 'lg:hidden' : ''}`}>
           <div className="mx-4 mt-5 p-4 rounded-2xl bg-white/5 border border-white/10">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0">
@@ -91,30 +108,30 @@ export default function DashboardInteractive() {
               </div>
             </div>
           </div>
-        )}
-        {collapsed && (
+        </div>
+        <div className={`${collapsed ? 'hidden lg:flex' : 'hidden'} justify-center mt-4`}>
           <div className="flex justify-center mt-4">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
               <span className="text-black font-bold text-sm">{user?.name?.charAt(0).toUpperCase()}</span>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveSection(item.id)}
+              onClick={() => { setActiveSection(item.id); setMobileOpen(false); }}
               title={collapsed ? item.label : undefined}
               className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition-all ${
                 activeSection === item.id
                   ? 'bg-primary text-black font-semibold'
                   : 'text-neutral-400 hover:text-white hover:bg-white/5'
-              } ${collapsed ? 'justify-center' : ''}`}
+              } ${collapsed ? 'lg:justify-center' : ''}`}
             >
               <Icon name={item.icon as any} size={20} className="shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              <span className={collapsed ? 'lg:hidden' : ''}>{item.label}</span>
             </button>
           ))}
         </nav>
@@ -122,41 +139,49 @@ export default function DashboardInteractive() {
         {/* Bottom actions */}
         <div className="px-3 py-4 border-t border-white/10 space-y-1">
           <Link href="/"
-            className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-neutral-400 hover:text-white hover:bg-white/5 transition-all ${collapsed ? 'justify-center' : ''}`}
+            className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-neutral-400 hover:text-white hover:bg-white/5 transition-all ${collapsed ? 'lg:justify-center' : ''}`}
             title={collapsed ? 'Home' : undefined}
+            onClick={() => setMobileOpen(false)}
           >
             <Icon name="HomeIcon" size={20} className="shrink-0" />
-            {!collapsed && <span>Home</span>}
+            <span className={collapsed ? 'lg:hidden' : ''}>Home</span>
           </Link>
           <button
             onClick={handleLogout}
             disabled={logoutLoading}
             title={collapsed ? 'Sign Out' : undefined}
-            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all disabled:opacity-50 ${collapsed ? 'justify-center' : ''}`}
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all disabled:opacity-50 ${collapsed ? 'lg:justify-center' : ''}`}
           >
             <Icon name="ArrowRightOnRectangleIcon" size={20} className="shrink-0" />
-            {!collapsed && <span>{logoutLoading ? 'Signing out...' : 'Sign Out'}</span>}
+            <span className={collapsed ? 'lg:hidden' : ''}>{logoutLoading ? 'Signing out...' : 'Sign Out'}</span>
           </button>
         </div>
 
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-primary flex items-center justify-center hover:scale-110 transition-transform z-50"
+          className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-primary hidden lg:flex items-center justify-center hover:scale-110 transition-transform z-50"
         >
           <Icon name={collapsed ? 'ChevronRightIcon' : 'ChevronLeftIcon'} size={14} className="text-black" />
         </button>
       </aside>
 
       {/* ── Main content ────────────────────────────────────────────────── */}
-      <main className={`flex-1 transition-all duration-300 ${collapsed ? 'ml-[72px]' : 'ml-64'}`}>
+      <main className={`min-w-0 flex-1 transition-all duration-300 ${collapsed ? 'lg:ml-[72px]' : 'lg:ml-64'}`}>
         {/* Top bar */}
-        <div className="sticky top-0 z-30 glass-card border-b border-white/10 px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="font-playfair text-2xl font-bold text-white">{active.label}</h1>
-            <p className="text-neutral-400 text-sm">{active.desc}</p>
+        <div className="sticky top-0 z-30 glass-card border-b border-white/10 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between gap-3">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="rounded-xl bg-white/5 p-2 text-neutral-300 hover:bg-white/10 hover:text-white lg:hidden"
+            aria-label="Open dashboard menu"
+          >
+            <Icon name="Bars3Icon" size={20} />
+          </button>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-playfair text-xl font-bold text-white sm:text-2xl">{active.label}</h1>
+            <p className="hidden truncate text-neutral-400 text-sm sm:block">{active.desc}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             <span className="text-xs text-neutral-500 hidden md:block">
               {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </span>
@@ -167,11 +192,11 @@ export default function DashboardInteractive() {
         </div>
 
         {/* Page content */}
-        <div className="p-6 md:p-10 max-w-7xl mx-auto">
+        <div className="p-4 sm:p-6 md:p-10 max-w-7xl mx-auto">
           {/* Welcome banner */}
           {activeSection === 'profile' && (
-            <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20">
-              <h2 className="font-playfair text-3xl font-bold text-white mb-1">
+            <div className="mb-8 rounded-2xl bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 p-4 sm:p-6">
+              <h2 className="font-playfair text-2xl font-bold text-white mb-1 sm:text-3xl">
                 Welcome back, {user?.name?.split(' ')[0]}! 👋
               </h2>
               <p className="text-neutral-400">Manage your celebrity fashion profile and explore exclusive content.</p>

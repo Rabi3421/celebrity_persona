@@ -176,7 +176,7 @@ function SectionHeading({
 
 function SectionCard({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-2xl border border-white/10 bg-white/[0.035] p-5 md:p-7 ${className}`}>
+    <section className={`min-w-0 rounded-2xl border border-white/10 bg-white/[0.035] p-4 sm:p-5 md:p-7 ${className}`}>
       {children}
     </section>
   );
@@ -190,7 +190,7 @@ function DataTable({
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-white/10">
+    <div className="touch-scroll-x rounded-2xl border border-white/10">
       <table className="w-full min-w-[720px] border-collapse text-sm">
         <thead className="bg-white/[0.04]">
           <tr>
@@ -422,7 +422,7 @@ export default function CelebrityProfileDetail({
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-background/75 to-background/20" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-background via-background/65 to-transparent" />
 
-        <div className="mx-auto max-w-7xl px-6 pb-14 md:px-10 md:pb-20">
+        <div className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 md:px-10 md:pb-20">
           <nav aria-label="Breadcrumb" className="mb-10 text-sm text-neutral-400">
             <ol className="flex flex-wrap items-center gap-2">
               <li>
@@ -437,7 +437,7 @@ export default function CelebrityProfileDetail({
             </ol>
           </nav>
 
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-end">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-end lg:gap-10">
             <div className="max-w-4xl">
               <div className="mb-5 flex flex-wrap gap-2">
                 {c.isFeatured && (
@@ -456,7 +456,7 @@ export default function CelebrityProfileDetail({
                 ))}
               </div>
 
-              <h1 className="font-playfair text-4xl font-bold leading-[1.05] text-white sm:text-5xl md:text-6xl">
+              <h1 className="font-playfair text-3xl font-bold leading-[1.08] text-white min-[390px]:text-4xl sm:text-5xl md:text-6xl">
                 {c.name} {headingTopics}
               </h1>
 
@@ -503,8 +503,8 @@ export default function CelebrityProfileDetail({
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl gap-8 px-6 py-12 md:px-10 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-        <div className="space-y-10">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:px-10 md:py-12 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        <div className="min-w-0 space-y-8 sm:space-y-10">
           <SectionCard>
             <SectionHeading id="overview" eyebrow="Celebrity profile">
               About {c.name}
@@ -767,7 +767,7 @@ export default function CelebrityProfileDetail({
           )}
         </div>
 
-        <aside className="space-y-5 lg:sticky lg:top-24">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
           <nav aria-labelledby="profile-toc-heading" className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
             <h2 id="profile-toc-heading" className="font-playfair text-xl font-bold text-white">
               On This Page

@@ -95,18 +95,18 @@ export default function UploadedItemsSection() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header with Upload Button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-playfair text-3xl font-bold text-white mb-2">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="font-playfair text-2xl sm:text-3xl font-bold text-white mb-2">
             My Uploads
           </h2>
-          <p className="text-neutral-400">Manage your uploaded fashion items</p>
+          <p className="text-sm sm:text-base text-neutral-400">Manage your uploaded fashion items</p>
         </div>
         <button
           onClick={() => setShowUploadModal(true)}
-          className="bg-primary text-black px-6 py-3 rounded-full font-medium hover:glow-gold transition-all flex items-center gap-2"
+          className="w-full min-[420px]:w-auto bg-primary text-black px-5 sm:px-6 py-3 rounded-full font-medium hover:glow-gold transition-all flex items-center justify-center gap-2"
         >
           <Icon name="ArrowUpTrayIcon" size={20} />
           <span>Upload New</span>
@@ -114,21 +114,21 @@ export default function UploadedItemsSection() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="glass-card rounded-2xl p-6 text-center">
-          <p className="font-playfair text-3xl font-bold text-white mb-1">
+      <div className="grid grid-cols-1 min-[430px]:grid-cols-3 gap-3 sm:gap-4">
+        <div className="glass-card rounded-2xl p-4 sm:p-6 text-center">
+          <p className="font-playfair text-2xl sm:text-3xl font-bold text-white mb-1">
             {uploadedItems.length}
           </p>
           <p className="text-sm text-neutral-400">Total Uploads</p>
         </div>
-        <div className="glass-card rounded-2xl p-6 text-center">
-          <p className="font-playfair text-3xl font-bold text-white mb-1">
+        <div className="glass-card rounded-2xl p-4 sm:p-6 text-center">
+          <p className="font-playfair text-2xl sm:text-3xl font-bold text-white mb-1">
             {uploadedItems.reduce((sum, item) => sum + item.views, 0).toLocaleString()}
           </p>
           <p className="text-sm text-neutral-400">Total Views</p>
         </div>
-        <div className="glass-card rounded-2xl p-6 text-center">
-          <p className="font-playfair text-3xl font-bold text-white mb-1">
+        <div className="glass-card rounded-2xl p-4 sm:p-6 text-center">
+          <p className="font-playfair text-2xl sm:text-3xl font-bold text-white mb-1">
             {uploadedItems.reduce((sum, item) => sum + item.likes, 0)}
           </p>
           <p className="text-sm text-neutral-400">Total Likes</p>
@@ -142,7 +142,7 @@ export default function UploadedItemsSection() {
             key={item.id}
             className="glass-card rounded-2xl overflow-hidden hover:scale-[1.02] hover:glow-gold transition-all group"
           >
-            <div className="relative h-64">
+            <div className="relative h-56 sm:h-64">
               <AppImage
                 src={item.image}
                 alt={`${item.title} - ${item.category} fashion item`}
@@ -168,11 +168,11 @@ export default function UploadedItemsSection() {
               </div>
             </div>
             <div className="p-4">
-              <h3 className="font-playfair text-lg font-bold text-white mb-1">
+              <h3 className="font-playfair text-lg font-bold text-white mb-1 break-anywhere">
                 {item.title}
               </h3>
               <p className="text-sm text-neutral-400 mb-3">{item.category}</p>
-              <div className="flex items-center justify-between text-xs text-neutral-500">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-1">
                     <Icon name="EyeIcon" size={14} />
@@ -192,10 +192,10 @@ export default function UploadedItemsSection() {
 
       {/* Upload Modal (Static) */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="glass-card rounded-3xl p-8 max-w-md w-full">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6">
+          <div className="glass-card rounded-2xl sm:rounded-3xl p-5 sm:p-8 max-w-md w-full max-h-[90svh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-playfair text-2xl font-bold text-white">
+              <h3 className="font-playfair text-xl sm:text-2xl font-bold text-white">
                 Upload Fashion Item
               </h3>
               <button
@@ -206,7 +206,7 @@ export default function UploadedItemsSection() {
               </button>
             </div>
             <div className="space-y-4">
-              <div className="glass-card rounded-2xl p-12 text-center border-2 border-dashed border-white/20 hover:border-primary/50 transition-colors cursor-pointer">
+              <div className="glass-card rounded-2xl p-8 sm:p-12 text-center border-2 border-dashed border-white/20 hover:border-primary/50 transition-colors cursor-pointer">
                 <Icon name="PhotoIcon" size={48} className="text-neutral-500 mx-auto mb-4" />
                 <p className="text-neutral-400 text-sm">Click to upload or drag and drop</p>
                 <p className="text-neutral-600 text-xs mt-1">PNG, JPG up to 10MB</p>

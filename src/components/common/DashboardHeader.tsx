@@ -58,17 +58,17 @@ export default function DashboardHeader({ title, userRole }: DashboardHeaderProp
 
   return (
     <header className="glass-card border-b border-white/10 sticky top-0 z-50">
-      <div className="px-6 py-4 flex items-center justify-between">
+      <div className="px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between gap-3">
         {/* Left: Dashboard Title */}
-        <div>
-          <h1 className="text-2xl font-playfair font-bold text-white">{title}</h1>
-          <p className="text-sm text-neutral-400 mt-1">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl sm:text-2xl font-playfair font-bold text-white">{title}</h1>
+          <p className="hidden text-sm text-neutral-400 mt-1 sm:block truncate">
             Welcome back, {currentUser.name}
           </p>
         </div>
 
         {/* Right: Notifications, Profile, Logout */}
-        <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
           {/* Notifications */}
           <div className="relative dropdown-container">
             <button
@@ -85,7 +85,7 @@ export default function DashboardHeader({ title, userRole }: DashboardHeaderProp
 
             {/* Notifications Dropdown */}
             {showNotifications && (
-              <div className="absolute right-0 top-full mt-2 w-80 glass-card rounded-xl p-4 shadow-xl">
+              <div className="fixed left-4 right-4 top-16 glass-card rounded-xl p-4 shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-white">Notifications</h3>
                   <button className="text-xs text-primary hover:underline">
@@ -129,7 +129,7 @@ export default function DashboardHeader({ title, userRole }: DashboardHeaderProp
 
             {/* Profile Dropdown */}
             {showProfileMenu && (
-              <div className="absolute right-0 top-full mt-2 w-56 glass-card rounded-xl p-2 shadow-xl">
+              <div className="fixed left-4 right-4 top-16 glass-card rounded-xl p-2 shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-56">
                 <div className="px-3 py-2 border-b border-white/10">
                   <p className="text-sm font-medium text-white">{currentUser.name}</p>
                   <p className="text-xs text-neutral-400">{currentUser.email}</p>
