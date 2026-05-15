@@ -10,6 +10,11 @@ import MovieReview from '@/models/MovieReview';
 import UserOutfit from '@/models/UserOutfit';
 import { absoluteUrl } from '@/lib/seo/site';
 import { releasedMovieQuery, upcomingMovieQuery } from '@/lib/seo/publicData';
+import {
+  getCelebrityProgrammaticTopicLinks,
+  normalizeProgrammaticCelebrityTopic,
+  topicPriority,
+} from '@/lib/seo/programmaticCelebrity';
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 type ChangeFrequency = NonNullable<SitemapEntry['changeFrequency']>;
@@ -227,6 +232,61 @@ async function fetchSourceEntries(source: SitemapSource, fallbackDate: Date): Pr
     .filter(Boolean) as SitemapEntry[];
 }
 
+async function fetchProgrammaticCelebrityEntries(fallbackDate: Date): Promise<SitemapEntry[]> {
+  const docs = await Celebrity.find(
+    andQuery(
+      { $or: [{ status: { $exists: false } }, { status: 'published' }] },
+      hasSlugFilter,
+      indexableSeoFilter('seo')
+    )
+  )
+    .select([
+      'name',
+      'slug',
+      'updatedAt',
+      'createdAt',
+      'born',
+      'age',
+      'nationality',
+      'occupation',
+      'movies',
+      'webSeries',
+      'tvShows',
+      'awards',
+      'achievements',
+      'controversies',
+      'galleryImages',
+      'tags',
+      'categories',
+      'spouse',
+      'marriages',
+      'parents',
+      'siblings',
+      'children',
+      'relatives',
+      'personalLife',
+      'netWorth',
+      'career',
+      'introduction',
+      'socialMedia',
+    ].join(' '))
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .limit(SOURCE_LIMIT)
+    .lean();
+
+  return docs.flatMap((doc: Record<string, any>) =>
+    getCelebrityProgrammaticTopicLinks(doc).map((link) => {
+      const topic = normalizeProgrammaticCelebrityTopic(link.href.split('/').pop());
+      return createEntry(
+        link.href,
+        lastModified(doc, fallbackDate),
+        'monthly',
+        topic ? topicPriority(topic) : 0.55
+      );
+    })
+  );
+}
+
 function uniqueEntries(entries: SitemapEntry[]): MetadataRoute.Sitemap {
   const byUrl = new Map<string, SitemapEntry>();
 
@@ -246,7 +306,10 @@ export async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
 
     const dynamicRoutes = (
       await Promise.all(
-        sitemapSources().map((source) => fetchSourceEntries(source, fallbackDate))
+        [
+          ...sitemapSources().map((source) => fetchSourceEntries(source, fallbackDate)),
+          fetchProgrammaticCelebrityEntries(fallbackDate),
+        ]
       )
     ).flat();
 
