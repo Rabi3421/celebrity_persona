@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
+import BrandLogo from '@/components/brand/BrandLogo';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -104,13 +105,13 @@ export default function Header() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3">
         {/* Logo */}
-        <Link href="/" className="flex min-w-0 items-center gap-2">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-            <Icon name="SparklesIcon" size={20} className="text-black" />
-          </div>
-          <span className="truncate font-playfair text-lg font-bold text-white sm:text-2xl">
-            CelebrityPersona
-          </span>
+        <Link href="/" className="flex min-w-0 items-center">
+          <BrandLogo
+            variant="compact"
+            tone="dark"
+            markClassName="h-9 w-9 sm:h-10 sm:w-10"
+            textClassName="max-w-[11rem] sm:max-w-none"
+          />
         </Link>
 
         {/* Desktop Navigation */}

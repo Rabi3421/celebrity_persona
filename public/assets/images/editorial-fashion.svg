@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-label="Fashion">
+  <rect width="1200" height="800" fill="#120B18"/>
+  <rect x="0" y="0" width="92" height="800" fill="#0B0710"/>
+  <rect x="92" y="0" width="4" height="800" fill="#C78C93"/>
+  <rect x="835" y="0" width="365" height="800" fill="#1B1025"/>
+  <rect x="132" y="104" width="936" height="592" rx="34" fill="none" stroke="#C78C93" stroke-width="2" opacity=".85"/>
+  <text x="170" y="202" font-family="Didot, 'Bodoni 72', Georgia, serif" font-size="82" font-weight="700" fill="#F8F1E7">Fashion</text>
+  <text x="174" y="270" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="5" fill="#C78C93">OUTFITS / DESIGNERS / DETAILS</text>
+  <text x="174" y="610" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="19" font-weight="600" letter-spacing="4" fill="#B9AFA2">CELEBRITYPERSONA</text>
+  <g transform="translate(858 178) scale(2.6)">
+    <rect x="7" y="7" width="82" height="82" rx="22" fill="#120B18" stroke="#C78C93" stroke-width="3"/>
+    <path d="M24 74h48" stroke="#C78C93" stroke-width="2" stroke-linecap="round" opacity=".75"/>
+    <path d="M72 20l4 4-4 4-4-4 4-4Z" fill="#C78C93"/>
+    <text x="40" y="60" text-anchor="middle" font-family="Didot, 'Bodoni 72', Georgia, serif" font-size="43" font-weight="700" fill="#C78C93">C</text>
+    <text x="58" y="60" text-anchor="middle" font-family="Didot, 'Bodoni 72', Georgia, serif" font-size="43" font-weight="700" fill="#F8F1E7">P</text>
+  </g>
+</svg>

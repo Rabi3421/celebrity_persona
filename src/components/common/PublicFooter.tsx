@@ -2,9 +2,9 @@ import Link from 'next/link';
 import {
   ArrowUpRightIcon,
   EnvelopeIcon,
-  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { primaryNavigation } from '@/app/components/homepageContent';
+import BrandLogo from '@/components/brand/BrandLogo';
 
 const uploadHref = '/login?redirect=%2Fdashboard%3Fsection%3Duploads';
 
@@ -138,19 +138,15 @@ export default function PublicFooter() {
 
         <div className="grid gap-12 lg:grid-cols-[1.18fr_1.82fr] lg:gap-16">
           <section aria-labelledby="footer-brand" className="lg:max-w-md">
-            <Link href="/" aria-label="CelebrityPersona home" className="mb-7 inline-flex items-center gap-4">
-              <span className="flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-primary shadow-2xl shadow-primary/10">
-                <SparklesIcon width={23} height={23} aria-hidden="true" />
-              </span>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">
-                  Discover
-                </span>
-                <h2 id="footer-brand" className="mt-1 font-playfair text-3xl font-bold text-white">
-                  CelebrityPersona
-                </h2>
-              </div>
+            <Link href="/" aria-label="CelebrityPersona home" className="mb-7 inline-flex items-center">
+              <BrandLogo
+                variant="full"
+                tone="dark"
+                markClassName="h-14 w-14"
+                textClassName="text-2xl sm:text-3xl"
+              />
             </Link>
+            <h2 id="footer-brand" className="sr-only">CelebrityPersona</h2>
 
             <p className="max-w-md text-sm leading-7 text-neutral-400">
               CelebrityPersona covers celebrity profiles, fashion inspiration, shoppable outfit

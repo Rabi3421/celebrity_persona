@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
+import BrandLogo from '@/components/brand/BrandLogo';
 
 interface FormErrors {
   name?: string;
@@ -119,10 +120,7 @@ export default function SignupForm() {
         <div className="w-full max-w-md">
           {/* Mobile-only brand */}
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-              <Icon name="SparklesIcon" size={18} className="text-black" />
-            </div>
-            <span className="font-playfair text-xl font-bold text-white">CelebrityPersona</span>
+            <BrandLogo variant="compact" tone="dark" markClassName="h-9 w-9" textClassName="text-xl sm:text-xl" />
           </div>
 
           <div className="mb-8">
@@ -243,10 +241,7 @@ export default function SignupForm() {
 
         {/* Brand mark */}
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-            <Icon name="SparklesIcon" size={20} className="text-black" />
-          </div>
-          <span className="font-playfair text-2xl font-bold text-white">CelebrityPersona</span>
+          <BrandLogo variant="compact" tone="dark" markClassName="h-10 w-10" />
         </div>
 
         {/* Centre graphic content */}

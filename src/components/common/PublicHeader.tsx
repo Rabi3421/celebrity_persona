@@ -6,10 +6,10 @@ import { usePathname } from 'next/navigation';
 import {
   ArrowUpTrayIcon,
   Bars3Icon,
-  SparklesIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { primaryNavigation } from '@/app/components/homepageContent';
+import BrandLogo from '@/components/brand/BrandLogo';
 
 const uploadHref = '/login?redirect=%2Fdashboard%3Fsection%3Duploads';
 
@@ -24,13 +24,13 @@ export default function PublicHeader() {
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-background/90 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-        <Link href="/" aria-label="CelebrityPersona home" className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-black sm:h-10 sm:w-10">
-            <SparklesIcon width={20} height={20} aria-hidden="true" />
-          </span>
-          <span className="truncate font-playfair text-lg font-bold text-white sm:text-2xl">
-            CelebrityPersona
-          </span>
+        <Link href="/" aria-label="CelebrityPersona home" className="flex min-w-0 items-center">
+          <BrandLogo
+            variant="compact"
+            tone="dark"
+            markClassName="h-9 w-9 sm:h-10 sm:w-10"
+            textClassName="max-w-[11rem] sm:max-w-none"
+          />
         </Link>
 
         <nav aria-label="Primary navigation" className="hidden items-center gap-1 lg:flex">

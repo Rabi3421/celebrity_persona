@@ -3,6 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
+import BrandLogo from '@/components/brand/BrandLogo';
 
 export default function NotFound() {
     const router = useRouter();
@@ -20,6 +21,9 @@ export default function NotFound() {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
             <div className="text-center max-w-md">
+                <div className="mb-8 flex justify-center">
+                    <BrandLogo variant="compact" tone="dark" markClassName="h-11 w-11" />
+                </div>
                 <div className="flex justify-center mb-6">
                     <div className="relative">
                         <h1 className="text-9xl font-bold text-primary opacity-20">404</h1>

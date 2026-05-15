@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
+import BrandLogo from '@/components/brand/BrandLogo';
 
 export default function Footer() {
 	const [email, setEmail] = useState('');
@@ -88,11 +89,9 @@ export default function Footer() {
 							onClick={scrollTop}
 							className="flex items-start gap-3 mb-4 text-left hover:opacity-80 transition-opacity"
 						>
-							<div className="w-12 h-12 flex items-center justify-center rounded-full bg-card border border-border flex-shrink-0">
-								<Icon name="SparklesIcon" size={20} className="text-gradient-gold" />
-							</div>
-							<div>
-								<h4 className="font-playfair text-lg">CelebrityPersona</h4>
+							<BrandLogo variant="icon" tone="dark" markClassName="h-12 w-12" />
+							<div className="min-w-0">
+								<BrandLogo variant="compact" tone="dark" markClassName="hidden" textClassName="text-lg sm:text-lg" />
 								<p className="text-sm text-muted-foreground mt-2">CelebrityPersona brings together celebrity styles, reviews and curated looks. Sign up now for free to take advantage of exclusive content.</p>
 							</div>
 						</Link>

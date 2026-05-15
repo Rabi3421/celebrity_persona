@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="CelebrityPersona CP monogram">
+  <rect x="7" y="7" width="82" height="82" rx="22" fill="#F8F1E7" stroke="#D8B36A" stroke-width="3"/>
+  <path d="M24 74h48" stroke="#D8B36A" stroke-width="2" stroke-linecap="round" opacity=".75"/>
+  <path d="M72 20l4 4-4 4-4-4 4-4Z" fill="#D8B36A"/>
+  <text x="40" y="60" text-anchor="middle"
+    font-family="Didot, 'Bodoni 72', Georgia, 'Times New Roman', serif"
+    font-size="43" font-weight="700" fill="#D8B36A">C</text>
+  <text x="58" y="60" text-anchor="middle"
+    font-family="Didot, 'Bodoni 72', Georgia, 'Times New Roman', serif"
+    font-size="43" font-weight="700" fill="#151018">P</text>
+</svg>

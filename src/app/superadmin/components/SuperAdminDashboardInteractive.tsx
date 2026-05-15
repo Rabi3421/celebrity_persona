@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
+import BrandLogo from '@/components/brand/BrandLogo';
 import AllDataAccessSection from './AllDataAccessSection';
 import CelebrityManagementSection from './CelebrityManagementSection';
 import MovieManagementSection from './MovieManagementSection';
@@ -105,11 +106,13 @@ export default function SuperAdminDashboardInteractive() {
 
         {/* Brand */}
         <div className={`flex items-center gap-3 px-5 py-9 border-b border-white/10 ${collapsed ? 'xl:justify-center xl:px-0' : ''}`}>
-          <Link href="/" className="flex items-center gap-2 shrink-0" onClick={() => setMobileOpen(false)}>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center shrink-0">
-              <Icon name="StarIcon" size={18} className="text-black" />
-            </div>
-            <span className={`font-playfair text-lg font-bold text-white ${collapsed ? 'xl:hidden' : ''}`}>CelebrityPersona</span>
+          <Link href="/" className="flex min-w-0 items-center shrink-0" onClick={() => setMobileOpen(false)}>
+            <BrandLogo
+              variant="compact"
+              tone="dark"
+              markClassName="h-9 w-9"
+              textClassName={`text-lg sm:text-lg ${collapsed ? 'xl:hidden' : ''}`}
+            />
           </Link>
           {/* Close button on mobile */}
           <button
