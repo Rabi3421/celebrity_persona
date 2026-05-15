@@ -250,20 +250,20 @@ export default function UpcomingMoviesInteractive({
       {/* ── Hero ── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white">
         <div className="absolute inset-0 bg-black/30" />
-        <div className="container mx-auto px-4 py-20 relative z-10">
+        <div className="container mx-auto px-4 py-14 sm:py-20 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             className="text-center max-w-4xl mx-auto"
           >
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold mb-5 bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 bg-clip-text text-transparent sm:text-5xl md:text-7xl md:mb-6">
               Upcoming Movies 2026
             </h1>
-            <p className="text-xl md:text-2xl mb-8 text-gray-200">
+            <p className="text-base leading-7 md:text-2xl mb-8 text-gray-200">
               Discover the most anticipated films of the year. From blockbuster spectacles to indie masterpieces.
             </p>
-            <div className="flex flex-wrap justify-center gap-4 text-lg">
+            <div className="flex flex-wrap justify-center gap-3 text-sm sm:gap-4 sm:text-lg">
               <span className="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
                 🎬 {total} Movie{total !== 1 ? 's' : ''}
               </span>
@@ -280,18 +280,18 @@ export default function UpcomingMoviesInteractive({
       </section>
 
       {/* ── Filters ── */}
-      <section className="container mx-auto px-4 py-6 sticky top-24 bg-background/95 backdrop-blur-sm z-20 border-b border-white/10">
+      <section className="container mx-auto px-4 py-4 sm:py-6 sticky top-16 sm:top-20 bg-background/95 backdrop-blur-sm z-20 border-b border-white/10">
         <div className="flex flex-wrap gap-3 items-center justify-between">
-          <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
             {/* Search */}
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">🔍</span>
               <input
                 type="text"
                 placeholder="Search movies, directors, actors..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 text-sm w-64"
+                className="w-full pl-9 pr-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 text-sm sm:w-64"
               />
             </div>
 
@@ -299,7 +299,7 @@ export default function UpcomingMoviesInteractive({
             <select
               value={filterGenre}
               onChange={e => { setFilterGenre(e.target.value); fetchMovies(1, searchTerm, e.target.value, sortBy); }}
-              className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
+              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer sm:w-auto"
             >
               <option value="all">All Genres</option>
               {allGenres.map(g => <option key={g} value={g}>{g}</option>)}
@@ -309,7 +309,7 @@ export default function UpcomingMoviesInteractive({
             <select
               value={sortBy}
               onChange={e => { setSortBy(e.target.value); fetchMovies(1, searchTerm, filterGenre, e.target.value); }}
-              className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
+              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer sm:w-auto"
             >
               <option value="anticipation">Most Anticipated</option>
               <option value="release">Release Date</option>
@@ -341,10 +341,10 @@ export default function UpcomingMoviesInteractive({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+            className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-8 lg:grid-cols-3"
           >
             {movies.length === 0 && !loading && (
-              <div className="col-span-3 py-20 text-center text-neutral-500">
+              <div className="col-span-full py-20 text-center text-neutral-500">
                 <div className="text-5xl mb-4">🎬</div>
                 <p className="text-lg">No movies found. Try a different search or filter.</p>
               </div>
@@ -535,7 +535,7 @@ export default function UpcomingMoviesInteractive({
 
         {/* Pagination */}
         {pages > 1 && (
-          <div className="flex justify-center items-center gap-3 mt-12">
+          <div className="flex flex-wrap justify-center items-center gap-2 mt-12 sm:gap-3">
             <button
               onClick={() => fetchMovies(page - 1)}
               disabled={page <= 1 || loading}

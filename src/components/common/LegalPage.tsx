@@ -131,16 +131,16 @@ export default function LegalPage({
 	const styles = accentStyles[accentColor];
 
 	return (
-		<div className="max-w-7xl mx-auto px-4 md:px-8 pb-24">
+		<div className="max-w-7xl mx-auto px-4 md:px-8 pb-20 sm:pb-24">
 			{/* Hero Header */}
 			<div className="relative mb-14">
 				<div className={`absolute inset-x-0 top-0 h-40 bg-gradient-to-b ${styles.topBar} rounded-2xl blur-2xl opacity-40 pointer-events-none`} />
-				<div className="relative text-center py-14 px-6 glass-card rounded-2xl border border-border">
+				<div className="relative text-center py-10 px-4 sm:px-6 sm:py-14 glass-card rounded-2xl border border-border">
 					<span className={`inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest px-3 py-1 rounded-full mb-5 ${styles.badge}`}>
 						<Icon name="ShieldCheckIcon" size={13} />
 						{badge}
 					</span>
-					<h1 className={`font-playfair text-4xl md:text-5xl font-bold mb-4 ${styles.titleGradient || 'text-card-foreground'}`}>
+					<h1 className={`font-playfair text-3xl sm:text-4xl md:text-5xl font-bold mb-4 ${styles.titleGradient || 'text-card-foreground'}`}>
 						{title}
 					</h1>
 					<p className="text-xs text-muted-foreground mb-4 tracking-wide uppercase">{subtitle}</p>
@@ -229,7 +229,7 @@ export default function LegalPage({
 						<div
 							key={section.id}
 							id={section.id}
-							className="glass-card rounded-xl border border-border p-6 md:p-8 scroll-mt-32 transition-all hover:border-border/60"
+							className="glass-card rounded-xl border border-border p-4 sm:p-6 md:p-8 scroll-mt-32 transition-all hover:border-border/60"
 						>
 							<div className="flex items-start gap-4 mb-5">
 								<div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold bg-muted/40 ${styles.activeText}`}>
@@ -239,7 +239,7 @@ export default function LegalPage({
 									{section.title}
 								</h2>
 							</div>
-							<div className="pl-12 text-sm md:text-base">
+							<div className="text-sm md:text-base sm:pl-12">
 								{renderContent(section.content)}
 							</div>
 						</div>

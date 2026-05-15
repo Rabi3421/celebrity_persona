@@ -102,19 +102,19 @@ export default function Header() {
         isScrolled ? 'glass-card py-4' : 'bg-transparent py-6'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+        <Link href="/" className="flex min-w-0 items-center gap-2">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
             <Icon name="SparklesIcon" size={20} className="text-black" />
           </div>
-          <span className="font-playfair text-2xl font-bold text-white">
+          <span className="truncate font-playfair text-lg font-bold text-white sm:text-2xl">
             CelebrityPersona
           </span>
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
           {primaryLinks.map((link) => (
             <Link
               key={link?.id}
@@ -162,7 +162,7 @@ export default function Header() {
 
         {/* Auth Buttons - Desktop */}
         {isAuthenticated && user ? (
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-3">
             {/* Upload Outfit button always visible for logged-in users */}
             <button
               onClick={handleUploadOutfit}
@@ -174,14 +174,14 @@ export default function Header() {
             <div className="relative user-menu-container">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 glass-card px-4 py-2.5 rounded-full hover:glow-gold transition-all"
+                className="flex max-w-[15rem] items-center gap-2 glass-card px-4 py-2.5 rounded-full hover:glow-gold transition-all"
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
                   <span className="text-black font-semibold text-sm">
                     {user.name.charAt(0).toUpperCase()}
                   </span>
                 </div>
-                <span className="text-sm font-medium text-white">{user.name}</span>
+                <span className="truncate text-sm font-medium text-white">{user.name}</span>
                 <Icon name="ChevronDownIcon" size={16} className="text-white" />
               </button>
               
@@ -210,7 +210,7 @@ export default function Header() {
             </div>
           </div>
         ) : (
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-3">
             <Link
               href="/login"
               className="glass-card px-5 py-2.5 rounded-full text-sm font-medium text-white hover:text-primary transition-all"
@@ -229,7 +229,9 @@ export default function Header() {
         {/* Mobile Menu Button */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="md:hidden glass-card p-2 rounded-lg"
+          aria-expanded={isMobileMenuOpen}
+          aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          className="lg:hidden glass-card p-2 rounded-lg shrink-0"
         >
           <Icon
             name={isMobileMenuOpen ? 'XMarkIcon' : 'Bars3Icon'}
@@ -240,15 +242,15 @@ export default function Header() {
       </div>
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden glass-card mt-4 mx-6 rounded-2xl p-6 space-y-4">
+        <div className="lg:hidden glass-card mt-4 mx-4 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-2xl p-4 sm:mx-6 sm:p-6 space-y-3">
           {navLinks?.map((link) => (
             <Link
               key={link?.id}
               href={link?.href ?? '/'}
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block text-base font-medium transition-colors ${
+              className={`block rounded-xl px-3 py-2.5 text-base font-medium transition-colors ${
                 pathname === link?.href
-                  ? 'text-primary' :'text-neutral-300 hover:text-white'
+                  ? 'bg-primary text-black' :'text-neutral-300 hover:bg-white/5 hover:text-white'
               }`}
             >
               {link?.label}

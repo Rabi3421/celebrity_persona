@@ -11,21 +11,21 @@ export default function CelebrityCarousel({ celebrities = [] }: CelebritySpotlig
   const items = celebrities.length > 0 ? celebrities : fallbackCelebrities;
 
   return (
-    <section id="celebrity-spotlight" aria-labelledby="celebrity-spotlight-heading" className="px-4 py-20 sm:px-6">
+    <section id="celebrity-spotlight" aria-labelledby="celebrity-spotlight-heading" className="px-4 py-16 sm:px-6 lg:py-20">
       <div className="mx-auto max-w-7xl">
         <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="font-montserrat text-xs font-semibold uppercase tracking-wider text-primary">
               Featured celebrities
             </p>
-            <h2 id="celebrity-spotlight-heading" className="mt-3 font-playfair text-4xl font-bold text-white md:text-5xl">
+            <h2 id="celebrity-spotlight-heading" className="mt-3 font-playfair text-3xl font-bold text-white sm:text-4xl md:text-5xl">
               Celebrity Spotlight
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-400">
               Crawlable celebrity profile links with bios, style coverage, movie updates, and verified profile details.
             </p>
           </div>
-          <Link href="/celebrity-profiles" className="text-sm font-semibold text-primary hover:text-white">
+          <Link href="/celebrity-profiles" className="inline-flex text-sm font-semibold text-primary hover:text-white">
             View all celebrity profiles
           </Link>
         </div>
@@ -44,8 +44,8 @@ export default function CelebrityCarousel({ celebrities = [] }: CelebritySpotlig
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-5">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-playfair text-2xl font-bold text-white">{celebrity.name}</h3>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <h3 className="truncate font-playfair text-2xl font-bold text-white">{celebrity.name}</h3>
                       <CheckBadgeIcon width={20} height={20} aria-hidden="true" className="text-primary" />
                     </div>
                     <p className="mt-1 text-sm text-neutral-300">{celebrity.profession}</p>

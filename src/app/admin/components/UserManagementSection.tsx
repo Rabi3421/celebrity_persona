@@ -151,7 +151,7 @@ export default function UserManagementSection() {
       </div>
 
       {/* User Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 xl:grid-cols-4">
         <div className="glass-card rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-2">
             <Icon name="UsersIcon" size={24} className="text-primary" />
@@ -190,8 +190,8 @@ export default function UserManagementSection() {
 
       {/* Users Table */}
       <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="touch-scroll-x">
+          <table className="w-full min-w-[760px]">
             <thead className="bg-white/5">
               <tr>
                 <th className="text-left px-6 py-4 text-sm font-medium text-neutral-400">
@@ -226,9 +226,9 @@ export default function UserManagementSection() {
                       height={40}
                       className="rounded-full w-10 h-10 object-cover" />
                     
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-white font-medium">{user.name}</p>
-                        <p className="text-neutral-400 text-sm">{user.email}</p>
+                        <p className="text-neutral-400 text-sm break-anywhere">{user.email}</p>
                       </div>
                     </div>
                   </td>
@@ -297,7 +297,7 @@ export default function UserManagementSection() {
       {/* Edit User Modal */}
       {isEditModalOpen && selectedUser &&
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
-          <div className="glass-card rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="glass-card rounded-3xl p-5 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-playfair text-2xl font-bold text-white">Edit User</h2>
               <button
@@ -310,7 +310,7 @@ export default function UserManagementSection() {
 
             <div className="space-y-6">
               {/* Avatar */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 min-w-0">
                 <AppImage
                 src={selectedUser.avatar}
                 alt={selectedUser.avatarAlt}
@@ -318,9 +318,9 @@ export default function UserManagementSection() {
                 height={80}
                 className="rounded-full w-20 h-20 object-cover" />
               
-                <div>
+                <div className="min-w-0">
                   <p className="text-white font-medium mb-1">{selectedUser.name}</p>
-                  <p className="text-neutral-400 text-sm">{selectedUser.email}</p>
+                  <p className="break-anywhere text-neutral-400 text-sm">{selectedUser.email}</p>
                 </div>
               </div>
 
@@ -396,7 +396,7 @@ export default function UserManagementSection() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-col gap-3 pt-4 sm:flex-row">
                 <button
                 onClick={handleSaveUser}
                 className="flex-1 bg-primary text-black font-medium px-6 py-3 rounded-xl hover:glow-gold transition-all">

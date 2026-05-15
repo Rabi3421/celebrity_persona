@@ -21,23 +21,23 @@ export default function FeaturedOutfit({ outfit }: Props) {
   const occasionLabel = outfit.event ? outfit.event.toUpperCase() : outfit.category?.toUpperCase() || 'FEATURED';
 
   return (
-    <section className="py-24 px-6">
+    <section className="px-4 py-16 sm:px-6 sm:py-20 lg:py-24">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-10 sm:mb-16">
           <span className="font-montserrat text-xs uppercase tracking-wider text-secondary mb-4 block">
             Featured This Week
           </span>
-          <h2 className="font-playfair text-4xl md:text-5xl font-bold text-white mb-4">
+          <h2 className="font-playfair text-3xl font-bold text-white mb-4 sm:text-4xl md:text-5xl">
             Outfit of the Week
           </h2>
         </div>
 
-        <div className="glass-card rounded-3xl overflow-hidden">
+        <div className="glass-card overflow-hidden rounded-2xl sm:rounded-3xl">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-0">
 
             {/* Main Image */}
-            <div className="lg:col-span-3 relative aspect-[3/4] lg:aspect-auto min-h-[400px]">
+            <div className="lg:col-span-3 relative aspect-[3/4] min-h-[320px] sm:min-h-[400px] lg:aspect-auto">
               {img ? (
                 <Image
                   src={img}
@@ -78,9 +78,9 @@ export default function FeaturedOutfit({ outfit }: Props) {
             </div>
 
             {/* Details */}
-            <div className="lg:col-span-2 p-8 lg:p-12 flex flex-col justify-center">
+            <div className="lg:col-span-2 p-5 sm:p-8 lg:p-12 flex flex-col justify-center">
               <div className="mb-6">
-                <h3 className="font-playfair text-3xl md:text-4xl font-bold text-white mb-1">
+                <h3 className="font-playfair text-2xl font-bold text-white mb-1 sm:text-3xl md:text-4xl">
                   {celebName(outfit.celebrity)}
                 </h3>
                 <p className="text-lg text-neutral-400">{outfit.title}</p>

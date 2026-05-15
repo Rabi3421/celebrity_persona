@@ -20,8 +20,8 @@ function ratingColor(r: number) {
 
 function SkeletonCard() {
   return (
-    <div className="flex gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] animate-pulse">
-      <div className="w-24 h-36 rounded-xl bg-white/[0.06] shrink-0" />
+    <div className="flex flex-col gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] animate-pulse sm:flex-row sm:p-5">
+      <div className="h-48 w-full rounded-xl bg-white/[0.06] sm:h-36 sm:w-24 sm:shrink-0" />
       <div className="flex-1 space-y-3 py-1">
         <div className="h-4 bg-white/[0.06] rounded-lg w-3/4" />
         <div className="h-3 bg-white/[0.04] rounded-lg w-1/2" />
@@ -80,14 +80,14 @@ export default function ReviewsList({ reviews, loading }: ReviewsListProps) {
           <Link
             key={review._id}
             href={`/reviews/${review.slug}`}
-            className="group flex gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06]
+            className="group flex flex-col gap-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4 sm:flex-row sm:p-5
               hover:bg-white/[0.06] hover:border-white/[0.14] transition-all duration-300 relative overflow-hidden"
           >
             {/* Hover glow */}
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br from-yellow-500/[0.04] to-transparent pointer-events-none" />
 
             {/* Poster */}
-            <div className="relative w-24 h-36 rounded-xl overflow-hidden shrink-0 bg-white/[0.06]">
+            <div className="relative h-56 w-full overflow-hidden rounded-xl bg-white/[0.06] sm:h-36 sm:w-24 sm:shrink-0">
               {review.poster ? (
                 <Image
                   src={review.poster}
@@ -182,7 +182,7 @@ export default function ReviewsList({ reviews, loading }: ReviewsListProps) {
               )}
 
               {/* Author + date */}
-              <div className="flex items-center justify-between mt-auto">
+              <div className="flex flex-wrap items-center justify-between gap-2 mt-auto">
                 <div className="flex items-center gap-2 min-w-0">
                   {review.author?.avatar && /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif|avif|svg)(\?.*)?$/i.test(review.author.avatar) ? (
                     <Image src={review.author.avatar} alt={review.author.name ?? ''} width={22} height={22}

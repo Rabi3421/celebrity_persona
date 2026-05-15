@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
 
-export interface IMovie extends Document {
+export interface IMovie {
   name: string;
   role: string;
   year: string;
@@ -10,7 +10,7 @@ export interface IMovie extends Document {
   _id?: string;
 }
 
-export interface IWebSeries extends Document {
+export interface IWebSeries {
   name: string;
   role: string;
   seasons: string;
@@ -21,7 +21,7 @@ export interface IWebSeries extends Document {
   _id?: string;
 }
 
-export interface ITvShow extends Document {
+export interface ITvShow {
   name: string;
   role: string;
   seasons: string;
@@ -32,7 +32,7 @@ export interface ITvShow extends Document {
   _id?: string;
 }
 
-export interface IAward extends Document {
+export interface IAward {
   title: string;
   category?: string;
   year?: string;
@@ -50,7 +50,7 @@ export interface IMarriage {
   _id?: string;
 }
 
-export interface ISEO extends Document {
+export interface ISEO {
   metaTitle?: string;
   metaDescription?: string;
   metaKeywords: string[];
@@ -91,7 +91,7 @@ export interface ISEO extends Document {
   authorUrl?: string;
 }
 
-export interface ICelebrity extends Document {
+export interface ICelebrity extends Document<string> {
   _id: string;
   name: string;
   slug: string;

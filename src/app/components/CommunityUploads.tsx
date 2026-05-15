@@ -13,14 +13,14 @@ export default function CommunityUploads({ uploads = [] }: CommunityUploadsProps
   const items = uploads.length > 0 ? uploads : fallbackUploads;
 
   return (
-    <section id="community-uploads" aria-labelledby="community-uploads-heading" className="bg-card px-4 py-20 sm:px-6">
+    <section id="community-uploads" aria-labelledby="community-uploads-heading" className="bg-card px-4 py-16 sm:px-6 lg:py-20">
       <div className="mx-auto max-w-7xl">
         <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="font-montserrat text-xs font-semibold uppercase tracking-wider text-secondary">
               Community fashion
             </p>
-            <h2 id="community-uploads-heading" className="mt-3 font-playfair text-4xl font-bold text-white md:text-5xl">
+            <h2 id="community-uploads-heading" className="mt-3 font-playfair text-3xl font-bold text-white sm:text-4xl md:text-5xl">
               User Outfit Inspiration
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-400">
@@ -29,7 +29,7 @@ export default function CommunityUploads({ uploads = [] }: CommunityUploadsProps
           </div>
           <Link
             href={uploadHref}
-            className="inline-flex items-center rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:border-secondary/60 hover:text-secondary"
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:border-secondary/60 hover:text-secondary"
           >
             <ArrowUpTrayIcon width={16} height={16} aria-hidden="true" className="mr-2" />
             Upload your look
@@ -56,7 +56,7 @@ export default function CommunityUploads({ uploads = [] }: CommunityUploadsProps
                   <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
                     By {upload.uploaderName}
                   </p>
-                  <h3 className="mt-2 font-playfair text-xl font-semibold text-white">{upload.title}</h3>
+                  <h3 className="mt-2 font-playfair text-xl font-semibold leading-snug text-white">{upload.title}</h3>
                   <div className="mt-4 flex items-center gap-5 text-sm text-neutral-400">
                     <span className="inline-flex items-center gap-2">
                       <HeartIcon width={16} height={16} aria-hidden="true" className="text-secondary" />

@@ -185,8 +185,8 @@ function PasswordModal({
   if (!type || type === 'generate') return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="glass-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="glass-card border border-border rounded-2xl p-5 sm:p-6 w-full max-w-sm shadow-2xl max-h-[90svh] overflow-y-auto">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <Icon name="LockClosedIcon" size={20} className="text-primary" />
@@ -437,16 +437,16 @@ export default function ApiSection() {
         error={modalError}
       />
 
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="p-6 rounded-2xl bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-              <Icon name="KeyIcon" size={24} className="text-primary" />
+        <div className="p-4 sm:p-6 rounded-2xl bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <Icon name="KeyIcon" size={22} className="text-primary" />
             </div>
-            <div className="flex-1">
-              <h2 className="font-playfair text-2xl font-bold text-white mb-1">API Access</h2>
+            <div className="flex-1 min-w-0">
+              <h2 className="font-playfair text-xl sm:text-2xl font-bold text-white mb-1">API Access</h2>
               <p className="text-neutral-400 text-sm max-w-2xl">
                 Use your personal API key to query CelebrityPersona data programmatically.
                 Each key is unique to your account. Free tier: <span className="text-primary font-semibold">100 requests / month</span>.
@@ -464,13 +464,13 @@ export default function ApiSection() {
 
         {/* ── Key panel ──────────────────────────────────────────────────── */}
         {statsLoading ? (
-          <div className="glass-card border border-border rounded-2xl p-8 flex items-center justify-center gap-3">
+          <div className="glass-card border border-border rounded-2xl p-5 sm:p-8 flex items-center justify-center gap-3">
             <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             <span className="text-neutral-400 text-sm">Loading API info...</span>
           </div>
         ) : !hasKey ? (
           /* No key yet */
-          <div className="glass-card border border-border rounded-2xl p-8 text-center">
+          <div className="glass-card border border-border rounded-2xl p-5 sm:p-8 text-center">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
               <Icon name="KeyIcon" size={30} className="text-primary" />
             </div>
@@ -499,12 +499,12 @@ export default function ApiSection() {
           </div>
         ) : (
           /* Has key */
-          <div className="glass-card border border-border rounded-2xl p-6 space-y-6">
+          <div className="glass-card border border-border rounded-2xl p-4 sm:p-6 space-y-6 min-w-0">
             {/* Key display */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-col min-[430px]:flex-row min-[430px]:items-center min-[430px]:justify-between gap-2 mb-2">
                 <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">Your API Key</span>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {stats && (
                     <>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -526,20 +526,20 @@ export default function ApiSection() {
 
               {/* Revealed key */}
               {revealedKey ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-input border border-primary/30 rounded-xl px-4 py-3 font-mono text-sm text-primary break-all">
+                <div className="flex flex-col min-[430px]:flex-row min-[430px]:items-center gap-2">
+                  <div className="min-w-0 flex-1 bg-input border border-primary/30 rounded-xl px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm text-primary break-all">
                     {revealedKey}
                   </div>
                   <button
                     onClick={copyKey}
-                    className="flex-shrink-0 p-3 rounded-xl border border-border hover:border-primary/50 text-neutral-400 hover:text-primary transition-all"
+                    className="w-full min-[430px]:w-auto flex-shrink-0 p-3 rounded-xl border border-border hover:border-primary/50 text-neutral-400 hover:text-primary transition-all flex items-center justify-center"
                     title="Copy key"
                   >
                     <Icon name={keyCopied ? 'CheckIcon' : 'ClipboardDocumentIcon'} size={18} className={keyCopied ? 'text-accent' : ''} />
                   </button>
                   <button
                     onClick={() => setRevealedKey(null)}
-                    className="flex-shrink-0 p-3 rounded-xl border border-border hover:border-border/60 text-neutral-400 hover:text-white transition-all"
+                    className="w-full min-[430px]:w-auto flex-shrink-0 p-3 rounded-xl border border-border hover:border-border/60 text-neutral-400 hover:text-white transition-all flex items-center justify-center"
                     title="Hide key"
                   >
                     <Icon name="EyeSlashIcon" size={18} />
@@ -547,13 +547,13 @@ export default function ApiSection() {
                 </div>
               ) : (
                 /* Masked key */
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-input border border-border rounded-xl px-4 py-3 font-mono text-sm text-neutral-500">
+                <div className="flex flex-col min-[430px]:flex-row min-[430px]:items-center gap-2">
+                  <div className="min-w-0 flex-1 bg-input border border-border rounded-xl px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm text-neutral-500 break-all">
                     {stats?.keyPrefix || 'cp_live_••••••••••••••••••••••••••••••••••••••••'}
                   </div>
                   <button
                     onClick={() => { setModal('reveal'); setModalError(''); }}
-                    className="flex-shrink-0 px-4 py-3 rounded-xl border border-border hover:border-primary/50 text-neutral-400 hover:text-primary transition-all text-sm flex items-center gap-1.5"
+                    className="w-full min-[430px]:w-auto flex-shrink-0 px-4 py-3 rounded-xl border border-border hover:border-primary/50 text-neutral-400 hover:text-primary transition-all text-sm flex items-center justify-center gap-1.5"
                     title="Reveal key (requires password)"
                   >
                     <Icon name="EyeIcon" size={16} />
@@ -563,28 +563,28 @@ export default function ApiSection() {
               )}
 
               {revealedKey && (
-                <p className="mt-2 text-xs text-amber-400 flex items-center gap-1.5">
-                  <Icon name="ExclamationTriangleIcon" size={12} />
-                  Keep this key secret. Never expose it in client-side code or public repositories.
+                <p className="mt-2 text-xs text-amber-400 flex items-start gap-1.5">
+                  <Icon name="ExclamationTriangleIcon" size={12} className="mt-0.5 flex-shrink-0" />
+                  <span>Keep this key secret. Never expose it in client-side code or public repositories.</span>
                 </p>
               )}
             </div>
 
             {/* Stats grid */}
             {stats && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 min-[430px]:grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
                   { label: 'Used this month', value: stats.monthUsed, icon: 'ArrowTrendingUpIcon', color: 'text-primary' },
                   { label: 'Remaining', value: stats.remaining, icon: 'ShieldCheckIcon', color: 'text-accent' },
                   { label: 'Total quota', value: stats.totalQuota, icon: 'CircleStackIcon', color: 'text-secondary' },
                   { label: 'All-time hits', value: stats.totalHits, icon: 'BoltIcon', color: 'text-purple-400' },
                 ].map((stat) => (
-                  <div key={stat.label} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div key={stat.label} className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <Icon name={stat.icon as any} size={14} className={stat.color} />
                       <span className="text-[11px] text-neutral-500 uppercase tracking-wider">{stat.label}</span>
                     </div>
-                    <p className={`text-2xl font-bold ${stat.color}`}>{stat.value.toLocaleString()}</p>
+                    <p className={`text-xl sm:text-2xl font-bold ${stat.color}`}>{stat.value.toLocaleString()}</p>
                   </div>
                 ))}
               </div>
@@ -634,13 +634,13 @@ export default function ApiSection() {
 
             {/* Key info row */}
             {stats && (
-              <div className="grid grid-cols-2 gap-3 text-xs text-neutral-500">
-                <div className="flex items-center gap-2">
-                  <Icon name="CalendarIcon" size={13} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-neutral-500">
+                <div className="flex items-start gap-2 min-w-0">
+                  <Icon name="CalendarIcon" size={13} className="mt-0.5 flex-shrink-0" />
                   <span>Created: {new Date(stats.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Icon name="ClockIcon" size={13} />
+                <div className="flex items-start gap-2 min-w-0">
+                  <Icon name="ClockIcon" size={13} className="mt-0.5 flex-shrink-0" />
                   <span>Last used: {stats.lastUsedAt ? new Date(stats.lastUsedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never'}</span>
                 </div>
               </div>
@@ -660,7 +660,7 @@ export default function ApiSection() {
 
             {/* Upgrade plans */}
             <div className="pt-2 border-t border-white/10 space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col min-[430px]:flex-row min-[430px]:items-center min-[430px]:justify-between gap-2">
                 <p className="text-sm font-semibold text-white flex items-center gap-2">
                   <Icon name="BoltIcon" size={15} className="text-primary" />
                   Upgrade Plan
@@ -715,7 +715,7 @@ export default function ApiSection() {
             <div className="flex justify-end pt-1 border-t border-white/10">
               <button
                 onClick={() => { setModal('revoke'); setModalError(''); }}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all text-sm"
+                className="w-full min-[430px]:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all text-sm"
               >
                 <Icon name="TrashIcon" size={15} />
                 Revoke key
@@ -725,7 +725,7 @@ export default function ApiSection() {
         )}
 
         {/* ── Quick-start code snippet ────────────────────────────────────── */}
-        <div className="glass-card border border-border rounded-2xl p-6">
+        <div className="glass-card border border-border rounded-2xl p-4 sm:p-6 min-w-0">
           <h3 className="font-playfair text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <Icon name="CodeBracketIcon" size={20} className="text-primary" />
             Quick Start
@@ -737,7 +737,7 @@ export default function ApiSection() {
               <span className="w-3 h-3 rounded-full bg-accent/70" />
               <span className="text-xs text-neutral-500 ml-2">example.js</span>
             </div>
-            <pre className="p-4 text-xs text-green-300 overflow-x-auto leading-relaxed font-mono">
+            <pre className="p-4 text-xs text-green-300 touch-scroll-x leading-relaxed font-mono">
 {`// Fetch celebrity profiles
 const response = await fetch(
   'https://yoursite.com/api/v1/celebrities?page=1&limit=10',
@@ -764,7 +764,7 @@ const celeb = await fetch(
               <Icon name="InformationCircleIcon" size={14} className="text-primary" />
               Response format
             </p>
-            <pre className="text-xs text-neutral-400 font-mono leading-relaxed overflow-x-auto">
+            <pre className="text-xs text-neutral-400 font-mono leading-relaxed touch-scroll-x">
 {`{
   "success": true,
   "version": "v1",
@@ -777,7 +777,7 @@ const celeb = await fetch(
         </div>
 
         {/* ── Endpoint reference ──────────────────────────────────────────── */}
-        <div className="glass-card border border-border rounded-2xl p-6">
+        <div className="glass-card border border-border rounded-2xl p-4 sm:p-6 min-w-0">
           <h3 className="font-playfair text-lg font-semibold text-white mb-5 flex items-center gap-2">
             <Icon name="ListBulletIcon" size={20} className="text-primary" />
             Available Endpoints
@@ -787,9 +787,9 @@ const celeb = await fetch(
               <div key={ep.resource} className={`rounded-xl border ${ep.bg} overflow-hidden`}>
                 <button
                   onClick={() => setOpenEndpoint(openEndpoint === i ? null : i)}
-                  className="w-full flex items-center justify-between px-5 py-4 text-left"
+                  className="w-full flex items-center justify-between gap-3 px-3 sm:px-5 py-4 text-left"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="min-w-0 flex flex-wrap items-center gap-2 sm:gap-3">
                     <Icon name={ep.icon as any} size={18} className={ep.color} />
                     <span className="font-semibold text-white text-sm">{ep.resource}</span>
                     <span className="text-xs bg-white/10 text-neutral-300 px-2 py-0.5 rounded-full">{ep.params.length} params</span>
@@ -798,13 +798,13 @@ const celeb = await fetch(
                 </button>
 
                 {openEndpoint === i && (
-                  <div className="px-5 pb-5 space-y-3">
+                  <div className="px-3 sm:px-5 pb-5 space-y-3">
                     {/* Routes */}
                     <div className="space-y-1.5">
                       {[ep.list, ep.single].map((route) => (
-                        <div key={route} className="flex items-center gap-2 font-mono text-xs">
+                        <div key={route} className="flex items-start gap-2 font-mono text-xs min-w-0">
                           <span className="px-1.5 py-0.5 rounded bg-accent/20 text-accent text-[10px] font-bold">GET</span>
-                          <span className="text-neutral-300">{route}</span>
+                          <span className="text-neutral-300 break-anywhere">{route}</span>
                         </div>
                       ))}
                     </div>
@@ -813,17 +813,17 @@ const celeb = await fetch(
                       <p className="text-[11px] uppercase tracking-wider text-neutral-500 mb-2">Query Parameters</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                         {ep.params.map((p) => (
-                          <div key={p.name} className="flex items-start gap-2 text-xs">
+                          <div key={p.name} className="flex items-start gap-2 text-xs min-w-0">
                             <span className={`font-mono font-semibold flex-shrink-0 ${ep.color}`}>{p.name}</span>
-                            <span className="text-neutral-500">{p.desc}</span>
+                            <span className="text-neutral-500 break-anywhere">{p.desc}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                     {/* Required header reminder */}
-                    <div className="flex items-center gap-2 text-xs bg-black/20 rounded-lg px-3 py-2">
+                    <div className="flex items-start gap-2 text-xs bg-black/20 rounded-lg px-3 py-2">
                       <Icon name="ShieldCheckIcon" size={13} className="text-primary flex-shrink-0" />
-                      <span className="text-neutral-400">Required header: <code className="text-primary font-mono">x-api-key: YOUR_KEY</code></span>
+                      <span className="text-neutral-400 break-anywhere">Required header: <code className="text-primary font-mono">x-api-key: YOUR_KEY</code></span>
                     </div>
                   </div>
                 )}
@@ -833,7 +833,7 @@ const celeb = await fetch(
         </div>
 
         {/* ── Rate limit info ─────────────────────────────────────────────── */}
-        <div className="glass-card border border-border rounded-2xl p-6">
+        <div className="glass-card border border-border rounded-2xl p-4 sm:p-6">
           <h3 className="font-playfair text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <Icon name="ChartBarIcon" size={20} className="text-primary" />
             Rate Limits & Errors
@@ -862,7 +862,7 @@ const celeb = await fetch(
                 { tier: 'Pro', requests: '10,000 / month', price: 'Contact us', highlight: true },
                 { tier: 'Enterprise', requests: 'Unlimited', price: 'Contact us', highlight: false },
               ].map((t) => (
-                <div key={t.tier} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${t.highlight ? 'bg-primary/10 border border-primary/20' : 'bg-white/5'}`}>
+                <div key={t.tier} className={`grid grid-cols-1 min-[430px]:grid-cols-[1fr_auto_auto] gap-1 min-[430px]:gap-3 min-[430px]:items-center px-3 py-2 rounded-lg text-xs ${t.highlight ? 'bg-primary/10 border border-primary/20' : 'bg-white/5'}`}>
                   <span className={`font-semibold ${t.highlight ? 'text-primary' : 'text-white'}`}>{t.tier}</span>
                   <span className="text-neutral-400">{t.requests}</span>
                   <span className={`${t.highlight ? 'text-primary font-semibold' : 'text-neutral-500'}`}>{t.price}</span>

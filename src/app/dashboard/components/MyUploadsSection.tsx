@@ -365,7 +365,7 @@ export default function MyUploadsSection() {
           </div>
 
           {/* Row: Category + Brand */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={lbl}>Category *</label>
               <select
@@ -385,7 +385,7 @@ export default function MyUploadsSection() {
           </div>
 
           {/* Row: Size + Color */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={lbl}>Size</label>
               <input type="text" placeholder="e.g. S, M, L, XL, 32" className={inp} value={f.size} onChange={(e) => setF({ ...f, size: e.target.value })} />
@@ -403,7 +403,7 @@ export default function MyUploadsSection() {
           </div>
 
           {/* Row: Price + Store */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={lbl}>Price (₹)</label>
               <input type="number" min="0" placeholder="e.g. 999" className={inp} value={f.purchasePrice} onChange={(e) => setF({ ...f, purchasePrice: e.target.value })} />
@@ -442,10 +442,10 @@ export default function MyUploadsSection() {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-10 w-48 bg-white/5 rounded-xl" />
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[1,2,3].map((i) => <div key={i} className="h-28 bg-white/5 rounded-2xl" />)}
         </div>
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           {[1,2,3].map((i) => <div key={i} className="h-72 bg-white/5 rounded-2xl" />)}
         </div>
       </div>
@@ -455,14 +455,14 @@ export default function MyUploadsSection() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-playfair text-3xl font-bold text-white mb-2">My Uploads</h2>
           <p className="text-neutral-400">Manage your uploaded fashion items</p>
         </div>
         <button
           onClick={() => { setShowUploadForm(true); setForm(EMPTY_FORM); setUploadedImages([]); setSubmitError(null); setSubmitSuccess(false); }}
-          className="bg-primary text-black px-6 py-3 rounded-full font-medium hover:glow-gold transition-all flex items-center gap-2"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 font-medium text-black transition-all hover:glow-gold"
         >
           <Icon name="ArrowUpTrayIcon" size={20} />
           <span>Upload New</span>
@@ -474,7 +474,7 @@ export default function MyUploadsSection() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 md:grid-cols-4">
         {[
           { label: 'Total Uploads', value: stats.totalUploads },
           { label: 'Total Views',   value: stats.totalViews.toLocaleString() },
@@ -482,7 +482,7 @@ export default function MyUploadsSection() {
           { label: 'Total Clicks',  value: stats.totalClicks },
         ].map((s) => (
           <div key={s.label} className="glass-card rounded-2xl p-6 text-center">
-            <p className="font-playfair text-3xl font-bold text-white mb-1">{s.value}</p>
+            <p className="font-playfair text-2xl font-bold text-white mb-1 sm:text-3xl">{s.value}</p>
             <p className="text-sm text-neutral-400">{s.label}</p>
           </div>
         ))}

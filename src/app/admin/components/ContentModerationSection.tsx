@@ -123,7 +123,7 @@ export default function ContentModerationSection() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 xl:grid-cols-4">
         <div className="glass-card rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-2">
             <Icon name="ClockIcon" size={24} className="text-warning" />
@@ -183,7 +183,7 @@ export default function ContentModerationSection() {
         {filteredSubmissions.map((submission) =>
         <div
           key={submission.id}
-          className="glass-card rounded-2xl overflow-hidden hover:scale-105 transition-all duration-300">
+          className="glass-card rounded-2xl overflow-hidden hover:scale-[1.02] transition-all duration-300">
           
             {/* Image */}
             <div className="relative aspect-[4/5]">
@@ -235,7 +235,7 @@ export default function ContentModerationSection() {
 
               {/* Actions */}
               {submission.status === 'pending' &&
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 min-[420px]:flex-row">
                   <button
                 onClick={() => handleApprove(submission.id)}
                 className="flex-1 bg-accent text-black font-medium px-4 py-2 rounded-xl hover:bg-accent/80 transition-all flex items-center justify-center gap-2">

@@ -195,9 +195,9 @@ export default function UserOutfitDetail({ slug, initialOutfit = null }: { slug:
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-16">
+    <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 sm:py-8 md:py-16">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-neutral-500 mb-8">
+      <nav className="flex flex-wrap items-center gap-2 text-sm text-neutral-500 mb-8">
         <Link href="/" className="hover:text-white transition-colors">Home</Link>
         <span>/</span>
         <Link href="/fashion-gallery" className="hover:text-white transition-colors">Fashion Gallery</Link>
@@ -205,11 +205,11 @@ export default function UserOutfitDetail({ slug, initialOutfit = null }: { slug:
         <span className="text-neutral-300 truncate max-w-xs">{outfit.title}</span>
       </nav>
 
-      <div className="grid md:grid-cols-2 gap-10">
+      <div className="grid gap-8 md:grid-cols-2 md:gap-10">
         {/* ── Image gallery ─────────────────────────────────────── */}
         <div>
           <div
-            className="relative rounded-3xl overflow-hidden h-[420px] md:h-[520px] cursor-zoom-in glass-card"
+            className="relative rounded-2xl sm:rounded-3xl overflow-hidden h-[340px] min-[390px]:h-[420px] md:h-[520px] cursor-zoom-in glass-card"
             onClick={() => setLightbox(true)}
           >
             <AppImage
@@ -238,7 +238,7 @@ export default function UserOutfitDetail({ slug, initialOutfit = null }: { slug:
         </div>
 
         {/* ── Details ───────────────────────────────────────────── */}
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {/* Title + uploader */}
           <div>
             <h1 className="font-playfair text-2xl md:text-3xl font-bold text-white mb-2 leading-tight">{outfit.title}</h1>
@@ -253,18 +253,18 @@ export default function UserOutfitDetail({ slug, initialOutfit = null }: { slug:
           </div>
 
           {/* Stats row */}
-          <div className="flex items-center gap-5 text-sm text-neutral-400">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-400 sm:gap-5">
             <span className="flex items-center gap-1.5"><Icon name="EyeIcon" size={16} className="text-primary" />{outfit.views.toLocaleString()} views</span>
             <span className="flex items-center gap-1.5"><Icon name="HeartIcon" size={16} className="text-primary" />{likeCount} likes</span>
             <span className="flex items-center gap-1.5"><Icon name="ChatBubbleLeftIcon" size={16} className="text-primary" />{comments.length} comments</span>
           </div>
 
           {/* ── Interaction buttons ───────────────────────────── */}
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             {/* Like */}
             <button
               onClick={handleLike}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border font-semibold text-sm transition-all ${
+              className={`min-w-[8rem] flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border font-semibold text-sm transition-all ${
                 liked
                   ? 'bg-red-500/20 border-red-500/50 text-red-400'
                   : 'glass-card border-white/10 text-neutral-300 hover:border-red-500/40 hover:text-red-400'
@@ -279,7 +279,7 @@ export default function UserOutfitDetail({ slug, initialOutfit = null }: { slug:
             {/* Favourite */}
             <button
               onClick={handleFavourite}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border font-semibold text-sm transition-all ${
+              className={`min-w-[8rem] flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border font-semibold text-sm transition-all ${
                 faved
                   ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400'
                   : 'glass-card border-white/10 text-neutral-300 hover:border-yellow-500/40 hover:text-yellow-400'
@@ -292,7 +292,7 @@ export default function UserOutfitDetail({ slug, initialOutfit = null }: { slug:
             {/* Share */}
             <button
               onClick={() => { navigator.clipboard.writeText(window.location.href); }}
-              className="glass-card flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-white/10 text-neutral-300 hover:text-white hover:border-white/30 text-sm transition-all"
+              className="glass-card flex min-w-[3.75rem] items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-white/10 text-neutral-300 hover:text-white hover:border-white/30 text-sm transition-all"
               title="Copy link"
             >
               <Icon name="ShareIcon" size={18} />
@@ -413,7 +413,7 @@ export default function UserOutfitDetail({ slug, initialOutfit = null }: { slug:
         ) : (
           <div className="space-y-4">
             {comments.map((c) => (
-              <div key={c._id} className="glass-card rounded-2xl p-4 flex gap-4 group">
+              <div key={c._id} className="glass-card rounded-2xl p-4 flex gap-3 sm:gap-4 group">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
                   {c.userAvatar
                     ? <img src={c.userAvatar} alt="" className="w-full h-full rounded-full object-cover" />
@@ -421,8 +421,8 @@ export default function UserOutfitDetail({ slug, initialOutfit = null }: { slug:
                   }
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <span className="text-white text-sm font-medium">{c.userName}</span>
                       <span className="text-neutral-600 text-xs">
                         {new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}

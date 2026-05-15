@@ -187,7 +187,7 @@ export default function CelebrityGrid({
             <Link
               key={celebrity.id}
               href={`/celebrity-profiles/${celebrity.slug}`}
-              className="group relative rounded-[28px] overflow-hidden block cursor-pointer"
+              className="group relative block cursor-pointer overflow-hidden rounded-2xl min-[420px]:rounded-[28px]"
               style={{
                 background: '#1c1c1e',
                 boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
@@ -197,7 +197,7 @@ export default function CelebrityGrid({
               {/* ── DEFAULT STATE (visible when not hovered) ── */}
               <div className="group-hover:opacity-0 group-hover:pointer-events-none transition-opacity duration-[400ms] ease-in-out">
                 {/* Photo — rounded inside card, not full bleed */}
-                <div className="relative mx-3 mt-3 rounded-[20px] overflow-hidden" style={{ height: '260px' }}>
+                <div className="relative mx-3 mt-3 overflow-hidden rounded-2xl min-[420px]:rounded-[20px]" style={{ height: '260px' }}>
                   {img ? (
                     <Image
                       src={img}
@@ -224,7 +224,7 @@ export default function CelebrityGrid({
                 {/* Info section */}
                 <div className="px-4 pt-4 pb-5">
                   {/* Name + verified */}
-                  <div className="flex items-center gap-2 mb-1.5">
+                  <div className="flex min-w-0 items-center gap-2 mb-1.5">
                     <h3 className="font-semibold text-white text-xl leading-tight"
                       style={{ fontFamily: 'Playfair Display, serif' }}>
                       {celebrity.name}
@@ -248,8 +248,8 @@ export default function CelebrityGrid({
                   )}
 
                   {/* Bottom row — stats + follow CTA */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-wrap items-center gap-3">
                       {celebrity.movieCount > 0 && (
                         <div className="flex items-center gap-1.5">
                           <Icon name="FilmIcon" size={15} className="text-neutral-500" />
@@ -270,7 +270,7 @@ export default function CelebrityGrid({
                       )}
                     </div>
                     <span
-                      className="px-4 py-2 rounded-full text-sm font-semibold text-white"
+                      className="shrink-0 px-4 py-2 rounded-full text-sm font-semibold text-white"
                       style={{ background: '#2c2c2e' }}
                     >
                       Read more
@@ -300,7 +300,7 @@ export default function CelebrityGrid({
                 {/* Content over image */}
                 <div className="relative z-10 px-5 pb-6 pt-4">
                   {/* Name + verified */}
-                  <div className="flex items-center gap-2 mb-1.5">
+                  <div className="flex min-w-0 items-center gap-2 mb-1.5">
                     <h3 className="font-semibold text-white text-xl leading-tight"
                       style={{ fontFamily: 'Playfair Display, serif' }}>
                       {celebrity.name}
@@ -324,8 +324,8 @@ export default function CelebrityGrid({
                   )}
 
                   {/* Bottom row */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-wrap items-center gap-3">
                       {celebrity.movieCount > 0 && (
                         <div className="flex items-center gap-1.5">
                           <Icon name="FilmIcon" size={15} className="text-white/60" />
@@ -346,7 +346,7 @@ export default function CelebrityGrid({
                       )}
                     </div>
                     <span
-                      className="px-4 py-2 rounded-full text-sm font-semibold text-black"
+                      className="shrink-0 px-4 py-2 rounded-full text-sm font-semibold text-black"
                       style={{ background: 'rgba(255,255,255,0.92)' }}
                     >
                       Read more

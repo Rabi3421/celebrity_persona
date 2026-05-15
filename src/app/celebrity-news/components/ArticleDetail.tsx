@@ -296,15 +296,15 @@ export default function ArticleDetail({
   }
 
   return (
-    <div className="py-10 px-4 md:px-8">
+    <div className="py-8 px-4 md:px-8 lg:py-10">
       <div className="max-w-7xl mx-auto">
-        <div className="flex gap-10 items-start">
+        <div className="flex flex-col gap-8 items-start lg:flex-row lg:gap-10">
 
           {/* ════════════════ LEFT — Main Article ════════════════ */}
           <article className="flex-1 min-w-0">
 
             {/* Breadcrumb */}
-            <nav className="flex items-center gap-2 text-sm text-neutral-400 mb-8">
+            <nav className="flex flex-wrap items-center gap-2 text-sm text-neutral-400 mb-8">
               <Link href="/celebrity-news" className="hover:text-accent transition-colors">Celebrity News</Link>
               <Icon name="ChevronRightIcon" size={16} />
               <span className="text-white">{article.category}</span>
@@ -322,11 +322,11 @@ export default function ArticleDetail({
               </span>
             )}
           </div>
-          <h1 className="font-playfair text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5 leading-tight">
+          <h1 className="font-playfair text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5 leading-tight break-anywhere">
             {article.title}
           </h1>
           {article.excerpt && (
-            <p className="text-lg text-neutral-300 mb-4 leading-relaxed">{article.excerpt}</p>
+            <p className="text-base leading-7 text-neutral-300 mb-4 sm:text-lg sm:leading-relaxed">{article.excerpt}</p>
           )}
           <div className="flex items-center gap-4 text-sm text-neutral-400 flex-wrap">
             <span>{formatDate(article.publishDate)}</span>
@@ -421,11 +421,11 @@ export default function ArticleDetail({
               </button>
 
               {/* Share */}
-              <div className="ml-auto flex items-center gap-2">
+              <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
                 <button
                   onClick={handleCopyLink}
                   title="Copy link"
-                  className="glass-card flex items-center gap-2 px-3 py-2 rounded-full text-sm text-neutral-300 hover:text-white border border-white/10 transition-all"
+                  className="glass-card flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-full text-sm text-neutral-300 hover:text-white border border-white/10 transition-all sm:flex-none"
                 >
                   <Icon name={copied ? 'CheckIcon' : 'LinkIcon'} size={15} className={copied ? 'text-emerald-400' : ''} />
                   <span className={copied ? 'text-emerald-400' : ''}>{copied ? 'Copied!' : 'Copy'}</span>
@@ -444,7 +444,7 @@ export default function ArticleDetail({
 
             {/* ── Comments Section ── */}
             {showComments && (
-              <div className="glass-card rounded-2xl p-6 mb-10">
+              <div className="glass-card rounded-2xl p-4 mb-10 sm:p-6">
                 <h3 className="font-playfair text-xl font-bold text-white mb-5 flex items-center gap-2">
                   <Icon name="ChatBubbleLeftIcon" size={20} className="text-accent" />
                   Comments
@@ -459,7 +459,7 @@ export default function ArticleDetail({
                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex-shrink-0 flex items-center justify-center mt-0.5">
                         <span className="text-black font-bold text-xs">{(user.name || 'U').charAt(0).toUpperCase()}</span>
                       </div>
-                      <div className="flex-1 space-y-2">
+                      <div className="min-w-0 flex-1 space-y-2">
                         <textarea
                           ref={commentInputRef}
                           value={commentText}
@@ -470,9 +470,9 @@ export default function ArticleDetail({
                           className="w-full glass-card px-4 py-3 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-none disabled:opacity-50"
                           placeholder="Share your thoughts…"
                         />
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <span className="text-xs text-neutral-500">{commentText.length}/1000</span>
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-3">
                             {commentError && <span className="text-xs text-red-400">{commentError}</span>}
                             <button
                               type="submit"

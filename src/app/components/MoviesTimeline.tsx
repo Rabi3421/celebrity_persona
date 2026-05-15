@@ -11,13 +11,13 @@ export default function MoviesTimeline({ movies = [] }: MoviesTimelineProps) {
   const items = movies.length > 0 ? movies : fallbackMovies;
 
   return (
-    <section id="upcoming-movies" aria-labelledby="upcoming-movies-heading" className="px-4 py-20 sm:px-6">
+    <section id="upcoming-movies" aria-labelledby="upcoming-movies-heading" className="px-4 py-16 sm:px-6 lg:py-20">
       <div className="mx-auto max-w-7xl">
         <div className="mb-10 text-center">
           <p className="font-montserrat text-xs font-semibold uppercase tracking-wider text-primary">
             Movie tracker
           </p>
-          <h2 id="upcoming-movies-heading" className="mt-3 font-playfair text-4xl font-bold text-white md:text-5xl">
+          <h2 id="upcoming-movies-heading" className="mt-3 font-playfair text-3xl font-bold text-white sm:text-4xl md:text-5xl">
             Upcoming Movies
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-neutral-400">
@@ -38,8 +38,8 @@ export default function MoviesTimeline({ movies = [] }: MoviesTimelineProps) {
                     className="object-cover transition duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-5">
-                    <h3 className="font-playfair text-2xl font-bold text-white">{movie.title}</h3>
+                  <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
+                    <h3 className="font-playfair text-xl font-bold text-white sm:text-2xl">{movie.title}</h3>
                     <div className="mt-3 flex flex-wrap gap-3 text-sm text-neutral-300">
                       <span className="inline-flex items-center gap-2">
                         <CalendarDaysIcon width={16} height={16} aria-hidden="true" className="text-primary" />

@@ -89,25 +89,25 @@ export default function PublicFooter() {
     <footer className="relative overflow-hidden border-t border-white/10 bg-[#12081f] text-card-foreground">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(251,191,36,0.16),transparent_24rem),radial-gradient(circle_at_88%_22%,rgba(244,166,184,0.12),transparent_28rem),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_38%)]"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),transparent_42%),linear-gradient(135deg,rgba(251,191,36,0.08),transparent_34%,rgba(244,166,184,0.06)_68%,transparent)]"
       />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"
       />
 
-      <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+      <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-20">
         <section
           aria-labelledby="footer-cta"
-          className="mb-14 grid gap-8 border-b border-white/10 pb-12 lg:grid-cols-[1fr_0.72fr] lg:items-end"
+          className="mb-12 grid gap-8 border-b border-white/10 pb-10 lg:mb-14 lg:grid-cols-[1fr_0.72fr] lg:items-end lg:pb-12"
         >
           <div>
-            <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">
+            <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary sm:tracking-[0.32em]">
               Celebrity style, cinema, and culture
             </p>
             <h2
               id="footer-cta"
-              className="max-w-4xl font-playfair text-4xl font-bold leading-[0.98] text-white sm:text-5xl lg:text-6xl"
+              className="max-w-4xl font-playfair text-3xl font-bold leading-tight text-white sm:text-5xl lg:text-6xl"
             >
               Spend a little longer with the looks, stories, and screen moments people talk about.
             </h2>
@@ -118,17 +118,17 @@ export default function PublicFooter() {
               Explore celebrity profiles, outfit inspiration, entertainment articles, movie pages,
               and reviews from one clean destination.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="grid gap-3 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap">
               <Link
                 href="/fashion-gallery"
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-black shadow-xl shadow-primary/15 transition hover:bg-primary/90"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-black shadow-xl shadow-primary/15 transition hover:bg-primary/90"
               >
                 Explore fashion
                 <ArrowUpRightIcon width={15} height={15} aria-hidden="true" />
               </Link>
               <Link
                 href="/celebrity-news"
-                className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:border-white/35 hover:bg-white/[0.04]"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:border-white/35 hover:bg-white/[0.04]"
               >
                 Read latest stories
               </Link>
@@ -178,10 +178,10 @@ export default function PublicFooter() {
             <a
               href={`mailto:${contactEmail}`}
               aria-label={`Email CelebrityPersona at ${contactEmail}`}
-              className="mt-8 inline-flex items-center gap-3 rounded-full border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-neutral-300 transition hover:border-primary/40 hover:text-white"
+              className="mt-8 inline-flex max-w-full items-center gap-3 rounded-full border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-neutral-300 transition hover:border-primary/40 hover:text-white"
             >
               <EnvelopeIcon width={16} height={16} aria-hidden="true" className="text-primary" />
-              {contactEmail}
+              <span className="min-w-0 break-all">{contactEmail}</span>
             </a>
           </section>
 
@@ -225,7 +225,7 @@ export default function PublicFooter() {
           </div>
         </div>
 
-        <div className="mt-14 flex flex-col gap-5 border-t border-white/10 pt-7 text-sm text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-5 border-t border-white/10 pt-7 text-sm text-neutral-500 sm:mt-14 sm:flex-row sm:items-center sm:justify-between">
           <p>&copy; 2026 CelebrityPersona. All rights reserved.</p>
           <nav aria-label="Footer secondary navigation" className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <Link href="/celebrity-news" className="transition hover:text-white">

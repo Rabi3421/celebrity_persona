@@ -157,20 +157,20 @@ export default function ReviewsInteractive({
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-24 sm:px-6">
-      <div className="mb-14">
+      <div className="mb-10 sm:mb-14">
         <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1">
           <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" aria-hidden="true" />
           <span className="font-montserrat text-xs font-semibold uppercase tracking-widest text-yellow-500">
             Movie Reviews
           </span>
         </div>
-        <h1 className="mb-5 font-playfair text-5xl font-bold leading-tight text-white md:text-6xl lg:text-7xl">
+        <h1 className="mb-5 font-playfair text-4xl font-bold leading-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
           Reviews &amp;{' '}
           <span className="bg-gradient-to-r from-yellow-500 to-amber-600 bg-clip-text text-transparent">
             Ratings
           </span>
         </h1>
-        <p className="max-w-2xl text-lg leading-relaxed text-neutral-400">
+        <p className="max-w-2xl text-base leading-7 text-neutral-400 sm:text-lg sm:leading-relaxed">
           Comprehensive critic and audience reviews, aggregated scores, and everything you need
           to decide your next watch.
         </p>
@@ -190,7 +190,7 @@ export default function ReviewsInteractive({
           <div className="w-full border-t border-white/[0.06]" />
         </div>
         <div className="relative flex justify-center">
-          <div className="flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-background px-4 py-1.5">
+          <div className="flex max-w-full flex-wrap items-center justify-center gap-2.5 rounded-full border border-white/[0.08] bg-background px-4 py-1.5">
             <Icon name="StarIcon" size={13} className="text-yellow-400" variant="solid" />
             <span className="font-montserrat text-xs font-semibold uppercase tracking-widest text-neutral-400">
               Latest Movie Reviews

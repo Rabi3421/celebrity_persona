@@ -230,7 +230,7 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
   ].filter((d) => d.value);
 
   return (
-    <article className="max-w-6xl mx-auto px-4 md:px-8 py-8 md:py-12">
+    <article className="max-w-6xl mx-auto px-4 md:px-8 py-6 sm:py-8 md:py-12">
 
       {/* ── Breadcrumb ────────────────────────────────────────────────────── */}
       <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-neutral-500 mb-8 flex-wrap">
@@ -247,13 +247,13 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
         <span className="text-neutral-300 truncate max-w-[200px] md:max-w-xs" aria-current="page">{outfit.title}</span>
       </nav>
 
-      <div className="grid md:grid-cols-2 gap-10 lg:gap-16 items-start">
+      <div className="grid gap-8 md:grid-cols-2 md:gap-10 lg:gap-16 items-start">
 
         {/* ── Image gallery ─────────────────────────────────────────────── */}
         <div className="space-y-4">
           {/* Main image */}
           <div
-            className="relative rounded-3xl overflow-hidden h-[380px] md:h-[540px] cursor-zoom-in glass-card border border-white/10 group"
+            className="relative rounded-2xl sm:rounded-3xl overflow-hidden h-[340px] min-[390px]:h-[380px] md:h-[540px] cursor-zoom-in glass-card border border-white/10 group"
             onClick={() => outfit.images.length > 0 && setLightbox(true)}
           >
             {outfit.images[activeImg] ? (
@@ -306,7 +306,7 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
         </div>
 
         {/* ── Details ───────────────────────────────────────────────────── */}
-        <div className="space-y-7">
+        <div className="min-w-0 space-y-7">
 
           {/* Event / category badge */}
           {label && (
@@ -319,7 +319,7 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
 
           {/* Title */}
           <div>
-            <h1 className="font-playfair text-3xl md:text-4xl font-bold text-white leading-tight mb-4">
+            <h1 className="font-playfair text-2xl font-bold text-white leading-tight mb-4 min-[390px]:text-3xl md:text-4xl">
               {outfit.title}
             </h1>
 
@@ -357,12 +357,12 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
           {details.length > 0 && (
             <div className="glass-card rounded-2xl border border-white/10 divide-y divide-white/5">
               {details.map(({ label: lbl, value }) => (
-                <div key={lbl} className="flex justify-between items-center px-5 py-3.5 text-sm">
+                <div key={lbl} className="flex flex-wrap justify-between gap-2 px-4 py-3.5 text-sm sm:px-5">
                   <span className="text-neutral-500">{lbl}</span>
-                  <span className="text-white font-medium">{value}</span>
+                  <span className="break-anywhere text-right font-medium text-white">{value}</span>
                 </div>
               ))}
-              <div className="flex justify-between items-center px-5 py-3.5 text-sm">
+              <div className="flex flex-wrap justify-between gap-2 px-4 py-3.5 text-sm sm:px-5">
                 <span className="text-neutral-500">Posted on</span>
                 <span className="text-white">
                   {new Date(outfit.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -384,11 +384,11 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
           )}
 
           {/* Interaction buttons */}
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             {/* Like */}
             <button
               onClick={handleLike}
-              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl border font-semibold text-sm transition-all ${
+              className={`min-w-[8rem] flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl border font-semibold text-sm transition-all ${
                 liked
                   ? 'bg-red-500/20 border-red-500/50 text-red-400'
                   : 'glass-card border-white/10 text-neutral-300 hover:border-red-500/40 hover:text-red-400'
@@ -402,7 +402,7 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
             {/* Save / Bookmark */}
             <button
               onClick={handleFavourite}
-              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl border font-semibold text-sm transition-all ${
+              className={`min-w-[8rem] flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl border font-semibold text-sm transition-all ${
                 faved
                   ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400'
                   : 'glass-card border-white/10 text-neutral-300 hover:border-yellow-500/40 hover:text-yellow-400'
@@ -416,7 +416,7 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
             <button
               onClick={handleShare}
               title={copied ? 'Copied!' : 'Copy link'}
-              className={`glass-card flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl border text-sm font-medium transition-all ${
+              className={`glass-card flex min-w-[3.75rem] items-center justify-center gap-2 px-5 py-3.5 rounded-2xl border text-sm font-medium transition-all ${
                 copied
                   ? 'border-green-500/40 text-green-400 bg-green-500/10'
                   : 'border-white/10 text-neutral-300 hover:text-white hover:border-white/30'
@@ -516,7 +516,7 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
         ) : (
           <div className="space-y-4">
             {comments.map((c) => (
-              <div key={c._id} className="glass-card rounded-2xl p-4 flex gap-4 group border border-white/5">
+              <div key={c._id} className="glass-card rounded-2xl p-4 flex gap-3 sm:gap-4 group border border-white/5">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 overflow-hidden">
                   {c.userAvatar
                     ? <img src={c.userAvatar} alt="" className="w-full h-full object-cover" />
@@ -524,8 +524,8 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
                   }
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <span className="text-white text-sm font-medium">{c.userName}</span>
                       <span className="text-neutral-600 text-xs">
                         {new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}

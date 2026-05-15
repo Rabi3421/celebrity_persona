@@ -73,12 +73,12 @@ export default function HeroSection() {
     <section
       id="home-hero"
       aria-labelledby="home-hero-title"
-      className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 pb-20 pt-32"
+      className="relative flex min-h-[100svh] items-center justify-center overflow-hidden px-4 pb-16 pt-28 sm:px-6 sm:pb-20 sm:pt-32"
     >
-      <div className="pointer-events-none absolute left-1/2 top-0 h-96 w-full max-w-4xl -translate-x-1/2 rounded-full bg-primary/10 blur-[120px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(251,191,36,0.08),transparent_35%,rgba(244,166,184,0.06)_70%,transparent)]" />
 
       <div className="relative z-10 mx-auto max-w-4xl text-center">
-        <p className="glass-card mb-8 inline-flex items-center gap-2 rounded-full px-4 py-2 animate-fade-in-blur">
+        <p className="glass-card mb-6 inline-flex max-w-full items-center gap-2 rounded-full px-4 py-2 animate-fade-in-blur sm:mb-8">
           <span className="h-2 w-2 rounded-full bg-primary animate-pulse-glow" aria-hidden="true" />
           <span className="text-sm font-medium text-neutral-300">
             Trending Celebrity Fashion
@@ -87,27 +87,27 @@ export default function HeroSection() {
 
         <h1
           id="home-hero-title"
-          className="mb-6 font-playfair text-6xl font-bold leading-tight text-white animate-fade-in-up delay-100 md:text-8xl"
+          className="mb-5 font-playfair text-4xl font-bold leading-tight text-white animate-fade-in-up delay-100 min-[390px]:text-5xl sm:text-6xl md:text-7xl lg:text-8xl"
         >
           Discover
           <br />
           <span className="text-gradient-gold">Celebrity Style</span>
         </h1>
 
-        <p className="mx-auto mb-12 max-w-2xl font-inter text-lg text-neutral-400 animate-fade-in-up delay-200 md:text-xl">
+        <p className="mx-auto mb-10 max-w-2xl font-inter text-base leading-7 text-neutral-400 animate-fade-in-up delay-200 sm:text-lg md:mb-12 md:text-xl">
           Fashion, Profiles, Movies & More - Your one-stop destination for celebrity-inspired style
         </p>
 
-        <div className="flex flex-col items-center justify-center gap-4 animate-fade-in-up delay-300 sm:flex-row">
+        <div className="mx-auto flex w-full max-w-sm flex-col items-stretch justify-center gap-3 animate-fade-in-up delay-300 sm:max-w-none sm:flex-row sm:items-center sm:gap-4">
           <Link
             href="/fashion-gallery"
-            className="glass-card rounded-full px-8 py-4 transition-all hover:glow-gold"
+            className="glass-card rounded-full px-6 py-3.5 text-center transition-all hover:glow-gold sm:px-8 sm:py-4"
           >
             <span className="text-base font-medium text-white">Explore Now</span>
           </Link>
           <Link
             href="/celebrity-profiles"
-            className="glass-card rounded-full border-2 border-white/20 px-8 py-4 transition-all hover:border-primary/50"
+            className="glass-card rounded-full border-2 border-white/20 px-6 py-3.5 text-center transition-all hover:border-primary/50 sm:px-8 sm:py-4"
           >
             <span className="text-base font-medium text-neutral-300">View Profiles</span>
           </Link>

@@ -48,7 +48,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
   };
 
   return (
-    <div className="glass-card rounded-2xl p-6 space-y-6">
+    <div className="glass-card rounded-2xl p-4 space-y-6 sm:p-6">
       {/* Event Filter */}
       <div>
         <label className="font-montserrat text-xs uppercase tracking-wider text-neutral-400 mb-3 block">
@@ -57,7 +57,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
         <div className="flex flex-wrap gap-2">
           {events.map((e) => (
             <button key={e.id} onClick={() => handleEvent(e.value)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`px-3 py-2 rounded-full text-sm font-medium transition-all sm:px-4 ${
                 event === e.value ? 'bg-secondary text-black' : 'bg-neutral-800 text-neutral-400 hover:text-white'
               }`}
             >
@@ -75,7 +75,7 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
         <div className="flex flex-wrap gap-2">
           {categories.map((c) => (
             <button key={c.id} onClick={() => handleCat(c.value)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`px-3 py-2 rounded-full text-sm font-medium transition-all sm:px-4 ${
                 category === c.value ? 'bg-primary text-black' : 'bg-neutral-800 text-neutral-400 hover:text-white'
               }`}
             >
