@@ -16,7 +16,7 @@ const floatingCards: FloatingCard[] = [
   {
     id: 'hero_card_1',
     type: 'celebrity',
-    image: '/assets/images/editorial-celebrity.svg',
+    image: 'https://img.rocket.new/generatedImages/rocket_gen_img_1d4aad93b-1770398321397.png',
     alt: 'Young woman with long brown hair in elegant black dress',
     title: 'Emma Watson',
     subtitle: 'Latest: Fashion Week 2026',
@@ -26,7 +26,7 @@ const floatingCards: FloatingCard[] = [
   {
     id: 'hero_card_2',
     type: 'fashion',
-    image: '/assets/images/editorial-fashion.svg',
+    image: 'https://img.rocket.new/generatedImages/rocket_gen_img_105afe58d-1768666763976.png',
     alt: 'Elegant beige blazer with gold buttons and white shirt',
     title: 'Trending Outfit',
     subtitle: 'Shop the Look',
@@ -36,7 +36,7 @@ const floatingCards: FloatingCard[] = [
   {
     id: 'hero_card_3',
     type: 'news',
-    image: '/assets/images/editorial-news.svg',
+    image: 'https://img.rocket.new/generatedImages/rocket_gen_img_173546b70-1770609263557.png',
     alt: 'Entertainment event with red carpet and spotlights',
     title: 'Breaking News',
     subtitle: 'Oscars 2026 Nominations',
@@ -46,7 +46,7 @@ const floatingCards: FloatingCard[] = [
   {
     id: 'hero_card_4',
     type: 'movie',
-    image: '/assets/images/editorial-movies.svg',
+    image: 'https://img.rocket.new/generatedImages/rocket_gen_img_1d7ea8e06-1766296438771.png',
     alt: 'Cinematic movie poster with dramatic lighting and city skyline',
     title: 'Upcoming Movie',
     subtitle: 'Releases March 2026',
