@@ -1,6 +1,7 @@
 import 'server-only';
 
 import {
+  BRAND_ICON,
   DEFAULT_DESCRIPTION,
   SITE_NAME,
   SITE_URL,
@@ -110,8 +111,11 @@ export function createOrganizationSchema(): JsonLdSchema {
     logo: {
       '@type': 'ImageObject',
       '@id': `${SITE_URL}/#logo`,
-      url: absoluteUrl('/favicon.ico'),
+      url: absoluteUrl(BRAND_ICON),
+      width: 512,
+      height: 512,
     },
+    image: absoluteUrl(BRAND_ICON),
     sameAs: configuredSameAs(),
   });
 }

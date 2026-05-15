@@ -33,7 +33,7 @@ export default function AllDataAccessSection() {
       lastActive: '2 hours ago',
       uploads: 43,
       reviews: 56,
-      avatar: 'https://img.rocket.new/generatedImages/rocket_gen_img_16ffe2d9e-1763296688681.png',
+      avatar: '/assets/images/avatar-placeholder.svg',
       avatarAlt: 'Profile photo of Sarah Johnson',
     },
     {
@@ -46,7 +46,7 @@ export default function AllDataAccessSection() {
       lastActive: '1 day ago',
       uploads: 28,
       reviews: 34,
-      avatar: 'https://img.rocket.new/generatedImages/rocket_gen_img_1119be902-1763301466467.png',
+      avatar: '/assets/images/avatar-placeholder.svg',
       avatarAlt: 'Profile photo of Michael Chen',
     },
     {
@@ -59,7 +59,7 @@ export default function AllDataAccessSection() {
       lastActive: '30 minutes ago',
       uploads: 67,
       reviews: 89,
-      avatar: 'https://img.rocket.new/generatedImages/rocket_gen_img_10458bf2c-1763293523905.png',
+      avatar: '/assets/images/avatar-placeholder.svg',
       avatarAlt: 'Profile photo of Emma Rodriguez',
     },
     {
@@ -72,7 +72,7 @@ export default function AllDataAccessSection() {
       lastActive: '1 week ago',
       uploads: 12,
       reviews: 8,
-      avatar: 'https://img.rocket.new/generatedImages/rocket_gen_img_14889e74f-1763294788752.png',
+      avatar: '/assets/images/avatar-placeholder.svg',
       avatarAlt: 'Profile photo of James Wilson',
     },
     {
@@ -85,7 +85,7 @@ export default function AllDataAccessSection() {
       lastActive: '5 hours ago',
       uploads: 51,
       reviews: 72,
-      avatar: 'https://img.rocket.new/generatedImages/rocket_gen_img_10458bf2c-1763293523905.png',
+      avatar: '/assets/images/avatar-placeholder.svg',
       avatarAlt: 'Profile photo of Olivia Martinez',
     },
   ];

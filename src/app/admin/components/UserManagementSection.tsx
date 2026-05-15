@@ -29,7 +29,7 @@ export default function UserManagementSection() {
     role: 'user',
     status: 'active',
     joinDate: '2024-01-15',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_16ffe2d9e-1763296688681.png",
+    avatar: "/assets/images/avatar-placeholder.svg",
     avatarAlt: 'Profile photo of Sarah Johnson',
     uploads: 43,
     reviews: 56
@@ -41,7 +41,7 @@ export default function UserManagementSection() {
     role: 'user',
     status: 'active',
     joinDate: '2024-02-20',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1119be902-1763301466467.png",
+    avatar: "/assets/images/avatar-placeholder.svg",
     avatarAlt: 'Profile photo of Michael Chen',
     uploads: 28,
     reviews: 34
@@ -53,7 +53,7 @@ export default function UserManagementSection() {
     role: 'admin',
     status: 'active',
     joinDate: '2023-11-10',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_10458bf2c-1763293523905.png",
+    avatar: "/assets/images/avatar-placeholder.svg",
     avatarAlt: 'Profile photo of Emma Rodriguez',
     uploads: 67,
     reviews: 89
@@ -65,7 +65,7 @@ export default function UserManagementSection() {
     role: 'user',
     status: 'banned',
     joinDate: '2024-03-05',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_14889e74f-1763294788752.png",
+    avatar: "/assets/images/avatar-placeholder.svg",
     avatarAlt: 'Profile photo of James Wilson',
     uploads: 12,
     reviews: 8
@@ -77,7 +77,7 @@ export default function UserManagementSection() {
     role: 'user',
     status: 'active',
     joinDate: '2024-01-28',
-    avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_10458bf2c-1763293523905.png",
+    avatar: "/assets/images/avatar-placeholder.svg",
     avatarAlt: 'Profile photo of Olivia Martinez',
     uploads: 51,
     reviews: 72

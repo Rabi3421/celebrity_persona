@@ -4,7 +4,7 @@ export const HOME_DESCRIPTION =
 
 export const HOME_FALLBACK_IMAGE = '/assets/images/no_image.png';
 export const HOME_HERO_IMAGE =
-  'https://img.rocket.new/generatedImages/rocket_gen_img_1d4aad93b-1770398321397.png';
+  '/assets/images/editorial-celebrity.svg';
 
 export type HomeCelebrity = {
   id: string;
@@ -129,7 +129,7 @@ export const fallbackArticles: HomeArticle[] = [
     title: 'Emma Watson Launches Sustainable Fashion Line',
     path: '/celebrity-news',
     excerpt: 'A closer look at sustainable celebrity style and shoppable fashion inspiration.',
-    image: 'https://img.rocket.new/generatedImages/rocket_gen_img_1107d2191-1766599828252.png',
+    image: '/assets/images/editorial-fashion.svg',
     alt: 'Sustainable fashion display with natural fabrics and plants',
     category: 'Fashion',
     date: 'Feb 8, 2026',
@@ -159,7 +159,7 @@ export const fallbackOutfits: HomeOutfit[] = [
     path: '/fashion-gallery',
     celebrityName: 'Emma Watson',
     occasion: 'Red carpet',
-    image: 'https://img.rocket.new/generatedImages/rocket_gen_img_105afe58d-1768666763976.png',
+    image: '/assets/images/editorial-fashion.svg',
     alt: 'Elegant beige blazer with gold buttons over a white silk shirt',
     price: '$$$',
     description: 'A polished celebrity-inspired outfit with structured tailoring and soft neutrals.',
@@ -197,7 +197,7 @@ export const fallbackMovies: HomeMovie[] = [
     dateTime: '2026-03-15',
     cast: 'Tom Holland, Zendaya, Benedict Cumberbatch',
     genre: 'Action, Superhero',
-    poster: 'https://img.rocket.new/generatedImages/rocket_gen_img_124fe76af-1764763084150.png',
+    poster: '/assets/images/editorial-movies.svg',
     alt: 'Dramatic superhero movie poster with a city skyline at night',
     description: 'Upcoming release details, cast updates, and entertainment coverage.',
   },
@@ -209,7 +209,7 @@ export const fallbackMovies: HomeMovie[] = [
     dateTime: '2026-04-22',
     cast: 'Emma Watson, Timothee Chalamet, Saoirse Ronan',
     genre: 'Drama, Romance',
-    poster: 'https://img.rocket.new/generatedImages/rocket_gen_img_1d16b6d34-1770609260183.png',
+    poster: '/assets/images/editorial-movies.svg',
     alt: 'Elegant period drama poster with a classical music theme',
     description: 'Movie synopsis, cast information, and release-date tracking.',
   },
@@ -221,7 +221,7 @@ export const fallbackMovies: HomeMovie[] = [
     dateTime: '2026-06-12',
     cast: 'Timothee Chalamet, Zendaya, Florence Pugh',
     genre: 'Sci-Fi, Adventure',
-    poster: 'https://img.rocket.new/generatedImages/rocket_gen_img_13d440ff9-1770609261588.png',
+    poster: '/assets/images/editorial-movies.svg',
     alt: 'Epic science fiction poster with desert landscape and stars',
     description: 'Release news, cast notes, and fan-focused movie details.',
   },
@@ -244,7 +244,7 @@ export const fallbackUploads: HomeUpload[] = [
     title: 'Tom Holland airport style',
     path: '/fashion-gallery',
     uploaderName: 'Mike Johnson',
-    image: 'https://img.rocket.new/generatedImages/rocket_gen_img_1308d5eaf-1770609261808.png',
+    image: '/assets/images/editorial-fashion.svg',
     alt: 'Sporty bomber jacket with navy joggers and running shoes',
     category: 'Airport',
     views: '2.8K',
@@ -255,7 +255,7 @@ export const fallbackUploads: HomeUpload[] = [
     title: 'Zendaya red carpet recreation',
     path: '/fashion-gallery',
     uploaderName: 'Lisa Park',
-    image: 'https://img.rocket.new/generatedImages/rocket_gen_img_147d7b671-1770185029925.png',
+    image: '/assets/images/editorial-fashion.svg',
     alt: 'Elegant emerald green gown with crystal embellishments',
     category: 'Red carpet',
     views: '5.6K',

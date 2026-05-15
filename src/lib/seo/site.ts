@@ -5,7 +5,9 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://celebrityp
 export const TWITTER_HANDLE = '@CelebrityPersona';
 export const DEFAULT_DESCRIPTION =
   'CelebrityPersona covers celebrity profiles, fashion inspiration, entertainment news, movie details, and reviews.';
-export const DEFAULT_OG_IMAGE = '/assets/images/no_image.png';
+export const BRAND_ICON = '/icon.png';
+export const BRAND_LOGO = '/brand/celebritypersona-logo-dark.svg';
+export const DEFAULT_OG_IMAGE = '/og-image.png';
 
 export type MetadataInput = {
   title: string;

@@ -3,6 +3,7 @@ import PublicHeader from '@/components/common/PublicHeader';
 import PublicFooter from '@/components/common/PublicFooter';
 import JsonLd from '@/components/seo/JsonLd';
 import {
+  DEFAULT_OG_IMAGE,
   createMetadata,
   stripHtml,
   truncate,
@@ -49,7 +50,7 @@ export const metadata: Metadata = createMetadata({
   title: HOME_TITLE,
   description: HOME_DESCRIPTION,
   path: '/',
-  image: HOME_HERO_IMAGE,
+  image: DEFAULT_OG_IMAGE,
   keywords: [
     'celebrity style',
     'celebrity fashion',

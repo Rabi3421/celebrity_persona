@@ -28,7 +28,7 @@ export default function ContentModerationSection() {
     submittedBy: 'Sarah Johnson',
     submittedDate: '2026-02-08',
     status: 'pending',
-    image: "https://img.rocket.new/generatedImages/rocket_gen_img_1a6992b94-1770213414145.png",
+    image: "/assets/images/editorial-fashion.svg",
     imageAlt: 'Elegant red evening gown with flowing train',
     description: 'Stunning red carpet gown worn at Met Gala 2026 featuring intricate beadwork.'
   },
@@ -39,7 +39,7 @@ export default function ContentModerationSection() {
     submittedBy: 'Michael Chen',
     submittedDate: '2026-02-07',
     status: 'pending',
-    image: "https://img.rocket.new/generatedImages/rocket_gen_img_129bd742b-1766922249596.png",
+    image: "/assets/images/editorial-celebrity.svg",
     imageAlt: 'Portrait of woman with elegant styling',
     description: 'Complete profile for actress Anya Taylor-Joy including filmography and fashion moments.'
   },
@@ -50,7 +50,7 @@ export default function ContentModerationSection() {
     submittedBy: 'Emma Rodriguez',
     submittedDate: '2026-02-06',
     status: 'approved',
-    image: "https://img.rocket.new/generatedImages/rocket_gen_img_1c8e1ab76-1764798615891.png",
+    image: "/assets/images/editorial-fashion.svg",
     imageAlt: 'Casual street style outfit with denim jacket',
     description: 'Trendy street style look spotted during NYC Fashion Week.'
   },
@@ -72,7 +72,7 @@ export default function ContentModerationSection() {
     submittedBy: 'James Wilson',
     submittedDate: '2026-02-04',
     status: 'rejected',
-    image: "https://img.rocket.new/generatedImages/rocket_gen_img_156cbdd9f-1770620310805.png",
+    image: "/assets/images/editorial-fashion.svg",
     imageAlt: 'Vintage style evening dress',
     description: 'Vintage-inspired evening wear with poor image quality.'
   },
@@ -83,7 +83,7 @@ export default function ContentModerationSection() {
     submittedBy: 'Sarah Johnson',
     submittedDate: '2026-02-08',
     status: 'pending',
-    image: "https://img.rocket.new/generatedImages/rocket_gen_img_1932136a6-1770620312233.png",
+    image: "/assets/images/editorial-fashion.svg",
     imageAlt: 'Elegant designer suit in neutral tones',
     description: 'Custom designer suit worn during awards season with impeccable tailoring.'
   }]

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
+import BrandLogo from '@/components/brand/BrandLogo';
 import ProfileSection from './ProfileSection';
 import WishlistSection from './WishlistSection';
 import MyUploadsSection from './MyUploadsSection';
@@ -79,11 +80,13 @@ export default function DashboardInteractive() {
 
         {/* Brand */}
         <div className={`flex items-center gap-3 px-5 py-5 border-b border-white/10 ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}>
-          <Link href="/" className="flex items-center gap-2 shrink-0" onClick={() => setMobileOpen(false)}>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0">
-              <Icon name="SparklesIcon" size={18} className="text-black" />
-            </div>
-            <span className={`font-playfair text-lg font-bold text-white ${collapsed ? 'lg:hidden' : ''}`}>CelebrityPersona</span>
+          <Link href="/" className="flex min-w-0 items-center shrink-0" onClick={() => setMobileOpen(false)}>
+            <BrandLogo
+              variant="compact"
+              tone="dark"
+              markClassName="h-9 w-9"
+              textClassName={`text-lg sm:text-lg ${collapsed ? 'lg:hidden' : ''}`}
+            />
           </Link>
           <button
             onClick={() => setMobileOpen(false)}
