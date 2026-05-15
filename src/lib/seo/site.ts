@@ -68,6 +68,54 @@ export function withSiteTitle(title: string): string {
     : `${trimmed} | ${SITE_NAME}`;
 }
 
+const VALID_OPEN_GRAPH_TYPES = new Set([
+  'website',
+  'article',
+  'book',
+  'profile',
+  'music.song',
+  'music.album',
+  'music.playlist',
+  'music.radio_station',
+  'video.movie',
+  'video.episode',
+  'video.tv_show',
+  'video.other',
+]);
+
+const OPEN_GRAPH_TYPE_ALIASES: Record<string, string> = {
+  blog: 'article',
+  blogposting: 'article',
+  news: 'article',
+  newsarticle: 'article',
+  outfit: 'article',
+  person: 'profile',
+  celebrity: 'profile',
+  film: 'video.movie',
+  movie: 'video.movie',
+  video: 'video.other',
+};
+
+function normalizeOpenGraphType(type?: string, fallback = 'website') {
+  const fallbackType = normalizeOpenGraphTypeValue(fallback) || 'website';
+  const candidate = normalizeOpenGraphTypeValue(type);
+
+  if (candidate) return candidate;
+
+  if (stripHtml(type || '').trim().toLowerCase() === 'product') {
+    return fallbackType === 'website' ? 'website' : fallbackType;
+  }
+
+  return fallbackType;
+}
+
+function normalizeOpenGraphTypeValue(type?: string) {
+  const value = stripHtml(type || '').trim().toLowerCase();
+  if (!value) return '';
+  if (VALID_OPEN_GRAPH_TYPES.has(value)) return value;
+  return OPEN_GRAPH_TYPE_ALIASES[value] || '';
+}
+
 export function createMetadata({
   title,
   description = DEFAULT_DESCRIPTION,
@@ -104,6 +152,7 @@ export function createMetadata({
   const socialDescription = truncate(ogDescription || finalDescription, 200);
   const xTitle = withSiteTitle(twitterTitle || ogTitle || title);
   const xDescription = truncate(twitterDescription || ogDescription || finalDescription, 200);
+  const openGraphType = normalizeOpenGraphType(ogType || type, type);
 
   return {
     title: { absolute: fullTitle },
@@ -127,7 +176,7 @@ export function createMetadata({
       url: canonical,
       siteName: ogSiteName || SITE_NAME,
       locale: ogLocale || 'en_US',
-      type: (ogType || type) as any,
+      type: openGraphType as any,
       images: imageList.map((url) => ({
         url,
         width: 1200,

@@ -118,7 +118,7 @@ const emptySlot = (): UploadSlot => ({ uploading: false, progress: 0, error: '' 
 const EMPTY_MOVIE_SEO: IMovieSEO = {
   metaTitle: '', metaDescription: '', focusKeyword: '', keywords: [],
   canonicalUrl: '', robots: 'index,follow', robotsIndex: true, robotsFollow: true,
-  ogTitle: '', ogDescription: '', ogImage: '', ogType: 'movie',
+  ogTitle: '', ogDescription: '', ogImage: '', ogType: 'video.movie',
   twitterCard: 'summary_large_image', twitterTitle: '', twitterDescription: '',
   twitterImage: '', twitterCreator: '',
   schemaType: 'Movie', structuredData: '',

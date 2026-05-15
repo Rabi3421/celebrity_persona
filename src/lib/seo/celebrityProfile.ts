@@ -1,4 +1,5 @@
 import { stripHtml, truncate } from './site';
+import { buildCelebrityContentCluster, buildClusterBrowseLinks } from './contentClusters';
 
 type AnyRecord = Record<string, any>;
 
@@ -188,15 +189,7 @@ export function getCelebrityProfileSections(
 }
 
 export function getCelebrityTopicLinks(celebrity: AnyRecord) {
-  const name = text(celebrity.name) || 'celebrity';
-  const encodedName = encodeURIComponent(name);
-
-  return [
-    { label: `${name} outfit articles`, href: `/fashion-gallery?celebrity=${encodedName}` },
-    { label: `${name} latest news`, href: `/celebrity-news?celebrity=${encodedName}` },
-    { label: `${name} movie pages`, href: `/movie-details?celebrity=${encodedName}` },
-    { label: `${name} reviews`, href: `/reviews?celebrity=${encodedName}` },
-  ];
+  return buildClusterBrowseLinks(buildCelebrityContentCluster(celebrity));
 }
 
 export function getCelebrityFaqs(celebrity: AnyRecord): CelebrityFaq[] {

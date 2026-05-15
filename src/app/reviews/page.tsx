@@ -4,10 +4,11 @@ import PublicFooter from '@/components/common/PublicFooter';
 import JsonLd from '@/components/seo/JsonLd';
 import ReviewsInteractive from './components/ReviewsInteractive';
 import { createMetadata } from '@/lib/seo/site';
-import { getAvailableForReviewMovies, getReviews } from '@/lib/seo/publicData';
+import { getReviews } from '@/lib/seo/publicData';
 import { createBreadcrumbSchema, createItemListSchema } from '@/lib/seo/structuredData';
 
-export const revalidate = 900;
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export const metadata: Metadata = createMetadata({
   title: 'Movie Reviews',
@@ -18,10 +19,7 @@ export const metadata: Metadata = createMetadata({
 });
 
 export default async function ReviewsPage() {
-  const [reviewPage, availableMovies] = await Promise.all([
-    getReviews({ page: 1, limit: 12 }),
-    getAvailableForReviewMovies({ limit: 20 }),
-  ]);
+  const reviewPage = await getReviews({ page: 1, limit: 12 });
 
   return (
     <>
@@ -48,7 +46,6 @@ export default async function ReviewsPage() {
         <ReviewsInteractive
           initialReviews={reviewPage.data}
           initialMeta={reviewPage.pagination}
-          initialAvailableMovies={availableMovies}
           initialLoaded
         />
       </main>

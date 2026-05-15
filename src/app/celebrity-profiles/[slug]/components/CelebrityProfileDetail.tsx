@@ -14,6 +14,7 @@ import {
   getCelebritySummary,
   getCelebrityTopicLinks,
 } from '@/lib/seo/celebrityProfile';
+import { getCelebrityProgrammaticTopicLinks } from '@/lib/seo/programmaticCelebrity';
 
 interface Movie {
   _id?: string;
@@ -235,12 +236,13 @@ function FactGrid({ facts }: { facts: Array<{ label: string; value: string }> })
 
 function InlineTopicLinks({ links }: { links: Array<{ label: string; href: string }> }) {
   if (links.length === 0) return null;
+  const visibleLinks = links.slice(0, 6);
 
   return (
     <p className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-7 text-neutral-300">
       Explore related pages for{' '}
-      {links.slice(0, 4).map((link, index) => {
-        const isLast = index === Math.min(links.length, 4) - 1;
+      {visibleLinks.map((link, index) => {
+        const isLast = index === visibleLinks.length - 1;
         return (
           <span key={link.href}>
             <Link href={link.href} className="font-semibold text-primary underline underline-offset-4 hover:text-white">
@@ -365,7 +367,10 @@ export default function CelebrityProfileDetail({
   const tocSections = getCelebrityProfileSections(c, { hasRelatedLinks });
   const faqItems = getCelebrityFaqs(c);
   const socialLinks = getCelebritySocialLinks(c);
-  const topicLinks = getCelebrityTopicLinks(c);
+  const topicLinks = [
+    ...getCelebrityProgrammaticTopicLinks(c),
+    ...getCelebrityTopicLinks(c),
+  ].filter((link, index, list) => list.findIndex((item) => item.href === link.href) === index);
 
   const hasFilms = (c.movies?.length ?? 0) > 0;
   const hasWebSeries = (c.webSeries?.length ?? 0) > 0;

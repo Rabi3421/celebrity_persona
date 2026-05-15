@@ -4,7 +4,7 @@ import type { SeoInternalLinkGroup, SeoInternalLinks } from '@/lib/seo/internalL
 import { stripHtml, truncate } from '@/lib/seo/site';
 
 function ContextualLinks({ links }: { links: SeoInternalLinks['contextualLinks'] }) {
-  const visibleLinks = links.slice(0, 5);
+  const visibleLinks = links.slice(0, 7);
   if (visibleLinks.length === 0) return null;
 
   return (

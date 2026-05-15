@@ -7,6 +7,7 @@ import CelebrityOutfit from '@/models/CelebrityOutfit';
 import Movie from '@/models/Movie';
 import MovieReview from '@/models/MovieReview';
 import UserOutfit from '@/models/UserOutfit';
+import { buildCelebrityContentCluster, buildClusterBrowseLinks } from './contentClusters';
 
 export type SeoInternalLinkItem = {
   title: string;
@@ -173,6 +174,20 @@ function item(title: string, href: string, options: Partial<SeoInternalLinkItem>
   return { title, href, ...options };
 }
 
+function dedupeItems(items: SeoInternalLinkItem[]): SeoInternalLinkItem[] {
+  const seen = new Set<string>();
+  const result: SeoInternalLinkItem[] = [];
+
+  for (const link of items) {
+    const key = link.href || link.title.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(link);
+  }
+
+  return result;
+}
+
 function celebrityItem(doc: PlainDoc): SeoInternalLinkItem {
   return item(doc.name, `/celebrity-profiles/${doc.slug}`, {
     image: doc.profileImage || doc.coverImage,
@@ -249,18 +264,14 @@ export async function getCelebrityInternalLinks(celebrity: PlainDoc): Promise<Se
 
     const id = docId(celebrity);
     const name = String(celebrity.name || '');
-    const terms = collectTerms(
-      celebrity.tags,
-      celebrity.categories,
-      celebrity.occupation,
-      celebrity.seo?.tags,
-      celebrity.seo?.relatedTopics
-    );
+    const cluster = buildCelebrityContentCluster(celebrity);
+    const terms = collectTerms(cluster.terms, cluster.tags, cluster.categories);
     const tokenRegexes = regexTerms(terms);
-    const relatedNames = asArray(celebrity.relatedCelebrities).map(textRegex);
-    const movieNames = asArray((celebrity.movies || []).map((movie: PlainDoc) => movie.name)).map(textRegex);
+    const relatedNames = cluster.people.filter((person) => person.toLowerCase() !== name.toLowerCase()).map(textRegex);
+    const movieNames = cluster.movieTitles.map(textRegex);
+    const clusterBrowseLinks = buildClusterBrowseLinks(cluster);
 
-    const [celebrities, outfits, news, movies] = await Promise.all([
+    const [celebrities, trendingCelebrities, outfits, news, movies, reviews] = await Promise.all([
       Celebrity.find({
         $and: [
           publicCelebrityFilter(),
@@ -278,6 +289,24 @@ export async function getCelebrityInternalLinks(celebrity: PlainDoc): Promise<Se
       })
         .select('name slug profileImage coverImage occupation introduction categories popularityScore viewCount')
         .sort({ isFeatured: -1, popularityScore: -1, viewCount: -1 })
+        .limit(6)
+        .lean(),
+      Celebrity.find({
+        $and: [
+          publicCelebrityFilter(),
+          { slug: { $type: 'string', $ne: '' } },
+          { slug: { $ne: celebrity.slug } },
+          relationOr([
+            ...(tokenRegexes.length ? [
+              { tags: { $in: tokenRegexes } },
+              { categories: { $in: tokenRegexes } },
+              { occupation: { $in: tokenRegexes } },
+            ] : []),
+          ], { popularityScore: { $gte: 0 } }),
+        ],
+      })
+        .select('name slug profileImage coverImage occupation introduction categories trendingScore popularityScore viewCount')
+        .sort({ isFeatured: -1, trendingScore: -1, popularityScore: -1, viewCount: -1 })
         .limit(6)
         .lean(),
       CelebrityOutfit.find({
@@ -340,44 +369,86 @@ export async function getCelebrityInternalLinks(celebrity: PlainDoc): Promise<Se
         ],
       })
         .select('title slug releaseDate poster backdrop genre director status synopsis plotSummary')
-        .sort({ releaseDate: -1, updatedAt: -1 })
-        .limit(8)
+        .sort({ releaseDate: -1, anticipationScore: -1, updatedAt: -1 })
+        .limit(12)
+        .lean(),
+      MovieReview.find({
+        $and: [
+          { status: 'published', slug: { $type: 'string', $ne: '' } },
+          indexableSeoFilter('seoData'),
+          relationOr([
+            { title: textRegex(name) },
+            { movieTitle: textRegex(name) },
+            { 'movieDetails.cast.name': textRegex(name) },
+            ...(movieNames.length ? [{ movieTitle: { $in: movieNames } }] : []),
+            ...(tokenRegexes.length ? [
+              { 'movieDetails.genre': { $in: tokenRegexes } },
+              { title: { $in: tokenRegexes } },
+            ] : []),
+          ]),
+        ],
+      })
+        .select('title slug movieTitle poster backdropImage rating excerpt verdict publishDate movieDetails.genre featured')
+        .sort({ featured: -1, publishDate: -1, rating: -1, createdAt: -1 })
+        .limit(6)
         .lean(),
     ]);
+    const movieDocs = plain(movies);
+    const releasedMovies = movieDocs.filter(movieIsReleased);
+    const upcomingMovies = movieDocs.filter((movie: PlainDoc) => !movieIsReleased(movie));
 
     return {
       contextualLinks: [
+        ...clusterBrowseLinks,
         { label: `${name} biography and career timeline`, href: `/celebrity-profiles/${celebrity.slug}` },
-        { label: `${name} outfits and style inspiration`, href: `/fashion-gallery?celebrity=${encodeURIComponent(name)}` },
-        { label: `${name} latest celebrity news`, href: `/celebrity-news?celebrity=${encodeURIComponent(name)}` },
-        { label: `${name} movies and screen appearances`, href: `/movie-details?celebrity=${encodeURIComponent(name)}` },
       ],
       groups: compactGroups([
         {
           title: `Related Celebrities To ${name}`,
           description: 'Profiles connected by profession, category, tags, or editorial relationship.',
-          items: plain(celebrities).filter((doc: PlainDoc) => doc.slug !== celebrity.slug).map(celebrityItem),
+          items: dedupeItems(plain(celebrities).filter((doc: PlainDoc) => doc.slug !== celebrity.slug).map(celebrityItem)),
           viewAllHref: '/celebrity-profiles',
           viewAllLabel: 'Browse all celebrity profiles',
         },
         {
+          title: `Trending Celebrities In ${cluster.primaryTopic}`,
+          description: 'Trending celebrity profiles in the same topical cluster, ranked by feature status, trend, popularity, and views.',
+          items: dedupeItems(plain(trendingCelebrities).filter((doc: PlainDoc) => doc.slug !== celebrity.slug).map(celebrityItem)),
+          viewAllHref: `/celebrity-profiles?topic=${encodeURIComponent(cluster.primaryTopic)}`,
+          viewAllLabel: `Explore ${cluster.primaryTopic} celebrities`,
+        },
+        {
           title: `${name} Movies`,
-          description: 'Movie pages connected through cast, crew, titles, and topical movie signals.',
-          items: plain(movies).map(movieItem),
+          description: 'Released movie pages connected through cast, crew, title matches, and topical movie signals.',
+          items: dedupeItems(releasedMovies.map(movieItem)),
           viewAllHref: `/movie-details?celebrity=${encodeURIComponent(name)}`,
           viewAllLabel: `View ${name} movie links`,
         },
         {
+          title: `${name} Upcoming Movies`,
+          description: 'Upcoming movie pages connected by cast, crew, listed credits, and shared topical signals.',
+          items: dedupeItems(upcomingMovies.map(movieItem)),
+          viewAllHref: `/upcoming-movies?celebrity=${encodeURIComponent(name)}`,
+          viewAllLabel: `Track ${name} upcoming movies`,
+        },
+        {
+          title: `${name} Movie Reviews`,
+          description: 'Review pages connected by movie association, cast signals, genre, and topical relevance.',
+          items: dedupeItems(plain(reviews).map(reviewItem)),
+          viewAllHref: `/reviews?celebrity=${encodeURIComponent(name)}`,
+          viewAllLabel: `Read ${name} related reviews`,
+        },
+        {
           title: `${name} Outfit Articles`,
           description: 'Fashion pages related by celebrity, category, tags, brand, and event context.',
-          items: plain(outfits).map(outfitItem),
+          items: dedupeItems(plain(outfits).map(outfitItem)),
           viewAllHref: `/fashion-gallery?celebrity=${encodeURIComponent(name)}`,
           viewAllLabel: `View ${name} outfit articles`,
         },
         {
           title: `${name} News Articles`,
           description: 'Fresh entertainment coverage connected to this celebrity profile.',
-          items: plain(news).map(newsItem),
+          items: dedupeItems(plain(news).map(newsItem)),
           viewAllHref: `/celebrity-news?celebrity=${encodeURIComponent(name)}`,
           viewAllLabel: `Read more ${name} news`,
         },
