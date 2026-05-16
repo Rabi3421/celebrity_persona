@@ -11,14 +11,39 @@ interface ArticleData {
   title: string;
   slug: string;
   content: string;
+  body?: string;
+  introduction?: string;
+  backgroundContext?: string;
+  whatHappened?: string;
+  whyItMatters?: string;
+  publicReaction?: string;
+  officialStatement?: string;
+  celebrityQuote?: string;
+  conclusion?: string;
   excerpt: string;
   thumbnail: string;
+  featuredImage?: string;
+  featuredImageAlt?: string;
+  featuredImageCaption?: string;
+  imageCredit?: string;
   author: string;
+  authorName?: string;
+  updatedAt?: string;
   category: string;
+  newsType?: string;
+  publishedAt?: string;
   tags: string[];
   featured: boolean;
+  isFeatured?: boolean;
+  isTrending?: boolean;
+  isBreaking?: boolean;
   publishDate: string;
+  sourceName?: string;
+  sourceUrl?: string;
+  sourceCreditText?: string;
+  relatedCelebrities?: Array<{ name: string; slug?: string; image?: string; profileUrl?: string }>;
   celebrity: { name: string; slug: string; profileImage?: string } | null;
+  primaryCelebrity?: { name: string; slug: string; profileImage?: string } | null;
   likeCount: number;
   saveCount: number;
   commentCount: number;
@@ -151,7 +176,7 @@ export default function ArticleDetail({
                 slug:        n.slug,
                 thumbnail:   n.thumbnail || '',
                 category:    n.category  || '',
-                publishDate: n.publishDate || n.createdAt,
+                publishDate: n.publishedAt || n.publishDate || n.createdAt,
                 excerpt:     n.excerpt    || '',
               }));
             setSidebarNews(others);
@@ -316,9 +341,19 @@ export default function ArticleDetail({
             <span className="bg-accent/20 text-accent border border-accent/30 font-montserrat text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-full">
               {article.category}
             </span>
-            {article.featured && (
+            {(article.isFeatured ?? article.featured) && (
               <span className="bg-primary/20 text-primary border border-primary/30 font-montserrat text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-full">
                 ★ Featured
+              </span>
+            )}
+            {article.isTrending && (
+              <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 font-montserrat text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-full">
+                Trending
+              </span>
+            )}
+            {article.isBreaking && (
+              <span className="bg-red-500/20 text-red-300 border border-red-500/30 font-montserrat text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-full">
+                Breaking
               </span>
             )}
           </div>
@@ -329,14 +364,20 @@ export default function ArticleDetail({
             <p className="text-base leading-7 text-neutral-300 mb-4 sm:text-lg sm:leading-relaxed">{article.excerpt}</p>
           )}
           <div className="flex items-center gap-4 text-sm text-neutral-400 flex-wrap">
-            <span>{formatDate(article.publishDate)}</span>
-            <span className="w-1 h-1 rounded-full bg-neutral-600" />
-            <span>{readTime(article.content)}</span>
-            {article.celebrity && (
+            <span>{formatDate(article.publishedAt || article.publishDate)}</span>
+            {article.updatedAt && article.updatedAt !== article.publishDate && (
               <>
                 <span className="w-1 h-1 rounded-full bg-neutral-600" />
-                <Link href={`/celebrity-profiles/${article.celebrity.slug}`} className="text-accent hover:underline">
-                  {article.celebrity.name}
+                <span>Updated {formatDate(article.updatedAt)}</span>
+              </>
+            )}
+            <span className="w-1 h-1 rounded-full bg-neutral-600" />
+            <span>{readTime(article.body || article.content || article.excerpt)}</span>
+            {(article.primaryCelebrity || article.celebrity) && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-neutral-600" />
+                <Link href={`/celebrity-profiles/${(article.primaryCelebrity || article.celebrity)!.slug}`} className="text-accent hover:underline">
+                  {(article.primaryCelebrity || article.celebrity)!.name}
                 </Link>
               </>
             )}
@@ -344,35 +385,88 @@ export default function ArticleDetail({
         </div>
 
         {/* Featured Image */}
-        {article.thumbnail && (
-          <div className="relative aspect-video rounded-2xl overflow-hidden mb-8">
+        {(article.featuredImage || article.thumbnail) && (
+          <figure className="mb-8">
+            <div className="relative aspect-video rounded-2xl overflow-hidden">
             <AppImage
-              src={article.thumbnail}
-              alt={article.title}
+              src={article.featuredImage || article.thumbnail}
+              alt={article.featuredImageAlt || article.title}
               className="w-full h-full object-cover"
               priority
               sizes="(min-width: 1024px) 768px, 100vw"
               quality={82}
             />
           </div>
+            {(article.featuredImageCaption || article.imageCredit) && (
+              <figcaption className="mt-2 text-xs text-neutral-500 font-montserrat">
+                {article.featuredImageCaption}{article.imageCredit ? ` Credit: ${article.imageCredit}` : ''}
+              </figcaption>
+            )}
+          </figure>
         )}
 
         {/* Author Info */}
             <div className="glass-card rounded-2xl p-5 mb-8 flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex-shrink-0 flex items-center justify-center">
-                <span className="text-black font-bold text-lg">{article.author.charAt(0).toUpperCase()}</span>
+                <span className="text-black font-bold text-lg">{(article.authorName || article.author).charAt(0).toUpperCase()}</span>
               </div>
               <div>
                 <p className="text-xs text-neutral-400 mb-0.5">Written by</p>
-                <p className="font-playfair text-base font-semibold text-white">{article.author}</p>
+                <p className="font-playfair text-base font-semibold text-white">{article.authorName || article.author}</p>
               </div>
             </div>
 
             {/* Article Content */}
-            <div
-              className="article-content prose prose-invert max-w-none mb-10"
-              dangerouslySetInnerHTML={{ __html: article.content }}
-            />
+            <div className="article-content prose prose-invert max-w-none mb-10">
+              {[
+                ['Introduction', article.introduction],
+                ['', article.body || article.content],
+                ['Background Context', article.backgroundContext],
+                ['What Happened', article.whatHappened],
+                ['Why It Matters', article.whyItMatters],
+                ['Public Reaction', article.publicReaction],
+                ['Official Statement', article.officialStatement],
+                ['Conclusion', article.conclusion],
+              ].map(([heading, html], index) => html ? (
+                <section key={index} className="mb-8">
+                  {heading && <h2>{heading}</h2>}
+                  <div dangerouslySetInnerHTML={{ __html: html }} />
+                </section>
+              ) : null)}
+              {article.celebrityQuote && (
+                <blockquote>{article.celebrityQuote}</blockquote>
+              )}
+            </div>
+
+            {((article.relatedCelebrities || []).length > 0 || article.sourceName || article.sourceUrl) && (
+              <div className="glass-card rounded-2xl p-5 mb-8 space-y-5">
+                {(article.relatedCelebrities || []).length > 0 && (
+                  <div>
+                    <p className="text-xs text-neutral-500 uppercase tracking-wider mb-3 font-montserrat">Related Celebrities</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(article.relatedCelebrities || []).map((celeb) => (
+                        <Link key={`${celeb.slug}-${celeb.name}`} href={celeb.profileUrl || `/celebrity-profiles/${celeb.slug || ''}`}
+                          className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-neutral-300 hover:text-accent hover:border-accent/40">
+                          {celeb.name}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(article.sourceName || article.sourceUrl) && (
+                  <div>
+                    <p className="text-xs text-neutral-500 uppercase tracking-wider mb-2 font-montserrat">Source & Verification</p>
+                    {article.sourceUrl ? (
+                      <a href={article.sourceUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                        {article.sourceCreditText || article.sourceName || 'View source'}
+                      </a>
+                    ) : (
+                      <p className="text-neutral-300">{article.sourceCreditText || article.sourceName}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ── Interaction Bar ── */}
             <div className="glass-card rounded-2xl p-4 mb-8 flex items-center gap-3 flex-wrap">

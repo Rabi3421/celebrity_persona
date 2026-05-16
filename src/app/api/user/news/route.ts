@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import CelebrityNews from '@/models/CelebrityNews';
 import Celebrity from '@/models/Celebrity';
+import { publicNewsFilter, serializeNews } from '@/lib/celebrityNews';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -42,14 +43,16 @@ export async function GET(request: NextRequest) {
     const sort       = searchParams.get('sort') || 'latest';
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filter: Record<string, any> = { status: 'published' };
+    const filter: Record<string, any> = publicNewsFilter();
 
     if (q) {
       filter.$or = [
         { title:   { $regex: q, $options: 'i' } },
         { excerpt: { $regex: q, $options: 'i' } },
         { author:  { $regex: q, $options: 'i' } },
+        { authorName: { $regex: q, $options: 'i' } },
         { tags:    { $regex: q, $options: 'i' } },
+        { 'seo.contentTags': { $regex: q, $options: 'i' } },
       ];
     }
 
@@ -58,9 +61,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (celebrity) {
-      const celebDoc = await Celebrity.findOne({ name: { $regex: celebrity, $options: 'i' } }).select('_id').lean() as { _id: unknown } | null;
+      const celebDoc = await Celebrity.findOne({
+        $or: [
+          { name: { $regex: celebrity, $options: 'i' } },
+          { slug: celebrity.toLowerCase() },
+        ],
+      }).select('_id slug').lean() as { _id: unknown; slug?: string } | null;
       if (celebDoc) {
-        filter.celebrity = celebDoc._id;
+        filter.$or = [
+          { celebrity: celebDoc._id },
+          { primaryCelebrity: celebDoc._id },
+          { primaryCelebritySlug: celebDoc.slug },
+          { 'relatedCelebrities.slug': celebDoc.slug },
+        ];
       } else {
         return NextResponse.json({ success: true, data: [], total: 0, page: 1, limit, pages: 0 });
       }
@@ -72,9 +85,11 @@ export async function GET(request: NextRequest) {
 
     // Sort strategy
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let sortOption: Record<string, any> = { publishDate: -1, createdAt: -1 }; // latest
-    if (sort === 'oldest')  sortOption = { publishDate: 1, createdAt: 1 };
-    if (sort === 'featured') sortOption = { featured: -1, publishDate: -1, createdAt: -1 };
+    let sortOption: Record<string, any> = { publishedAt: -1, publishDate: -1, createdAt: -1 }; // latest
+    if (sort === 'oldest')  sortOption = { publishedAt: 1, publishDate: 1, createdAt: 1 };
+    if (sort === 'featured') sortOption = { isFeatured: -1, featured: -1, publishedAt: -1, publishDate: -1, createdAt: -1 };
+    if (sort === 'trending') sortOption = { isTrending: -1, publishedAt: -1, publishDate: -1, createdAt: -1 };
+    if (sort === 'breaking') sortOption = { isBreaking: -1, publishedAt: -1, publishDate: -1, createdAt: -1 };
 
     const skip  = (page - 1) * limit;
     const total = await CelebrityNews.countDocuments(filter);
@@ -85,12 +100,12 @@ export async function GET(request: NextRequest) {
       .sort(sortOption)
       .skip(skip)
       .limit(limit)
-      .populate('celebrity', 'name slug profileImage') // attach basic celeb info
+      .populate('celebrity primaryCelebrity', 'name slug profileImage') // attach basic celeb info
       .lean();
 
     return NextResponse.json({
       success: true,
-      data,
+      data: data.map(serializeNews),
       total,
       page,
       limit,

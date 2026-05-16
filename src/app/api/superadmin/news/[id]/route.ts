@@ -4,11 +4,7 @@ import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
 import dbConnect from '@/lib/mongodb';
 import CelebrityNews from '@/models/CelebrityNews';
 import '@/models/Celebrity';
-
-const ALLOWED_FIELDS = new Set([
-  'title', 'slug', 'content', 'excerpt', 'thumbnail', 'images', 'author',
-  'category', 'celebrity', 'tags', 'publishDate', 'status', 'featured', 'seo',
-]);
+import { normalizeNewsPayload, serializeNews, validateNewsPayload } from '@/lib/celebrityNews';
 
 async function handler(request: AuthenticatedRequest, { params }: any) {
   const id = params?.id;
@@ -19,11 +15,11 @@ async function handler(request: AuthenticatedRequest, { params }: any) {
 
     // ── GET ───────────────────────────────────────────────────────────────
     if (request.method === 'GET') {
-      const doc = await CelebrityNews.findById(id).lean();
+      const doc = await CelebrityNews.findById(id)
+        .populate('primaryCelebrity celebrity', 'name slug profileImage')
+        .lean();
       if (!doc) return NextResponse.json({ success: false, message: 'News not found' }, { status: 404 });
-      const obj: any = { ...doc, id: String((doc as any)._id) };
-      delete obj._id; delete obj.__v;
-      return NextResponse.json({ success: true, data: obj });
+      return NextResponse.json({ success: true, data: serializeNews(doc) });
     }
 
     // ── PUT ───────────────────────────────────────────────────────────────
@@ -33,27 +29,26 @@ async function handler(request: AuthenticatedRequest, { params }: any) {
         return NextResponse.json({ success: false, message: 'Invalid JSON body' }, { status: 400 });
       }
 
-      const update: any = {};
-      for (const key of Object.keys(body)) {
-        if (ALLOWED_FIELDS.has(key)) {
-          update[key] = key === 'publishDate' && body[key] ? new Date(body[key]) : body[key];
-        }
+      const existing = await CelebrityNews.findById(id).lean();
+      if (!existing) return NextResponse.json({ success: false, message: 'News not found' }, { status: 404 });
+      const update = normalizeNewsPayload(body, existing);
+      const errors = validateNewsPayload(update);
+      if (Object.keys(errors).length) {
+        return NextResponse.json({ success: false, message: Object.values(errors)[0], errors }, { status: 400 });
       }
 
       const updated = await CelebrityNews.findByIdAndUpdate(
         id, update, { new: true, runValidators: true }
       ).lean();
       if (!updated) return NextResponse.json({ success: false, message: 'News not found' }, { status: 404 });
-      const obj: any = { ...updated, id: String((updated as any)._id) };
-      delete obj._id; delete obj.__v;
-      return NextResponse.json({ success: true, data: obj });
+      return NextResponse.json({ success: true, data: serializeNews(updated) });
     }
 
     // ── DELETE ────────────────────────────────────────────────────────────
     if (request.method === 'DELETE') {
-      const removed = await CelebrityNews.findByIdAndDelete(id).lean();
+      const removed = await CelebrityNews.findByIdAndUpdate(id, { status: 'archived' }, { new: true }).lean();
       if (!removed) return NextResponse.json({ success: false, message: 'News not found' }, { status: 404 });
-      return NextResponse.json({ success: true, message: 'News article deleted successfully' });
+      return NextResponse.json({ success: true, message: 'News article archived successfully' });
     }
 
     return NextResponse.json({ success: false, message: 'Method not allowed' }, { status: 405 });

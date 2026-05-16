@@ -47,10 +47,10 @@ export default function VerticalMarquee({ articles, loading }: VerticalMarqueePr
             <div className="glass-card rounded-xl p-4 hover:bg-white/5 transition-all cursor-pointer">
               <div className="flex gap-4">
                 <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-white/5">
-                  {item.thumbnail ? (
+                  {(item.featuredImage || item.thumbnail) ? (
                     <AppImage
-                      src={item.thumbnail}
-                      alt={item.title}
+                      src={item.featuredImage || item.thumbnail || ''}
+                      alt={item.featuredImageAlt || item.title}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -67,8 +67,8 @@ export default function VerticalMarquee({ articles, loading }: VerticalMarqueePr
                     {item.title}
                   </h4>
                   <div className="flex items-center gap-2 text-xs text-neutral-500">
-                    <span>{formatDate(item.publishDate || item.createdAt)}</span>
-                    {item.author && <><span>•</span><span>{item.author}</span></>}
+                    <span>{formatDate(item.publishedAt || item.publishDate || item.createdAt)}</span>
+                    {(item.authorName || item.author) && <><span>•</span><span>{item.authorName || item.author}</span></>}
                   </div>
                 </div>
               </div>

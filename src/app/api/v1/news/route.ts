@@ -11,6 +11,7 @@ import { withApiKey } from '@/lib/apiKeyMiddleware';
 import dbConnect from '@/lib/mongodb';
 import CelebrityNews from '@/models/CelebrityNews';
 import Celebrity from '@/models/Celebrity';
+import { publicNewsFilter, serializeNews } from '@/lib/celebrityNews';
 
 export async function GET(request: NextRequest) {
   return withApiKey(request, async (req) => {
@@ -28,27 +29,27 @@ export async function GET(request: NextRequest) {
       const sort      = searchParams.get('sort') || 'latest';
       const skip = (page - 1) * limit;
 
-      const query: Record<string, any> = {};
+      const query: Record<string, any> = publicNewsFilter();
       if (search)   query.title = { $regex: search, $options: 'i' };
       if (category) query.category = { $regex: category, $options: 'i' };
-      if (featured === 'true') query.featured = true;
+      if (featured === 'true') query.isFeatured = true;
 
       if (celebrity) {
         const cel = await Celebrity.findOne({ slug: celebrity.toLowerCase() }).select('_id').lean();
-        if (cel) query.celebrity = (cel as any)._id;
+        if (cel) query.$or = [{ celebrity: (cel as any)._id }, { primaryCelebrity: (cel as any)._id }, { primaryCelebritySlug: celebrity.toLowerCase() }];
       }
 
       const sortMap: Record<string, any> = {
-        latest:   { publishDate: -1, createdAt: -1 },
-        oldest:   { publishDate: 1 },
+        latest:   { publishedAt: -1, publishDate: -1, createdAt: -1 },
+        oldest:   { publishedAt: 1, publishDate: 1 },
         popular:  { 'likes': -1 },
       };
       const sortObj = sortMap[sort] || sortMap.latest;
 
       const [articles, total] = await Promise.all([
         CelebrityNews.find(query)
-          .select('title slug excerpt thumbnail author category tags publishDate featured celebrity createdAt')
-          .populate('celebrity', 'name slug profileImage')
+          .select('-content -body -seo -comments -saves')
+          .populate('celebrity primaryCelebrity', 'name slug profileImage')
           .sort(sortObj)
           .skip(skip)
           .limit(limit)
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
         version: 'v1',
         resource: 'news',
         pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-        data: articles,
+        data: articles.map(serializeNews),
       });
     } catch (error) {
       console.error('v1/news error:', error);

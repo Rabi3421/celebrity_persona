@@ -295,21 +295,35 @@ export function createCommunityOutfitMetadata(outfit: AnyRecord): Metadata {
 export function createNewsArticleMetadata(article: AnyRecord): Metadata {
   const title = text(article.title) || 'Celebrity News';
   const description =
-    truncate(article.excerpt || article.content || '', 155) ||
+    truncate(article.excerpt || article.body || article.content || '', 155) ||
     'Read the latest celebrity news, entertainment updates, fashion stories, and culture coverage.';
+  const seo = pickSeoSource(article.seo, article.seoData);
 
   return createDynamicSeoMetadata({
-    seo: pickSeoSource(article.seo, article.seoData),
+    seo: {
+      ...seo,
+      metaTitle: seo.metaTitle || article.metaTitle,
+      metaDescription: seo.metaDescription || article.metaDescription,
+      canonicalUrl: seo.canonicalUrl || article.canonicalUrl,
+      noindex: seo.noindex ?? article.robotsIndex === false,
+      nofollow: seo.nofollow ?? article.robotsFollow === false,
+      ogTitle: seo.ogTitle || article.ogTitle,
+      ogDescription: seo.ogDescription || article.ogDescription,
+      ogImages: seo.ogImages || [seo.ogImage || article.ogImage].filter(Boolean),
+      twitterTitle: seo.twitterTitle || article.twitterTitle,
+      twitterDescription: seo.twitterDescription || article.twitterDescription,
+      twitterImage: seo.twitterImage || article.twitterImage,
+    },
     title,
     description,
     path: `/celebrity-news/${article.slug}`,
-    images: [article.thumbnail, ...(Array.isArray(article.images) ? article.images : [])],
-    imageAlt: `${title} article image`,
+    images: [article.featuredImage || article.thumbnail, article.seo?.ogImage, ...(Array.isArray(article.images) ? article.images : [])],
+    imageAlt: article.featuredImageAlt || `${title} article image`,
     type: 'article',
-    keywords: [article.category, ...(article.tags || []), 'celebrity news', 'entertainment news'],
-    publishedTime: article.publishDate || article.createdAt,
+    keywords: [article.category, article.newsType, ...(article.seo?.contentTags || article.tags || []), 'celebrity news', 'entertainment news'],
+    publishedTime: article.publishedAt || article.publishDate || article.createdAt,
     modifiedTime: article.updatedAt,
-    authors: [article.author],
+    authors: [article.authorName || article.author],
   });
 }
 

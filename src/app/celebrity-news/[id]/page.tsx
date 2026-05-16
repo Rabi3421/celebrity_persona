@@ -12,7 +12,8 @@ import { getNewsArticle } from '@/lib/seo/publicData';
 import { createBreadcrumbSchema, createNewsArticleSchema } from '@/lib/seo/structuredData';
 
 type Props = { params: Promise<{ id: string }> };
-export const revalidate = 900;
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const getCachedNewsArticle = cache(getNewsArticle);
 

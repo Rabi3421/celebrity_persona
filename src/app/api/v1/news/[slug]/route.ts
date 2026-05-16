@@ -9,6 +9,7 @@ import { withApiKey } from '@/lib/apiKeyMiddleware';
 import dbConnect from '@/lib/mongodb';
 import CelebrityNews from '@/models/CelebrityNews';
 import Celebrity from '@/models/Celebrity';
+import { publicNewsFilter, serializeNews } from '@/lib/celebrityNews';
 
 export async function GET(
   request: NextRequest,
@@ -21,9 +22,9 @@ export async function GET(
 
       const { slug } = await params;
 
-      const article = await CelebrityNews.findOne({ slug: slug.toLowerCase().trim() })
+      const article = await CelebrityNews.findOne(publicNewsFilter({ slug: slug.toLowerCase().trim() }))
         .select('-seo -__v -likes -saves -comments')
-        .populate('celebrity', 'name slug profileImage nationality')
+        .populate('celebrity primaryCelebrity', 'name slug profileImage nationality')
         .lean();
 
       if (!article) {
@@ -37,7 +38,7 @@ export async function GET(
         success: true,
         version: 'v1',
         resource: 'news',
-        data: article,
+        data: serializeNews(article),
       });
     } catch (error) {
       console.error('v1/news/[slug] error:', error);
