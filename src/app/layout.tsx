@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import type { Metadata, Viewport } from 'next';
 import { AuthProvider } from '@/context/AuthContext';
+import GoogleAnalytics from '@/components/analytics/GoogleAnalytics';
 import ScrollToTop from '@/components/common/ScrollToTop';
 import JsonLd from '@/components/seo/JsonLd';
 import {
@@ -53,12 +54,14 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     type: 'website',
     locale: 'en_US',
-    images: [{
-      url: DEFAULT_OG_IMAGE,
-      width: 1200,
-      height: 630,
-      alt: `${SITE_NAME} editorial media platform`,
-    }],
+    images: [
+      {
+        url: DEFAULT_OG_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: `${SITE_NAME} editorial media platform`,
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
@@ -78,9 +81,7 @@ export const metadata: Metadata = {
       { url: BRAND_LOGO, type: 'image/svg+xml' },
     ],
     shortcut: ['/favicon.ico'],
-    apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
     other: [
       {
         rel: 'mask-icon',
@@ -99,6 +100,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <Suspense fallback={null}>
+          <GoogleAnalytics />
+        </Suspense>
         <JsonLd data={[createWebsiteSchema(), createOrganizationSchema()]} />
         <AuthProvider>
           <ScrollToTop />
