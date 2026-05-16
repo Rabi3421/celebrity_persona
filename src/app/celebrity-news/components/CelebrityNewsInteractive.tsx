@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import AppImage from '@/components/ui/AppImage';
 import Icon from '@/components/ui/AppIcon';
@@ -79,7 +79,6 @@ export default function CelebrityNewsInteractive({
   const [page,        setPage]        = useState(initialPage);
   const [totalPages,  setTotalPages]  = useState(initialTotalPages);
   const [totalCount,  setTotalCount]  = useState(initialTotalCount);
-  const skippedInitialFetch = useRef(initialLoaded);
 
   const LIMIT = 12;
 
@@ -94,6 +93,7 @@ export default function CelebrityNewsInteractive({
       if (category && category !== 'all') params.set('category', category);
 
       const res = await fetch(`/api/user/news?${params}`, {
+        cache: 'no-store',
         headers: { 'x-api-key': process.env.NEXT_PUBLIC_X_API_KEY || '' },
       });
       const data = await res.json();
@@ -111,10 +111,6 @@ export default function CelebrityNewsInteractive({
   }, [search, category, sort]);
 
   useEffect(() => {
-    if (skippedInitialFetch.current && !search && category === 'all' && sort === 'latest') {
-      skippedInitialFetch.current = false;
-      return;
-    }
     fetchNews(1);
   }, [fetchNews, search, category, sort]);
 

@@ -3,6 +3,9 @@ import dbConnect from '@/lib/mongodb';
 import CelebrityNews from '@/models/CelebrityNews';
 import Celebrity from '@/models/Celebrity';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // ── API Key guard ─────────────────────────────────────────────────────────────
 function isAuthorized(req: NextRequest): boolean {
   const key = req.headers.get('x-api-key');
