@@ -6,6 +6,7 @@ import CelebrityNews from '@/models/CelebrityNews';
 import Celebrity from '@/models/Celebrity';
 import TokenService from '@/lib/tokenService';
 import mongoose from 'mongoose';
+import { publicNewsFilter, serializeNews } from '@/lib/celebrityNews';
 
 export async function GET(
   request: NextRequest,
@@ -22,13 +23,13 @@ export async function GET(
     void Celebrity.modelName;
 
     // Try slug first, fall back to ObjectId
-    let article: any = await CelebrityNews.findOne({ slug, status: 'published' })
-      .populate('celebrity', 'name slug profileImage')
+    let article: any = await CelebrityNews.findOne(publicNewsFilter({ slug }))
+      .populate('celebrity primaryCelebrity', 'name slug profileImage')
       .lean();
 
     if (!article && slug.match(/^[a-f\d]{24}$/i)) {
-      article = await CelebrityNews.findOne({ _id: slug, status: 'published' })
-        .populate('celebrity', 'name slug profileImage')
+      article = await CelebrityNews.findOne(publicNewsFilter({ _id: slug }))
+        .populate('celebrity primaryCelebrity', 'name slug profileImage')
         .lean();
     }
 
@@ -57,32 +58,23 @@ export async function GET(
     const related = await CelebrityNews.find({
       _id:      { $ne: article._id },
       status:   'published',
-      category: article.category || { $exists: true },
+      $or: [
+        { category: article.category || { $exists: true } },
+        { primaryCelebritySlug: article.primaryCelebritySlug || '__none__' },
+        { 'relatedCelebrities.slug': article.primaryCelebritySlug || '__none__' },
+      ],
     })
-      .select('title slug thumbnail category publishDate excerpt')
-      .sort({ publishDate: -1, createdAt: -1 })
+      .select('-content -body -seo -comments -likes -saves')
+      .sort({ publishedAt: -1, publishDate: -1, createdAt: -1 })
       .limit(3)
       .lean();
 
-    const normalize = (doc: any) => ({
-      id:          String(doc._id),
-      title:       doc.title,
-      slug:        doc.slug,
-      content:     doc.content,
-      excerpt:     doc.excerpt     || '',
-      thumbnail:   doc.thumbnail   || '',
-      author:      doc.author      || 'CelebrityPersona',
-      category:    doc.category    || 'NEWS',
-      tags:        doc.tags        || [],
-      featured:    doc.featured    ?? false,
-      publishDate: doc.publishDate || doc.createdAt,
-      celebrity:   doc.celebrity   || null,
-    });
+    const normalizedArticle = serializeNews(article);
 
     return NextResponse.json({
       success: true,
       article: {
-        ...normalize(article),
+        ...normalizedArticle,
         likeCount:    likes.length,
         saveCount:    saves.length,
         commentCount: comments.length,
@@ -98,7 +90,7 @@ export async function GET(
           isOwn:      userId ? String(c.userId) === String(userId) : false,
         })),
       },
-      related: related.map(normalize),
+      related: related.map(serializeNews),
     });
   } catch (err: any) {
     return NextResponse.json(

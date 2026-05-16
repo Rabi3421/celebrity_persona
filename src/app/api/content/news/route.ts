@@ -4,15 +4,7 @@ import dbConnect from '@/lib/mongodb';
 import CelebrityNews from '@/models/CelebrityNews';
 import '@/models/Celebrity'; // ensure Celebrity schema registered for populate
 import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
-
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
+import { normalizeNewsPayload, serializeNews, validateNewsPayload } from '@/lib/celebrityNews';
 
 async function handler(request: AuthenticatedRequest) {
   try {
@@ -27,30 +19,34 @@ async function handler(request: AuthenticatedRequest) {
       const category = searchParams.get('category') || '';
       const featured = searchParams.get('featured');
       const author   = searchParams.get('author') || '';
+      const status   = searchParams.get('status') || '';
 
       const filter: Record<string, any> = {};
       if (q) filter.$or = [
         { title:   { $regex: q, $options: 'i' } },
         { excerpt: { $regex: q, $options: 'i' } },
         { author:  { $regex: q, $options: 'i' } },
+        { authorName: { $regex: q, $options: 'i' } },
         { tags:    { $regex: q, $options: 'i' } },
       ];
       if (category) filter.category = { $regex: category, $options: 'i' };
       if (author)   filter.author   = { $regex: author,   $options: 'i' };
-      if (featured === 'true')  filter.featured = true;
-      if (featured === 'false') filter.featured = false;
+      if (featured === 'true')  filter.isFeatured = true;
+      if (featured === 'false') filter.isFeatured = false;
+      if (['draft', 'scheduled', 'published', 'archived'].includes(status)) filter.status = status;
 
       const [total, docs] = await Promise.all([
         CelebrityNews.countDocuments(filter),
         CelebrityNews.find(filter)
-          .select('title slug excerpt thumbnail author category celebrity tags publishDate featured createdAt')
-          .sort({ publishDate: -1, createdAt: -1 })
+          .select('-comments -likes -saves')
+          .sort({ publishedAt: -1, publishDate: -1, createdAt: -1 })
           .skip((page - 1) * limit)
           .limit(limit)
+          .populate('primaryCelebrity celebrity', 'name slug profileImage')
           .lean(),
       ]);
 
-      const data = docs.map((d: any) => ({ ...d, id: String(d._id), _id: undefined, __v: undefined }));
+      const data = docs.map((d: any) => serializeNews(d));
 
       return NextResponse.json({
         success: true,
@@ -74,31 +70,21 @@ async function handler(request: AuthenticatedRequest) {
         return NextResponse.json({ success: false, message: 'Invalid JSON body' }, { status: 400 });
       }
 
-      const { title, content } = body;
+      const { title } = body;
       if (!title?.trim()) return NextResponse.json({ success: false, message: 'title is required' }, { status: 400 });
-      if (!content?.trim()) return NextResponse.json({ success: false, message: 'content is required' }, { status: 400 });
 
-      let slug = body.slug ? String(body.slug).trim().toLowerCase() : generateSlug(title);
+      const payload = normalizeNewsPayload(body);
+      const errors = validateNewsPayload(payload);
+      if (Object.keys(errors).length) {
+        return NextResponse.json({ success: false, message: Object.values(errors)[0], errors }, { status: 400 });
+      }
+      let slug = payload.slug;
       if (await CelebrityNews.findOne({ slug }).lean()) slug = `${slug}-${Date.now()}`;
+      payload.slug = slug;
 
-      const doc = await CelebrityNews.create({
-        title:       title.trim(),
-        slug,
-        content:     content.trim(),
-        excerpt:     body.excerpt     || undefined,
-        thumbnail:   body.thumbnail   || undefined,
-        author:      body.author      || undefined,
-        category:    body.category    || undefined,
-        celebrity:   body.celebrity   || null,
-        tags:        body.tags        || [],
-        publishDate: body.publishDate ? new Date(body.publishDate) : new Date(),
-        featured:    body.featured    ?? false,
-        seo:         body.seo         || undefined,
-      });
+      const doc: any = await CelebrityNews.create(payload as any);
 
-      const obj: any = doc.toObject();
-      obj.id = String(obj._id); delete obj._id; delete obj.__v;
-      return NextResponse.json({ success: true, data: obj }, { status: 201 });
+      return NextResponse.json({ success: true, data: serializeNews(doc.toObject()) }, { status: 201 });
     }
 
     return NextResponse.json({ success: false, message: 'Method not allowed' }, { status: 405 });

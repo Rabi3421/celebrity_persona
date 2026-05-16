@@ -10,6 +10,7 @@ import MovieReview from '@/models/MovieReview';
 import UserOutfit from '@/models/UserOutfit';
 import User from '@/models/User';
 import { stripHtml } from './site';
+import { publicNewsFilter, serializeNews } from '@/lib/celebrityNews';
 
 const RELEASED_STATUSES = ['Released', 'Now Showing', 'Now Playing', 'In Theatres', 'In Theaters'];
 
@@ -363,22 +364,22 @@ export async function getNewsList({ page = 1, limit = 12 } = {}) {
     await dbConnect();
     const safePage = Math.max(1, page);
     const safeLimit = Math.min(50, Math.max(1, limit));
-    const filter = { status: 'published' };
+    const filter = publicNewsFilter();
     const skip = (safePage - 1) * safeLimit;
 
     const [data, total] = await Promise.all([
       CelebrityNews.find(filter)
         .select('-__v -content -seo')
-        .sort({ featured: -1, publishDate: -1, createdAt: -1 })
+        .sort({ isFeatured: -1, featured: -1, publishedAt: -1, publishDate: -1, createdAt: -1 })
         .skip(skip)
         .limit(safeLimit)
-        .populate('celebrity', 'name slug profileImage')
+        .populate('celebrity primaryCelebrity', 'name slug profileImage')
         .lean(),
       CelebrityNews.countDocuments(filter),
     ]);
 
     return {
-      data: plain(data.map((n: any) => ({ ...n, _id: String(n._id) }))),
+      data: plain(data.map(serializeNews)),
       total,
       page: safePage,
       limit: safeLimit,
@@ -394,11 +395,10 @@ export async function getNewsArticle(slugOrId: string) {
     await dbConnect();
     const slug = slugOrId.toLowerCase().trim();
     const idFilter = /^[a-f\d]{24}$/i.test(slugOrId) ? { _id: slugOrId } : null;
-    const article = await CelebrityNews.findOne({
-      status: 'published',
+    const article = await CelebrityNews.findOne(publicNewsFilter({
       $or: [{ slug }, ...(idFilter ? [idFilter] : [])],
-    })
-      .populate('celebrity', 'name slug profileImage')
+    }))
+      .populate('celebrity primaryCelebrity', 'name slug profileImage')
       .lean();
 
     if (!article) return null;
@@ -406,10 +406,14 @@ export async function getNewsArticle(slugOrId: string) {
     const related = await CelebrityNews.find({
       _id: { $ne: article._id },
       status: 'published',
-      category: (article as any).category || { $exists: true },
+      $or: [
+        { category: (article as any).category || { $exists: true } },
+        { primaryCelebritySlug: (article as any).primaryCelebritySlug || '__none__' },
+        { 'relatedCelebrities.slug': (article as any).primaryCelebritySlug || '__none__' },
+      ],
     })
-      .select('title slug thumbnail category publishDate excerpt')
-      .sort({ publishDate: -1, createdAt: -1 })
+      .select('-content -body -seo -comments -likes -saves')
+      .sort({ publishedAt: -1, publishDate: -1, createdAt: -1 })
       .limit(3)
       .lean();
 
@@ -417,28 +421,12 @@ export async function getNewsArticle(slugOrId: string) {
       _id: { $ne: article._id },
       status: 'published',
     })
-      .select('title slug thumbnail category publishDate excerpt')
-      .sort({ publishDate: -1, createdAt: -1 })
+      .select('-content -body -seo -comments -likes -saves')
+      .sort({ publishedAt: -1, publishDate: -1, createdAt: -1 })
       .limit(6)
       .lean();
 
-    const normalize = (doc: any) => ({
-      id: String(doc._id),
-      title: doc.title,
-      slug: doc.slug,
-      content: doc.content,
-      excerpt: doc.excerpt || '',
-      thumbnail: doc.thumbnail || '',
-      author: doc.author || 'CelebrityPersona',
-      category: doc.category || 'NEWS',
-      tags: doc.tags || [],
-      featured: doc.featured ?? false,
-      publishDate: doc.publishDate || doc.createdAt,
-      celebrity: doc.celebrity || null,
-      seo: doc.seo || {},
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
-    });
+    const normalize = serializeNews;
 
     const likes: any[] = (article as any).likes || [];
     const saves: any[] = (article as any).saves || [];

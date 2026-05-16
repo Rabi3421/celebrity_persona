@@ -15,6 +15,7 @@ interface INewsSEO {
   metaDescription?: string;
   focusKeyword?: string;
   metaKeywords?: string[];
+  secondaryKeywords?: string[];
   canonicalUrl?: string;
   robots?: string;
   noindex?: boolean;
@@ -46,6 +47,7 @@ interface INewsSEO {
   alternateLangs?: string[];
   prevUrl?: string;
   nextUrl?: string;
+  contentTags?: string[];
 }
 
 interface NewsRow {
@@ -56,21 +58,94 @@ interface NewsRow {
   thumbnail?: string;
   images?: string[];
   author?: string;
+  authorName?: string;
+  reviewerName?: string;
   category?: string;
+  newsType?: string;
   celebrity?: any;
+  primaryCelebrity?: any;
+  primaryCelebritySlug?: string;
+  relatedCelebrities?: RelatedCelebrity[];
   tags?: string[];
   publishDate?: string;
-  status: 'draft' | 'published';
+  publishedAt?: string;
+  scheduledAt?: string;
+  status: 'draft' | 'scheduled' | 'published' | 'archived';
   featured: boolean;
+  isFeatured?: boolean;
+  isTrending?: boolean;
+  isBreaking?: boolean;
   createdAt?: string;
 }
 
 interface NewsFull extends NewsRow {
   content: string;
+  introduction?: string;
+  body?: string;
+  backgroundContext?: string;
+  whatHappened?: string;
+  whyItMatters?: string;
+  publicReaction?: string;
+  officialStatement?: string;
+  celebrityQuote?: string;
+  conclusion?: string;
+  featuredImage?: string;
+  featuredImageAlt?: string;
+  featuredImageCaption?: string;
+  imageCredit?: string;
+  imageSourceUrl?: string;
+  galleryImages?: GalleryImage[];
+  videoEmbedUrl?: string;
+  instagramEmbedUrl?: string;
+  youtubeEmbedUrl?: string;
+  xEmbedUrl?: string;
+  sourceType?: string;
+  sourceName?: string;
+  sourceUrl?: string;
+  sourcePublishedAt?: string;
+  isSourceVerified?: boolean;
+  sourceCreditText?: string;
+  additionalReferences?: NewsReference[];
+  factCheckNotes?: string;
+  readingTime?: number;
+  schema?: NewsSchema;
   seo?: INewsSEO;
 }
 
-type FormTab   = 'basic' | 'content' | 'media' | 'meta' | 'seo';
+interface RelatedCelebrity {
+  name: string;
+  slug?: string;
+  image?: string;
+  profileUrl?: string;
+}
+
+interface GalleryImage {
+  url: string;
+  alt?: string;
+  caption?: string;
+  credit?: string;
+  sourceUrl?: string;
+}
+
+interface NewsReference {
+  title?: string;
+  url?: string;
+  sourceName?: string;
+}
+
+interface NewsSchema {
+  schemaType?: 'NewsArticle' | 'Article' | 'BlogPosting';
+  schemaHeadline?: string;
+  schemaDescription?: string;
+  schemaImage?: string;
+  schemaArticleSection?: string;
+  schemaKeywords?: string[];
+  publisherName?: string;
+  publisherLogo?: string;
+  mainEntityOfPage?: string;
+}
+
+type FormTab   = 'basic' | 'celebrities' | 'content' | 'media' | 'sources' | 'seo' | 'schema' | 'publishing';
 type PanelMode = 'add' | 'edit' | null;
 type Toast     = { type: 'success' | 'error'; message: string } | null;
 
@@ -78,7 +153,9 @@ const PAGE_SIZES = [10, 20, 50];
 
 const STATUS_COLORS: Record<string, string> = {
   published: 'bg-emerald-500/20 text-emerald-400',
+  scheduled: 'bg-blue-500/20 text-blue-400',
   draft:     'bg-yellow-500/20 text-yellow-400',
+  archived:  'bg-red-500/20 text-red-400',
 };
 
 const EMPTY_SEO: INewsSEO = {
@@ -97,16 +174,32 @@ const EMPTY_SEO: INewsSEO = {
 const EMPTY_FORM: NewsFull = {
   id: '', title: '', slug: '', content: '', excerpt: '',
   thumbnail: '', images: [], author: '', category: '', celebrity: '',
-  tags: [], publishDate: '', status: 'draft' as const, featured: false,
+  authorName: '', reviewerName: '', newsType: 'Entertainment', primaryCelebrity: '', primaryCelebritySlug: '',
+  relatedCelebrities: [], tags: [], publishDate: '', publishedAt: '', scheduledAt: '',
+  status: 'draft' as const, featured: false, isFeatured: false, isTrending: false, isBreaking: false,
+  introduction: '', body: '', backgroundContext: '', whatHappened: '', whyItMatters: '',
+  publicReaction: '', officialStatement: '', celebrityQuote: '', conclusion: '',
+  featuredImage: '', featuredImageAlt: '', featuredImageCaption: '', imageCredit: '', imageSourceUrl: '',
+  galleryImages: [], videoEmbedUrl: '', instagramEmbedUrl: '', youtubeEmbedUrl: '', xEmbedUrl: '',
+  sourceType: '', sourceName: '', sourceUrl: '', sourcePublishedAt: '', isSourceVerified: false,
+  sourceCreditText: '', additionalReferences: [], factCheckNotes: '', readingTime: undefined,
+  schema: {
+    schemaType: 'NewsArticle', schemaHeadline: '', schemaDescription: '', schemaImage: '',
+    schemaArticleSection: '', schemaKeywords: [], publisherName: 'CelebrityPersona',
+    publisherLogo: '', mainEntityOfPage: '',
+  },
   seo: { ...EMPTY_SEO },
 };
 
 const TABS: { key: FormTab; label: string; icon: string }[] = [
-  { key: 'basic',   label: 'Basic Info', icon: 'InformationCircleIcon'  },
-  { key: 'content', label: 'Content',    icon: 'DocumentTextIcon'       },
-  { key: 'media',   label: 'Media',      icon: 'PhotoIcon'              },
-  { key: 'meta',    label: 'Details',    icon: 'TagIcon'                },
-  { key: 'seo',     label: 'SEO',        icon: 'MagnifyingGlassIcon'    },
+  { key: 'basic',       label: 'Basic Info',             icon: 'InformationCircleIcon'  },
+  { key: 'celebrities', label: 'Celebrities',             icon: 'StarIcon'               },
+  { key: 'content',     label: 'Content',                 icon: 'DocumentTextIcon'       },
+  { key: 'media',       label: 'Media',                   icon: 'PhotoIcon'              },
+  { key: 'sources',     label: 'Sources & Verification', icon: 'CheckBadgeIcon'         },
+  { key: 'seo',         label: 'SEO',                     icon: 'MagnifyingGlassIcon'    },
+  { key: 'schema',      label: 'Schema',                  icon: 'CodeBracketIcon'        },
+  { key: 'publishing',  label: 'Publishing',              icon: 'PaperAirplaneIcon'      },
 ];
 
 // Predefined categories for news articles
@@ -121,6 +214,9 @@ const NEWS_CATEGORIES = [
   'Trailers',
   'Industry',
 ];
+
+const NEWS_TYPES = ['Breaking News', 'Exclusive', 'Interview', 'Feature', 'Rumor', 'Update', 'Analysis', 'Entertainment'];
+const SOURCE_TYPES = ['Official Statement', 'Interview', 'Social Media', 'News Outlet', 'Press Release', 'Public Record', 'Other'];
 
 const splitLines = (v: string) => v.split('\n').map((s) => s.trim()).filter(Boolean);
 const joinLines  = (arr?: string[]) => (arr || []).join('\n');
@@ -283,6 +379,10 @@ export default function NewsManagementSection() {
         try { await deleteImage(form.thumbnail); } catch { /* ignore */ }
       }
       setField('thumbnail', url);
+      setField('featuredImage', url);
+      if (!form.seo?.ogImage) setSeoField('ogImage', url);
+      if (!form.seo?.twitterImage) setSeoField('twitterImage', url);
+      setForm((f) => ({ ...f, schema: { ...(f.schema || {}), schemaImage: f.schema?.schemaImage || url } }));
       showToast('success', 'Thumbnail uploaded');
     } catch {
       showToast('error', 'Failed to upload thumbnail');
@@ -374,12 +474,34 @@ export default function NewsManagementSection() {
         id:          d.id,
         title:       d.title       || '',
         slug:        d.slug        || '',
-        content:     d.content     || '',
+        content:     d.body || d.content || '',
+        body:        d.body || d.content || '',
+        introduction: d.introduction || '',
+        backgroundContext: d.backgroundContext || '',
+        whatHappened: d.whatHappened || '',
+        whyItMatters: d.whyItMatters || '',
+        publicReaction: d.publicReaction || '',
+        officialStatement: d.officialStatement || '',
+        celebrityQuote: d.celebrityQuote || '',
+        conclusion: d.conclusion || '',
         excerpt:     d.excerpt     || '',
-        thumbnail:   d.thumbnail   || '',
+        thumbnail:   d.featuredImage || d.thumbnail || '',
+        featuredImage: d.featuredImage || d.thumbnail || '',
+        featuredImageAlt: d.featuredImageAlt || '',
+        featuredImageCaption: d.featuredImageCaption || '',
+        imageCredit: d.imageCredit || '',
+        imageSourceUrl: d.imageSourceUrl || '',
         images:      Array.isArray(d.images) ? d.images : [],
-        author:      d.author      || '',
+        galleryImages: Array.isArray(d.galleryImages) ? d.galleryImages : [],
+        videoEmbedUrl: d.videoEmbedUrl || '',
+        instagramEmbedUrl: d.instagramEmbedUrl || '',
+        youtubeEmbedUrl: d.youtubeEmbedUrl || '',
+        xEmbedUrl: d.xEmbedUrl || '',
+        author:      d.authorName || d.author || '',
+        authorName:  d.authorName || d.author || '',
+        reviewerName: d.reviewerName || '',
         category:    d.category    || '',
+        newsType:    d.newsType    || 'Entertainment',
         celebrity:   (function() {
                         if (!d.celebrity) return '';
                         if (typeof d.celebrity === 'string') return d.celebrity;
@@ -387,10 +509,35 @@ export default function NewsManagementSection() {
                         if (d.celebrity.id) return String(d.celebrity.id);
                         return '';
                       })(),
+        primaryCelebrity: (function() {
+                        const pc = d.primaryCelebrity || d.celebrity;
+                        if (!pc) return '';
+                        if (typeof pc === 'string') return pc;
+                        if (pc._id) return String(pc._id);
+                        if (pc.id) return String(pc.id);
+                        return '';
+                      })(),
+        primaryCelebritySlug: d.primaryCelebritySlug || d.primaryCelebrity?.slug || '',
+        relatedCelebrities: Array.isArray(d.relatedCelebrities) ? d.relatedCelebrities : [],
         tags:        d.tags        || [],
-        publishDate: toDateInputValue(d.publishDate),
-        status:      (d.status === 'published' ? 'published' : 'draft') as 'draft' | 'published',
-        featured:    d.featured    ?? false,
+        publishDate: toDateInputValue(d.publishedAt || d.publishDate),
+        publishedAt: toDateInputValue(d.publishedAt || d.publishDate),
+        scheduledAt: toDateInputValue(d.scheduledAt),
+        status:      (['draft', 'scheduled', 'published', 'archived'].includes(d.status) ? d.status : 'draft') as NewsFull['status'],
+        featured:    d.isFeatured ?? d.featured ?? false,
+        isFeatured:  d.isFeatured ?? d.featured ?? false,
+        isTrending:  d.isTrending ?? false,
+        isBreaking:  d.isBreaking ?? false,
+        sourceType: d.sourceType || '',
+        sourceName: d.sourceName || '',
+        sourceUrl: d.sourceUrl || '',
+        sourcePublishedAt: toDateInputValue(d.sourcePublishedAt),
+        isSourceVerified: d.isSourceVerified || false,
+        sourceCreditText: d.sourceCreditText || '',
+        additionalReferences: Array.isArray(d.additionalReferences) ? d.additionalReferences : [],
+        factCheckNotes: d.factCheckNotes || '',
+        readingTime: d.readingTime || undefined,
+        schema: { ...EMPTY_FORM.schema, ...(d.schema || {}) },
         seo: { ...EMPTY_SEO, ...(d.seo || {}) },
       });
       isSlugEditedRef.current = true;
@@ -480,7 +627,7 @@ export default function NewsManagementSection() {
   };
 
   // ─── quick status toggle ─────────────────────────────────────────────────
-  const handleStatusToggle = async (n: NewsRow, newStatus: 'draft' | 'published') => {
+  const handleStatusToggle = async (n: NewsRow, newStatus: NewsRow['status']) => {
     if (n.status === newStatus) return;
     setBusy(n.id, true);
     try {
@@ -504,7 +651,21 @@ export default function NewsManagementSection() {
   const validate = () => {
     const errs: Partial<Record<keyof NewsFull, string>> = {};
     if (!form.title.trim())   errs.title   = 'Title is required';
-    if (!form.content.trim()) errs.content = 'Content is required';
+    if (!form.slug.trim())    errs.slug    = 'Slug is required';
+    if (!form.excerpt?.trim()) errs.excerpt = 'Excerpt is required';
+    if (!form.category?.trim()) errs.category = 'Category is required';
+    if (!form.newsType?.trim()) errs.newsType = 'News type is required';
+    if (!form.content.trim()) errs.content = 'Body is required';
+    if (!form.featuredImage?.trim() && !form.thumbnail?.trim()) errs.featuredImage = 'Featured image is required';
+    if (!form.featuredImageAlt?.trim()) errs.featuredImageAlt = 'Featured image alt text is required';
+    if (!form.sourceType?.trim()) errs.sourceType = 'Source type is required';
+    if (!form.sourceName?.trim()) errs.sourceName = 'Source name is required';
+    if (!form.sourceUrl?.trim()) errs.sourceUrl = 'Source URL is required';
+    if (!form.seo?.focusKeyword?.trim()) errs.seo = 'Focus keyword is required';
+    if (!form.seo?.metaTitle?.trim()) errs.seo = 'Meta title is required';
+    if (!form.seo?.metaDescription?.trim()) errs.seo = 'Meta description is required';
+    if (form.status === 'published' && !form.publishedAt && !form.publishDate) errs.publishedAt = 'Published date is required';
+    if (form.status === 'scheduled' && !form.scheduledAt) errs.scheduledAt = 'Scheduled date is required';
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -513,20 +674,115 @@ export default function NewsManagementSection() {
   const setSeoField = <K extends keyof INewsSEO>(k: K, v: INewsSEO[K]) =>
     setForm((f) => ({ ...f, seo: { ...(f.seo || EMPTY_SEO), [k]: v } }));
 
+  const setSchemaField = <K extends keyof NewsSchema>(k: K, v: NewsSchema[K]) =>
+    setForm((f) => ({ ...f, schema: { ...(f.schema || EMPTY_FORM.schema || {}), [k]: v } }));
+
+  const handleTitleChange = (v: string) => {
+    setForm((f) => ({
+      ...f,
+      title: v,
+      slug: isSlugEditedRef.current ? f.slug : slugify(v),
+      seo: {
+        ...(f.seo || EMPTY_SEO),
+        metaTitle: f.seo?.metaTitle || v,
+        ogTitle: f.seo?.ogTitle || v,
+        twitterTitle: f.seo?.twitterTitle || v,
+      },
+      schema: {
+        ...(f.schema || EMPTY_FORM.schema || {}),
+        schemaHeadline: f.schema?.schemaHeadline || v,
+      },
+    }));
+  };
+
+  const handleExcerptChange = (v: string) => {
+    setForm((f) => ({
+      ...f,
+      excerpt: v,
+      seo: {
+        ...(f.seo || EMPTY_SEO),
+        metaDescription: f.seo?.metaDescription || v,
+        ogDescription: f.seo?.ogDescription || v,
+        twitterDescription: f.seo?.twitterDescription || v,
+      },
+      schema: {
+        ...(f.schema || EMPTY_FORM.schema || {}),
+        schemaDescription: f.schema?.schemaDescription || v,
+      },
+    }));
+  };
+
+  const handleFeaturedImageChange = (v: string) => {
+    setForm((f) => ({
+      ...f,
+      thumbnail: v,
+      featuredImage: v,
+      seo: {
+        ...(f.seo || EMPTY_SEO),
+        ogImage: f.seo?.ogImage || v,
+        twitterImage: f.seo?.twitterImage || v,
+      },
+      schema: {
+        ...(f.schema || EMPTY_FORM.schema || {}),
+        schemaImage: f.schema?.schemaImage || v,
+      },
+    }));
+  };
+
   const buildPayload = () => ({
     title:       form.title.trim(),
     slug:        form.slug?.trim() || undefined,
     content:     form.content.trim(),
+    body:        form.content.trim(),
+    introduction: form.introduction || undefined,
+    backgroundContext: form.backgroundContext || undefined,
+    whatHappened: form.whatHappened || undefined,
+    whyItMatters: form.whyItMatters || undefined,
+    publicReaction: form.publicReaction || undefined,
+    officialStatement: form.officialStatement || undefined,
+    celebrityQuote: form.celebrityQuote || undefined,
+    conclusion: form.conclusion || undefined,
     excerpt:     form.excerpt?.trim()     || undefined,
-    thumbnail:   form.thumbnail?.trim()   || undefined,
+    thumbnail:   (form.featuredImage || form.thumbnail)?.trim()   || undefined,
+    featuredImage: (form.featuredImage || form.thumbnail)?.trim() || undefined,
+    featuredImageAlt: form.featuredImageAlt || undefined,
+    featuredImageCaption: form.featuredImageCaption || undefined,
+    imageCredit: form.imageCredit || undefined,
+    imageSourceUrl: form.imageSourceUrl || undefined,
     images:      (form.images || []).filter((u) => u.trim()),
-    author:      form.author?.trim()      || undefined,
+    galleryImages: form.galleryImages || [],
+    videoEmbedUrl: form.videoEmbedUrl || undefined,
+    instagramEmbedUrl: form.instagramEmbedUrl || undefined,
+    youtubeEmbedUrl: form.youtubeEmbedUrl || undefined,
+    xEmbedUrl: form.xEmbedUrl || undefined,
+    author:      (form.authorName || form.author)?.trim()      || undefined,
+    authorName:  (form.authorName || form.author)?.trim()      || undefined,
+    reviewerName: form.reviewerName || undefined,
     category:    form.category?.trim()    || undefined,
-    celebrity:   form.celebrity || null,
+    newsType:    form.newsType || undefined,
+    celebrity:   form.primaryCelebrity || form.celebrity || null,
+    primaryCelebrity: form.primaryCelebrity || form.celebrity || null,
+    primaryCelebritySlug: form.primaryCelebritySlug || undefined,
+    relatedCelebrities: form.relatedCelebrities || [],
     tags:        form.tags || [],
-    publishDate: form.publishDate || undefined,
+    publishDate: form.publishedAt || form.publishDate || undefined,
+    publishedAt: form.publishedAt || form.publishDate || undefined,
+    scheduledAt: form.scheduledAt || undefined,
     status:      form.status,
-    featured:    form.featured,
+    featured:    form.isFeatured ?? form.featured,
+    isFeatured:  form.isFeatured ?? form.featured,
+    isTrending:  form.isTrending,
+    isBreaking:  form.isBreaking,
+    sourceType: form.sourceType || undefined,
+    sourceName: form.sourceName || undefined,
+    sourceUrl: form.sourceUrl || undefined,
+    sourcePublishedAt: form.sourcePublishedAt || undefined,
+    isSourceVerified: form.isSourceVerified,
+    sourceCreditText: form.sourceCreditText || undefined,
+    additionalReferences: form.additionalReferences || [],
+    factCheckNotes: form.factCheckNotes || undefined,
+    readingTime: form.readingTime || undefined,
+    schema: form.schema,
     seo:         form.seo || undefined,
   });
 
@@ -648,10 +904,7 @@ export default function NewsManagementSection() {
             </label>
             <input type="text" value={form.title}
               onChange={(e) => {
-                const v = e.target.value;
-                setField('title', v);
-                // auto-update slug unless user has edited it manually
-                if (!isSlugEditedRef.current) setField('slug', slugify(v));
+                handleTitleChange(e.target.value);
               }}
               placeholder="e.g. Sai Pallavi Replaces Pooja Hegde in Dhanush's D55"
               className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${errBorder('title')}`}
@@ -671,8 +924,17 @@ export default function NewsManagementSection() {
           <div>
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Author</label>
             <input type="text" value={form.author || ''}
-              onChange={(e) => setField('author', e.target.value)}
+              onChange={(e) => { setField('author', e.target.value); setField('authorName', e.target.value); }}
               placeholder="e.g. Rabinarayan Pradhan"
+              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Reviewer</label>
+            <input type="text" value={form.reviewerName || ''}
+              onChange={(e) => setField('reviewerName', e.target.value)}
+              placeholder="Optional editorial reviewer"
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
             />
           </div>
@@ -690,6 +952,21 @@ export default function NewsManagementSection() {
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">News Type <span className="text-yellow-400">*</span></label>
+            <select
+              value={form.newsType || ''}
+              onChange={(e) => setField('newsType', e.target.value)}
+              className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm ${errBorder('newsType')}`}
+            >
+              <option value="">Select type</option>
+              {NEWS_TYPES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            {formErrors.newsType && <p className="text-red-400 text-xs mt-1 font-montserrat">{formErrors.newsType}</p>}
           </div>
 
           {/* Publish Date */}
@@ -720,22 +997,101 @@ export default function NewsManagementSection() {
           <div className="md:col-span-2">
             <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Excerpt</label>
             <textarea value={form.excerpt || ''} rows={3}
-              onChange={(e) => setField('excerpt', e.target.value)}
+              onChange={(e) => handleExcerptChange(e.target.value)}
               placeholder="Brief summary of the article..."
               className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
             />
           </div>
 
-          {/* Featured toggle */}
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <span className="text-sm font-montserrat text-neutral-300">Featured</span>
-              <button type="button" onClick={() => setField('featured', !form.featured)}
-                className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${form.featured ? 'bg-yellow-500' : 'bg-white/10'}`}
+          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              ['isFeatured', 'Featured'],
+              ['isTrending', 'Trending'],
+              ['isBreaking', 'Breaking'],
+            ].map(([key, label]) => (
+              <button key={key} type="button"
+                onClick={() => {
+                  const next = !(form as any)[key];
+                  setField(key as keyof NewsFull, next as any);
+                  if (key === 'isFeatured') setField('featured', next as any);
+                }}
+                className={`flex items-center justify-between rounded-2xl border px-4 py-3 transition-all ${
+                  (form as any)[key] ? 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300' : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
+                }`}
               >
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${form.featured ? 'left-5' : 'left-0.5'}`} />
+                <span className="text-sm font-montserrat font-medium">{label}</span>
+                <span className={`h-5 w-10 rounded-full relative ${(form as any)[key] ? 'bg-yellow-500' : 'bg-white/10'}`}>
+                  <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${(form as any)[key] ? 'left-5' : 'left-0.5'}`} />
+                </span>
               </button>
-            </label>
+            ))}
+          </div>
+        </div>
+      );
+
+      // ── CELEBRITIES ────────────────────────────────────────────────────
+      case 'celebrities': return (
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Primary Celebrity</label>
+              <select value={form.primaryCelebrity || ''}
+                onChange={(e) => {
+                  const selected = celebrities.find((c) => c.id === e.target.value);
+                  setField('primaryCelebrity', e.target.value || '');
+                  setField('celebrity', e.target.value || '');
+                  setField('primaryCelebritySlug', selected?.name ? slugify(selected.name) : '');
+                }}
+                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+              >
+                <option value="">None</option>
+                {celebrities.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-neutral-500 mt-1 font-montserrat">Used for related profile links and celebrity filters.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Primary Celebrity Slug</label>
+              <input type="text" value={form.primaryCelebritySlug || ''}
+                onChange={(e) => setField('primaryCelebritySlug', e.target.value)}
+                placeholder="celebrity-profile-slug"
+                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+              />
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-sm font-semibold text-white font-montserrat">Related Celebrities</p>
+                <p className="text-xs text-neutral-500 font-montserrat">Add celebrity chips/cards that should appear on the public article.</p>
+              </div>
+              <button type="button" onClick={() => setField('relatedCelebrities', [...(form.relatedCelebrities || []), { name: '', slug: '', image: '', profileUrl: '' }])}
+                className="px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs font-montserrat hover:bg-yellow-500/20">
+                + Add Celebrity
+              </button>
+            </div>
+            <div className="space-y-3">
+              {(form.relatedCelebrities || []).map((item, i) => (
+                <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+                  {(['name', 'slug', 'image', 'profileUrl'] as const).map((key) => (
+                    <input key={key} value={item[key] || ''}
+                      onChange={(e) => {
+                        const next = [...(form.relatedCelebrities || [])];
+                        next[i] = { ...next[i], [key]: e.target.value };
+                        setField('relatedCelebrities', next);
+                      }}
+                      placeholder={key}
+                      className="px-3 py-2 rounded-xl bg-black/20 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                    />
+                  ))}
+                  <button type="button" onClick={() => setField('relatedCelebrities', (form.relatedCelebrities || []).filter((_, idx) => idx !== i))}
+                    className="md:col-span-4 justify-self-start px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-montserrat hover:bg-red-500/20">
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       );
@@ -813,6 +1169,40 @@ export default function NewsManagementSection() {
                     <p className="text-xs font-montserrat">Click or drop to upload thumbnail</p>
                   </button>
                 )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                <input
+                  type="url"
+                  value={form.featuredImage || form.thumbnail || ''}
+                  onChange={(e) => handleFeaturedImageChange(e.target.value)}
+                  placeholder="Featured image URL"
+                  className={`px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm ${errBorder('featuredImage')}`}
+                />
+                <input
+                  value={form.featuredImageAlt || ''}
+                  onChange={(e) => setField('featuredImageAlt', e.target.value)}
+                  placeholder="Featured image alt text"
+                  className={`px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm ${errBorder('featuredImageAlt')}`}
+                />
+                <input
+                  value={form.featuredImageCaption || ''}
+                  onChange={(e) => setField('featuredImageCaption', e.target.value)}
+                  placeholder="Image caption"
+                  className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+                <input
+                  value={form.imageCredit || ''}
+                  onChange={(e) => setField('imageCredit', e.target.value)}
+                  placeholder="Image credit"
+                  className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
+                <input
+                  type="url"
+                  value={form.imageSourceUrl || ''}
+                  onChange={(e) => setField('imageSourceUrl', e.target.value)}
+                  placeholder="Image source URL"
+                  className="md:col-span-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                />
               </div>
             </div>
 
@@ -935,6 +1325,26 @@ export default function NewsManagementSection() {
                 </div>
               )}
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                ['videoEmbedUrl', 'Video Embed URL'],
+                ['instagramEmbedUrl', 'Instagram Embed URL'],
+                ['youtubeEmbedUrl', 'YouTube Embed URL'],
+                ['xEmbedUrl', 'X / Twitter Embed URL'],
+              ].map(([field, label]) => (
+                <div key={field}>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
+                  <input
+                    type="url"
+                    value={(form as any)[field] || ''}
+                    onChange={(e) => setField(field as keyof NewsFull, e.target.value as any)}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         );
       }
@@ -942,34 +1352,214 @@ export default function NewsManagementSection() {
 
       // ── CONTENT ────────────────────────────────────────────────────────
       case 'content': return (
-        <div>
-          <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-            Article Content <span className="text-yellow-400">*</span>
-          </label>
-          <div className={`rounded-xl border overflow-hidden ${errBorder('content')}`}>
-            <RichTextEditor
-              label=""
-              value={form.content}
-              onChange={(html) => setField('content', html)}
+        <div className="space-y-5">
+          {[
+            ['introduction', 'Introduction', 'Open the article with a concise setup.'],
+            ['content', 'Body', 'Main article body. Required for publishing.'],
+            ['backgroundContext', 'Background Context', 'Useful history or prior context.'],
+            ['whatHappened', 'What Happened', 'Describe the core news event.'],
+            ['whyItMatters', 'Why It Matters', 'Explain audience impact and significance.'],
+            ['publicReaction', 'Public Reaction', 'Social/media/fan response.'],
+            ['officialStatement', 'Official Statement', 'Verified public statement or response.'],
+            ['conclusion', 'Conclusion', 'Close with next steps or summary.'],
+          ].map(([field, label, helper]) => (
+            <div key={field}>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
+                {label} {field === 'content' && <span className="text-yellow-400">*</span>}
+              </label>
+              <div className={`rounded-xl border overflow-hidden ${field === 'content' ? errBorder('content') : 'border-white/10'}`}>
+                <RichTextEditor
+                  label=""
+                  value={(form as any)[field] || ''}
+                  onChange={(html) => {
+                    setField(field as keyof NewsFull, html as any);
+                    if (field === 'content') setField('body', html);
+                  }}
+                  minHeight={field === 'content' ? 260 : 150}
+                />
+              </div>
+              <p className="text-neutral-600 text-xs mt-1 font-montserrat">{helper}</p>
+              {field === 'content' && formErrors.content && <p className="text-red-400 text-xs mt-1 font-montserrat">{formErrors.content}</p>}
+            </div>
+          ))}
+          <div>
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Celebrity Quote</label>
+            <textarea
+              value={form.celebrityQuote || ''}
+              onChange={(e) => setField('celebrityQuote', e.target.value)}
+              rows={3}
+              placeholder="Optional short quote to highlight in the article..."
+              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
             />
           </div>
-          {formErrors.content && <p className="text-red-400 text-xs mt-1 font-montserrat">{formErrors.content}</p>}
         </div>
       );
 
-      // ── META / DETAILS ─────────────────────────────────────────────────
-      case 'meta': return (
-        <div className="space-y-4">
+      // ── SOURCES ────────────────────────────────────────────────────────
+      case 'sources': return (
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Source Type <span className="text-yellow-400">*</span></label>
+              <select value={form.sourceType || ''} onChange={(e) => setField('sourceType', e.target.value)}
+                className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white focus:outline-none font-montserrat text-sm ${errBorder('sourceType')}`}>
+                <option value="">Select source type</option>
+                {SOURCE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Source Name <span className="text-yellow-400">*</span></label>
+              <input value={form.sourceName || ''} onChange={(e) => setField('sourceName', e.target.value)}
+                placeholder="Publication, account, official body..."
+                className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm ${errBorder('sourceName')}`} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Source URL <span className="text-yellow-400">*</span></label>
+              <input type="url" value={form.sourceUrl || ''} onChange={(e) => setField('sourceUrl', e.target.value)}
+                placeholder="https://..."
+                className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm ${errBorder('sourceUrl')}`} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Source Published At</label>
+              <input type="date" value={form.sourcePublishedAt || ''} onChange={(e) => setField('sourcePublishedAt', e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm" />
+            </div>
+            <button type="button" onClick={() => setField('isSourceVerified', !form.isSourceVerified)}
+              className={`self-end rounded-xl border px-4 py-2.5 text-sm font-montserrat transition-all ${
+                form.isSourceVerified ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-white/5 border-white/10 text-neutral-400'
+              }`}>
+              {form.isSourceVerified ? 'Verified Source' : 'Mark Source Verified'}
+            </button>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Source Credit Text</label>
+              <input value={form.sourceCreditText || ''} onChange={(e) => setField('sourceCreditText', e.target.value)}
+                placeholder="Source: Official Instagram / Press release..."
+                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm" />
+            </div>
+          </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Tags (one per line)</label>
-            <textarea
-              value={joinLines(form.tags)}
-              onChange={(e) => setField('tags', splitLines(e.target.value))}
-              rows={8}
-              placeholder={"Dhanush\nSai Pallavi\nTamil Cinema News\nKollywood"}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-            <p className="text-neutral-600 text-xs mt-1 font-montserrat">{(form.tags || []).length} tags</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold text-white font-montserrat">Additional References</p>
+              <button type="button" onClick={() => setField('additionalReferences', [...(form.additionalReferences || []), { title: '', url: '', sourceName: '' }])}
+                className="px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs font-montserrat hover:bg-yellow-500/20">+ Add Reference</button>
+            </div>
+            <div className="space-y-3">
+              {(form.additionalReferences || []).map((item, i) => (
+                <div key={i} className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+                  {(['title', 'url', 'sourceName'] as const).map((key) => (
+                    <input key={key} value={item[key] || ''}
+                      onChange={(e) => {
+                        const next = [...(form.additionalReferences || [])];
+                        next[i] = { ...next[i], [key]: e.target.value };
+                        setField('additionalReferences', next);
+                      }}
+                      placeholder={key}
+                      className="px-3 py-2 rounded-xl bg-black/20 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm" />
+                  ))}
+                  <button type="button" onClick={() => setField('additionalReferences', (form.additionalReferences || []).filter((_, idx) => idx !== i))}
+                    className="md:col-span-3 justify-self-start px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-montserrat hover:bg-red-500/20">Remove</button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Fact Check Notes</label>
+            <textarea value={form.factCheckNotes || ''} onChange={(e) => setField('factCheckNotes', e.target.value)}
+              rows={5} placeholder="Private verification notes for editors..."
+              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none" />
+          </div>
+        </div>
+      );
+
+      // ── SCHEMA ─────────────────────────────────────────────────────────
+      case 'schema': {
+        const schema = form.schema || EMPTY_FORM.schema || {};
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Schema Type <span className="text-yellow-400">*</span></label>
+              <select value={schema.schemaType || 'NewsArticle'} onChange={(e) => setSchemaField('schemaType', e.target.value as any)}
+                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm">
+                {['NewsArticle', 'Article', 'BlogPosting'].map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            {[
+              ['schemaHeadline', 'Schema Headline'],
+              ['schemaDescription', 'Schema Description'],
+              ['schemaImage', 'Schema Image'],
+              ['schemaArticleSection', 'Article Section'],
+              ['publisherName', 'Publisher Name'],
+              ['publisherLogo', 'Publisher Logo'],
+              ['mainEntityOfPage', 'Main Entity Of Page'],
+            ].map(([field, label]) => (
+              <div key={field} className={field === 'schemaDescription' || field === 'mainEntityOfPage' ? 'md:col-span-2' : ''}>
+                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">{label}</label>
+                <input value={(schema as any)[field] || ''} onChange={(e) => setSchemaField(field as keyof NewsSchema, e.target.value as any)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm" />
+              </div>
+            ))}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Schema Keywords (one per line)</label>
+              <textarea value={joinLines(schema.schemaKeywords)} onChange={(e) => setSchemaField('schemaKeywords', splitLines(e.target.value))}
+                rows={4}
+                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none" />
+            </div>
+          </div>
+        );
+      }
+
+      // ── PUBLISHING ─────────────────────────────────────────────────────
+      case 'publishing': return (
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {(['draft', 'scheduled', 'published', 'archived'] as const).map((status) => (
+              <button key={status} type="button" onClick={() => setField('status', status)}
+                className={`rounded-2xl border px-4 py-3 text-sm font-montserrat capitalize transition-all ${
+                  form.status === status ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
+                }`}>
+                {status}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Published At</label>
+              <input type="date" value={form.publishedAt || form.publishDate || ''} onChange={(e) => { setField('publishedAt', e.target.value); setField('publishDate', e.target.value); }}
+                className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white focus:outline-none font-montserrat text-sm ${errBorder('publishedAt')}`} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Scheduled At</label>
+              <input type="date" value={form.scheduledAt || ''} onChange={(e) => setField('scheduledAt', e.target.value)}
+                className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white focus:outline-none font-montserrat text-sm ${errBorder('scheduledAt')}`} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Reading Time</label>
+              <input type="number" value={form.readingTime || ''} onChange={(e) => setField('readingTime', Number(e.target.value) || undefined)}
+                placeholder="Auto if empty"
+                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm" />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {form.slug && (
+              <a href={`/celebrity-news/${form.slug}`} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 text-neutral-200 hover:text-white hover:bg-white/15 font-montserrat text-sm">
+                <Icon name="EyeIcon" size={15} /> Preview
+              </a>
+            )}
+            <button type="button" onClick={handleSaveDraft} disabled={draftLoading || formLoading}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 text-neutral-200 hover:text-white hover:bg-white/15 font-montserrat text-sm disabled:opacity-50">
+              <Icon name="DocumentTextIcon" size={15} /> Save Draft
+            </button>
+            <button type="submit" disabled={formLoading || draftLoading}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 disabled:opacity-50">
+              <Icon name="PaperAirplaneIcon" size={15} /> Publish / Save
+            </button>
+            {panelMode === 'edit' && (
+              <button type="button" onClick={() => setField('status', 'archived')}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 font-montserrat text-sm">
+                <Icon name="ArchiveBoxIcon" size={15} /> Archive
+              </button>
+            )}
           </div>
         </div>
       );
@@ -987,6 +1577,18 @@ export default function NewsManagementSection() {
           s === 'good' ? 'text-emerald-400' : s === 'long' ? 'text-amber-400' : 'text-neutral-600';
         const scoreLabel   = (s: string, len: number, max: number) =>
           s === 'empty' ? 'Not set' : s === 'good' ? `${len}/${max} ✓ Good` : `${len}/${max} — Too long`;
+        const focus = (seo.focusKeyword || '').trim().toLowerCase();
+        const focusTargets = [
+          ['title', form.title],
+          ['slug', form.slug],
+          ['excerpt', form.excerpt],
+          ['meta title', seo.metaTitle],
+          ['meta description', seo.metaDescription],
+          ['body', form.content],
+        ];
+        const missingFocus = focus
+          ? focusTargets.filter(([, value]) => !String(value || '').toLowerCase().includes(focus)).map(([label]) => label)
+          : [];
 
         // Completion %
         const filledCount = [seo.focusKeyword, seo.metaTitle, seo.metaDescription, seo.canonicalUrl,
@@ -1030,6 +1632,11 @@ export default function NewsManagementSection() {
                     className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
                   />
                   <p className="text-neutral-600 text-xs mt-1 font-montserrat">The single phrase you most want to rank for.</p>
+                  {missingFocus.length > 0 && (
+                    <p className="text-amber-400 text-xs mt-1 font-montserrat">
+                      Focus keyword missing from: {missingFocus.join(', ')}.
+                    </p>
+                  )}
                 </div>
 
                 {/* Meta title */}
@@ -1090,12 +1697,22 @@ export default function NewsManagementSection() {
                 <div>
                   <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Secondary Keywords (one per line)</label>
                   <textarea
-                    rows={3} value={joinLines(seo.metaKeywords)}
-                    onChange={(e) => setSeo('metaKeywords', splitLines(e.target.value))}
+                    rows={3} value={joinLines(seo.secondaryKeywords || seo.metaKeywords)}
+                    onChange={(e) => { const list = splitLines(e.target.value); setSeo('secondaryKeywords', list); setSeo('metaKeywords', list); }}
                     placeholder={"sai pallavi new movie\ntamil cinema news\nkollywood casting news 2026"}
                     className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
                   />
                   <p className="text-neutral-600 text-xs mt-1 font-montserrat">{(seo.metaKeywords || []).length} keywords</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Content Tags (one per line)</label>
+                  <textarea
+                    rows={4} value={joinLines(seo.contentTags || form.tags)}
+                    onChange={(e) => { const list = splitLines(e.target.value); setSeo('contentTags', list); setField('tags', list); }}
+                    placeholder={"celebrity news\nmovie update\ntrending entertainment"}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
+                  />
                 </div>
 
                 {/* Canonical URL */}
@@ -1501,7 +2118,9 @@ export default function NewsManagementSection() {
           >
             <option value="" style={{ background: '#2b1433' }}>All Statuses</option>
             <option value="published" style={{ background: '#2b1433' }}>Published</option>
+            <option value="scheduled" style={{ background: '#2b1433' }}>Scheduled</option>
             <option value="draft" style={{ background: '#2b1433' }}>Draft</option>
+            <option value="archived" style={{ background: '#2b1433' }}>Archived</option>
           </select>
           <select value={limit} onChange={(e) => fetchList(1, Number(e.target.value))}
             className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"

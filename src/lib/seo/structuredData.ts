@@ -284,24 +284,28 @@ export function createPersonSchema(celebrity: Record<string, any>): JsonLdSchema
 
 export function createNewsArticleSchema(article: Record<string, any>): JsonLdSchema {
   const url = absoluteUrl(`/celebrity-news/${article.slug}`);
-  const description = article.excerpt || truncate(article.content, 200) || DEFAULT_DESCRIPTION;
+  const schema = article.schema || {};
+  const seo = article.seo || {};
+  const description = schema.schemaDescription || seo.metaDescription || article.excerpt || truncate(article.body || article.content, 200) || DEFAULT_DESCRIPTION;
 
   return compact({
     '@context': 'https://schema.org',
-    '@type': 'NewsArticle',
+    '@type': schema.schemaType || seo.schemaType || 'NewsArticle',
     '@id': `${url}/#newsarticle`,
-    headline: article.title,
+    headline: schema.schemaHeadline || article.title,
     description,
-    image: imageArray(article.thumbnail, article.images),
-    datePublished: dateValue(article.publishDate || article.createdAt),
-    dateModified: dateValue(article.updatedAt || article.publishDate || article.createdAt),
-    author: { '@type': 'Person', name: article.author || SITE_NAME },
-    publisher: { '@id': ORGANIZATION_ID },
-    mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+    image: imageArray(schema.schemaImage || article.featuredImage || article.thumbnail, article.images),
+    datePublished: dateValue(article.publishedAt || article.publishDate || article.createdAt),
+    dateModified: dateValue(article.updatedAt || article.publishedAt || article.publishDate || article.createdAt),
+    author: { '@type': 'Person', name: article.authorName || article.author || SITE_NAME },
+    publisher: schema.publisherName
+      ? { '@type': 'Organization', name: schema.publisherName, logo: schema.publisherLogo ? { '@type': 'ImageObject', url: schema.publisherLogo } : undefined }
+      : { '@id': ORGANIZATION_ID },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': schema.mainEntityOfPage || url },
     url,
-    articleSection: article.category,
-    keywords: textArray(article.tags).join(', '),
-    articleBody: stripHtml(article.content || '').slice(0, 5000),
+    articleSection: schema.schemaArticleSection || article.category,
+    keywords: textArray(schema.schemaKeywords || seo.contentTags || article.tags).join(', '),
+    articleBody: stripHtml(article.body || article.content || '').slice(0, 5000),
     isAccessibleForFree: true,
   });
 }

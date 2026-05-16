@@ -13,13 +13,23 @@ export interface NewsArticleDB {
   slug: string;
   excerpt?: string;
   thumbnail?: string;
+  featuredImage?: string;
+  featuredImageAlt?: string;
   author?: string;
+  authorName?: string;
   category?: string;
+  newsType?: string;
   celebrity?: { name?: string; slug?: string; profileImage?: string } | null;
+  primaryCelebrity?: { name?: string; slug?: string; profileImage?: string } | null;
   tags?: string[];
+  publishedAt?: string;
   publishDate?: string;
   createdAt?: string;
   featured: boolean;
+  isFeatured?: boolean;
+  isTrending?: boolean;
+  isBreaking?: boolean;
+  readingTime?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -115,7 +125,7 @@ export default function CelebrityNewsInteractive({
   }, [fetchNews, search, category, sort]);
 
   // ── derived ────────────────────────────────────────────────────────────────
-  const featured  = articles.find((a) => a.featured) || articles[0];
+  const featured  = articles.find((a) => a.isBreaking) || articles.find((a) => a.isFeatured || a.featured) || articles[0];
   const trending  = articles.filter((a) => a._id !== featured?._id).slice(0, 8);
   const remaining = articles.filter((a) => a._id !== featured?._id);
 
@@ -225,10 +235,10 @@ export default function CelebrityNewsInteractive({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                 {/* Image */}
                 <div className="relative aspect-[16/9] lg:aspect-auto min-h-[280px]">
-                  {featured.thumbnail ? (
+                  {(featured.featuredImage || featured.thumbnail) ? (
                     <AppImage
-                      src={featured.thumbnail}
-                      alt={featured.title}
+                      src={featured.featuredImage || featured.thumbnail || ''}
+                      alt={featured.featuredImageAlt || featured.title}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -243,7 +253,7 @@ export default function CelebrityNewsInteractive({
                       </span>
                     </div>
                   )}
-                  {featured.featured && (
+                  {(featured.isFeatured || featured.featured) && (
                     <div className="absolute top-6 right-6">
                       <span className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 font-montserrat text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-full flex items-center gap-1">
                         <Icon name="SparklesIcon" size={10} /> Featured
@@ -255,7 +265,7 @@ export default function CelebrityNewsInteractive({
                 {/* Content */}
                   <div className="p-5 sm:p-8 lg:p-12 flex flex-col justify-center">
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4">
-                    <span className="text-sm text-neutral-400">{formatDate(featured.publishDate || featured.createdAt)}</span>
+                    <span className="text-sm text-neutral-400">{formatDate(featured.publishedAt || featured.publishDate || featured.createdAt)}</span>
                     <span className="w-1 h-1 rounded-full bg-neutral-600" />
                     <span className="text-sm text-neutral-400">{readTime(featured.excerpt)}</span>
                   </div>
@@ -272,8 +282,8 @@ export default function CelebrityNewsInteractive({
                       <span className="text-sm font-medium">Read Full Story</span>
                       <Icon name="ArrowRightIcon" size={16} />
                     </div>
-                    {featured.author && (
-                      <span className="text-xs text-neutral-500 font-montserrat">by {featured.author}</span>
+                    {(featured.authorName || featured.author) && (
+                      <span className="text-xs text-neutral-500 font-montserrat">by {featured.authorName || featured.author}</span>
                     )}
                   </div>
                 </div>
@@ -309,10 +319,10 @@ export default function CelebrityNewsInteractive({
                     <Link key={article._id} href={articleHref(article)}>
                       <div className="glass-card rounded-2xl overflow-hidden hover:scale-[1.02] hover:glow-emerald transition-all duration-500 cursor-pointer h-full">
                         <div className="relative aspect-video">
-                          {article.thumbnail ? (
+                          {(article.featuredImage || article.thumbnail) ? (
                             <AppImage
-                              src={article.thumbnail}
-                              alt={article.title}
+                              src={article.featuredImage || article.thumbnail || ''}
+                              alt={article.featuredImageAlt || article.title}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -327,7 +337,7 @@ export default function CelebrityNewsInteractive({
                               </span>
                             </div>
                           )}
-                          {article.featured && (
+                          {(article.isFeatured || article.featured) && (
                             <div className="absolute top-4 right-4">
                               <Icon name="SparklesIcon" size={14} className="text-yellow-400" />
                             </div>
@@ -335,7 +345,7 @@ export default function CelebrityNewsInteractive({
                         </div>
                         <div className="p-6">
                           <div className="flex flex-wrap items-center gap-2 mb-3 text-xs text-neutral-500">
-                            <span>{formatDate(article.publishDate || article.createdAt)}</span>
+                            <span>{formatDate(article.publishedAt || article.publishDate || article.createdAt)}</span>
                             <span>•</span>
                             <span>{readTime(article.excerpt)}</span>
                           </div>
@@ -349,7 +359,7 @@ export default function CelebrityNewsInteractive({
                             <div className="flex min-w-0 items-center gap-2">
                               <Icon name="UserIcon" size={14} className="text-neutral-500" />
                               <span className="truncate text-sm text-neutral-400">
-                                {article.celebrity?.name || article.author || 'Staff Writer'}
+                                {article.primaryCelebrity?.name || article.celebrity?.name || article.authorName || article.author || 'Staff Writer'}
                               </span>
                             </div>
                             {(article.tags || []).length > 0 && (
