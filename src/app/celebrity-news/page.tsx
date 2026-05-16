@@ -7,7 +7,8 @@ import { createMetadata } from '@/lib/seo/site';
 import { getNewsList } from '@/lib/seo/publicData';
 import { createBreadcrumbSchema, createItemListSchema } from '@/lib/seo/structuredData';
 
-export const revalidate = 900;
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export const metadata: Metadata = createMetadata({
   title: 'Celebrity News',
