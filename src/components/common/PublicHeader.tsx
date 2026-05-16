@@ -49,11 +49,10 @@ export default function PublicHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition ${
-                isActivePath(link.href)
+              className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition ${isActivePath(link.href)
                   ? 'bg-white/10 text-white'
                   : 'text-neutral-300 hover:bg-white/5 hover:text-white'
-              }`}
+                }`}
             >
               {link.label}
             </Link>
@@ -61,26 +60,24 @@ export default function PublicHeader() {
           <div className="group relative">
             <button
               type="button"
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition ${
-                isMovieNavigationActive
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition ${isMovieNavigationActive
                   ? 'bg-white/10 text-white'
                   : 'text-neutral-300 hover:bg-white/5 hover:text-white'
-              }`}
+                }`}
             >
               Movies
               <ChevronDownIcon width={14} height={14} aria-hidden="true" />
             </button>
             <div className="invisible absolute right-0 top-full z-20 min-w-48 pt-2 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-              <div className="rounded-2xl border border-white/10 bg-background/95 p-2 shadow-2xl backdrop-blur-xl">
+              <div className="rounded-2xl border border-white/10 bg-neutral-950/95 p-2 shadow-2xl backdrop-blur-xl">
                 {movieNavigation.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`block rounded-xl px-3 py-2 text-sm font-medium transition ${
-                      isActivePath(link.href)
+                    className={`block rounded-xl px-3 py-2 text-sm font-medium transition ${isActivePath(link.href)
                         ? 'bg-white/10 text-white'
-                        : 'text-neutral-300 hover:bg-white/5 hover:text-white'
-                    }`}
+                        : 'text-neutral-300 hover:bg-white/10 hover:text-white'
+                      }`}
                   >
                     {link.label}
                   </Link>
@@ -133,11 +130,10 @@ export default function PublicHeader() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                    pathname === link.href
+                  className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${pathname === link.href
                       ? 'bg-primary text-black'
                       : 'text-neutral-200 hover:bg-white/5 hover:text-white'
-                  }`}
+                    }`}
                 >
                   {link.label}
                 </Link>
