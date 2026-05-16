@@ -11,6 +11,7 @@ import { withApiKey } from '@/lib/apiKeyMiddleware';
 import dbConnect from '@/lib/mongodb';
 import CelebrityOutfit from '@/models/CelebrityOutfit';
 import Celebrity from '@/models/Celebrity';
+import { publicOutfitFilter, serializeOutfit } from '@/lib/celebrityOutfits';
 
 export async function GET(request: NextRequest) {
   return withApiKey(request, async (req) => {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
       const sort      = searchParams.get('sort') || 'latest';
       const skip = (page - 1) * limit;
 
-      const query: Record<string, any> = { isActive: true };
+      const query: Record<string, any> = publicOutfitFilter();
       if (search)   query.title = { $regex: search, $options: 'i' };
       if (category) query.category = { $regex: category, $options: 'i' };
       if (brand)    query.brand = { $regex: brand, $options: 'i' };
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
       // If celebrity slug provided, resolve to ObjectId first
       if (celebrity) {
         const cel = await Celebrity.findOne({ slug: celebrity.toLowerCase() }).select('_id').lean();
-        if (cel) query.celebrity = (cel as any)._id;
+        if (cel) query.$or = [{ celebrity: (cel as any)._id }, { primaryCelebrity: (cel as any)._id }, { primaryCelebritySlug: celebrity.toLowerCase() }];
       }
 
       const sortMap: Record<string, any> = {
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
       const [outfits, total] = await Promise.all([
         CelebrityOutfit.find(query)
           .select('title slug images event designer brand category color price purchaseLink tags likesCount isFeatured celebrity createdAt')
-          .populate('celebrity', 'name slug profileImage')
+          .populate('celebrity primaryCelebrity', 'name slug profileImage')
           .sort(sortObj)
           .skip(skip)
           .limit(limit)
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
         version: 'v1',
         resource: 'outfits',
         pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-        data: outfits,
+        data: outfits.map((outfit: any) => serializeOutfit(outfit)),
       });
     } catch (error) {
       console.error('v1/outfits error:', error);

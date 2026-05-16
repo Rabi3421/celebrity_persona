@@ -232,19 +232,20 @@ export function createCelebrityProfileMetadata(celebrity: AnyRecord): Metadata {
 }
 
 export function createCelebrityOutfitMetadata(outfit: AnyRecord): Metadata {
-  const celebrityName = personName(outfit.celebrity);
+  const celebrityName = personName(outfit.primaryCelebrity || outfit.celebrity);
   const title = text(outfit.title) || `${celebrityName} outfit`;
+  const seo: AnyRecord = pickSeoSource(outfit.seo, outfit.seoData) as AnyRecord;
   const description =
-    truncate(outfit.description || '', 155) ||
+    truncate(outfit.excerpt || outfit.outfitDescription || outfit.description || '', 155) ||
     `Shop ${celebrityName}'s ${title}. Discover brand details, designer notes, and celebrity fashion inspiration.`;
 
   return createDynamicSeoMetadata({
-    seo: pickSeoSource(outfit.seo, outfit.seoData),
+    seo,
     title: `${title} | ${celebrityName} Outfit`,
     description,
     path: `/celebrity-outfits/${outfit.slug}`,
-    images: Array.isArray(outfit.images) ? outfit.images : [outfit.image],
-    imageAlt: `${title} celebrity outfit`,
+    images: [seo.ogImage, outfit.featuredImage, ...(Array.isArray(outfit.images) ? outfit.images : [outfit.image])].filter(Boolean),
+    imageAlt: outfit.featuredImageAlt || `${title} celebrity outfit`,
     type: 'article',
     keywords: [
       celebrityName,
@@ -252,12 +253,15 @@ export function createCelebrityOutfitMetadata(outfit: AnyRecord): Metadata {
       outfit.brand,
       outfit.designer,
       outfit.category,
-      outfit.event,
+      outfit.outfitType,
+      outfit.eventName || outfit.event,
+      seo.focusKeyword,
+      ...(seo.secondaryKeywords || []),
       'celebrity outfit',
       'shop the look',
       'celebrity fashion',
     ],
-    publishedTime: outfit.createdAt,
+    publishedTime: outfit.publishedAt || outfit.createdAt,
     modifiedTime: outfit.updatedAt,
   });
 }

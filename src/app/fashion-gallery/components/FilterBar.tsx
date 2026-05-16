@@ -6,6 +6,7 @@ import Icon from '@/components/ui/AppIcon';
 interface FilterState {
   category: string;
   event: string;
+  outfitType: string;
   brand: string;
 }
 
@@ -16,6 +17,7 @@ interface FilterBarProps {
 export default function FilterBar({ onFilterChange }: FilterBarProps) {
   const [category, setCategory] = useState('all');
   const [event,    setEvent]    = useState('all');
+  const [outfitType, setOutfitType] = useState('all');
 
   const events = [
     { id: 'ev_all',         value: 'all',           label: 'All Events'   },
@@ -36,15 +38,25 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
     { id: 'cat_formal',      value: 'Formal',           label: 'Formal'          },
   ];
 
-  const emit = (ev: string, cat: string) =>
-    onFilterChange({ event: ev, category: cat, brand: 'all' });
+  const outfitTypes = [
+    { id: 'type_all', value: 'all', label: 'All Types' },
+    { id: 'type_saree', value: 'Saree', label: 'Saree' },
+    { id: 'type_gown', value: 'Gown', label: 'Gown' },
+    { id: 'type_dress', value: 'Dress', label: 'Dress' },
+    { id: 'type_suit', value: 'Suit', label: 'Suit' },
+    { id: 'type_lehenga', value: 'Lehenga', label: 'Lehenga' },
+  ];
 
-  const handleEvent = (v: string) => { setEvent(v);    emit(v, category); };
-  const handleCat   = (v: string) => { setCategory(v); emit(event, v);    };
+  const emit = (ev: string, cat: string, type: string) =>
+    onFilterChange({ event: ev, category: cat, outfitType: type, brand: 'all' });
+
+  const handleEvent = (v: string) => { setEvent(v); emit(v, category, outfitType); };
+  const handleCat = (v: string) => { setCategory(v); emit(event, v, outfitType); };
+  const handleType = (v: string) => { setOutfitType(v); emit(event, category, v); };
 
   const clear = () => {
-    setEvent('all'); setCategory('all');
-    onFilterChange({ event: 'all', category: 'all', brand: 'all' });
+    setEvent('all'); setCategory('all'); setOutfitType('all');
+    onFilterChange({ event: 'all', category: 'all', outfitType: 'all', brand: 'all' });
   };
 
   return (
@@ -62,6 +74,23 @@ export default function FilterBar({ onFilterChange }: FilterBarProps) {
               }`}
             >
               {e.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="font-montserrat text-xs uppercase tracking-wider text-neutral-400 mb-3 block">
+          Outfit Type
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {outfitTypes.map((type) => (
+            <button key={type.id} onClick={() => handleType(type.value)}
+              className={`px-3 py-2 rounded-full text-sm font-medium transition-all sm:px-4 ${
+                outfitType === type.value ? 'bg-accent text-black' : 'bg-neutral-800 text-neutral-400 hover:text-white'
+              }`}
+            >
+              {type.label}
             </button>
           ))}
         </div>

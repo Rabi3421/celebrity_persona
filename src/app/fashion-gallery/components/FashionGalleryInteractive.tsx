@@ -14,7 +14,12 @@ export interface OutfitDoc {
   slug: string;
   celebrity?: { name: string; slug?: string; profileImage?: string } | string;
   images: string[];
+  featuredImage?: string;
+  featuredImageAlt?: string;
+  excerpt?: string;
   event?: string;
+  eventName?: string;
+  outfitType?: string;
   designer?: string;
   brand?: string;
   category?: string;
@@ -25,6 +30,11 @@ export interface OutfitDoc {
   tags?: string[];
   isActive: boolean;
   isFeatured: boolean;
+  isTrending?: boolean;
+  isEditorPick?: boolean;
+  primaryCelebritySlug?: string;
+  publishedAt?: string;
+  readingTime?: number;
   likesCount: number;
   commentsCount: number;
   createdAt?: string;
@@ -79,6 +89,7 @@ export default function FashionGalleryInteractive({
   const [filters, setFilters]       = useState({
     category: 'all',
     event: 'all',
+    outfitType: 'all',
     brand: 'all',
   });
 
@@ -95,6 +106,7 @@ export default function FashionGalleryInteractive({
       if (q)                  params.set('q', q);
       if (f.category !== 'all') params.set('category', f.category);
       if (f.event    !== 'all') params.set('event',    f.event);
+      if (f.outfitType !== 'all') params.set('outfitType', f.outfitType);
       if (f.brand    !== 'all') params.set('brand',    f.brand);
 
       const res  = await fetch(`/api/user/outfits?${params}`, {
@@ -110,7 +122,7 @@ export default function FashionGalleryInteractive({
       setTotal(json.total);
 
       // first featured item becomes the hero on initial load (page 1, no filters)
-      if (p === 1 && !q && f.category === 'all' && f.event === 'all' && f.brand === 'all') {
+      if (p === 1 && !q && f.category === 'all' && f.event === 'all' && f.outfitType === 'all' && f.brand === 'all') {
         const feat = docs.find((d) => d.isFeatured) || docs[0] || null;
         setFeatured(feat);
       }
@@ -122,7 +134,7 @@ export default function FashionGalleryInteractive({
   }, [search, filters]);
 
   useEffect(() => {
-    if (skippedInitialOutfits.current && !search && filters.category === 'all' && filters.event === 'all' && filters.brand === 'all') {
+    if (skippedInitialOutfits.current && !search && filters.category === 'all' && filters.event === 'all' && filters.outfitType === 'all' && filters.brand === 'all') {
       skippedInitialOutfits.current = false;
       return;
     }
@@ -166,8 +178,8 @@ export default function FashionGalleryInteractive({
         <h1 className="font-playfair text-4xl font-bold text-white mb-4 sm:text-5xl md:text-7xl">
           Celebrity Fashion Gallery
         </h1>
-        <p className="font-inter text-base leading-7 text-neutral-400 max-w-2xl mx-auto md:text-xl">
-          Shop the exact outfits worn by your favourite celebrities
+                <p className="font-inter text-base leading-7 text-neutral-400 max-w-2xl mx-auto md:text-xl">
+          Decode celebrity looks with image details, styling notes, and shop-ready product picks
         </p>
 
         {/* Search */}
