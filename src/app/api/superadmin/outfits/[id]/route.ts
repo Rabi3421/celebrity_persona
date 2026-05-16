@@ -3,13 +3,8 @@ import { NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
 import dbConnect from '@/lib/mongodb';
 import CelebrityOutfit from '@/models/CelebrityOutfit';
-import '@/models/Celebrity'; // ensure Celebrity schema is registered for populate
-
-const ALLOWED_FIELDS = new Set([
-  'title', 'slug', 'celebrity', 'images', 'event', 'designer',
-  'description', 'tags', 'purchaseLink', 'price', 'brand',
-  'category', 'color', 'size', 'isActive', 'isFeatured', 'status', 'seo',
-]);
+import { normalizeOutfitPayload, serializeOutfit, validateOutfitPayload } from '@/lib/celebrityOutfits';
+import '@/models/Celebrity';
 
 async function handler(request: AuthenticatedRequest, { params }: any) {
   const id = params?.id;
@@ -18,61 +13,66 @@ async function handler(request: AuthenticatedRequest, { params }: any) {
   try {
     await dbConnect();
 
-    // ── GET ───────────────────────────────────────────────────────────────
     if (request.method === 'GET') {
       const doc = await CelebrityOutfit.findById(id)
-        .populate('celebrity', 'name slug')
+        .populate('celebrity primaryCelebrity', 'name slug profileImage')
         .lean();
       if (!doc) return NextResponse.json({ success: false, message: 'Outfit not found' }, { status: 404 });
-      const obj: any = { ...doc, id: String((doc as any)._id) };
-      delete obj._id; delete obj.__v;
-      return NextResponse.json({ success: true, data: obj });
+      return NextResponse.json({ success: true, data: serializeOutfit(doc) });
     }
 
-    // ── PUT ───────────────────────────────────────────────────────────────
     if (request.method === 'PUT') {
       let body: any = {};
-      try { body = await request.json(); } catch {
+      try {
+        body = await request.json();
+      } catch {
         return NextResponse.json({ success: false, message: 'Invalid JSON body' }, { status: 400 });
       }
 
-      const update: any = {};
-      for (const key of Object.keys(body)) {
-        if (ALLOWED_FIELDS.has(key)) update[key] = body[key];
+      const existing = await CelebrityOutfit.findById(id).lean();
+      if (!existing) return NextResponse.json({ success: false, message: 'Outfit not found' }, { status: 404 });
+
+      const payload = normalizeOutfitPayload(body, existing);
+      const errors = validateOutfitPayload(payload);
+      if (Object.keys(errors).length) {
+        return NextResponse.json({ success: false, message: Object.values(errors)[0], errors }, { status: 400 });
       }
 
-      // Validate images if provided
-      if (update.images !== undefined) {
-        if (!Array.isArray(update.images) || update.images.length === 0)
-          return NextResponse.json({ success: false, message: 'images must be a non-empty array' }, { status: 400 });
+      const duplicate = await CelebrityOutfit.findOne({ slug: payload.slug, _id: { $ne: id } }).select('_id').lean();
+      if (duplicate) {
+        return NextResponse.json(
+          { success: false, message: 'An outfit with this slug already exists', errors: { slug: 'Slug must be unique' } },
+          { status: 409 }
+        );
       }
 
-      const updated = await CelebrityOutfit.findByIdAndUpdate(
-        id, update, { new: true, runValidators: true }
-      ).populate('celebrity', 'name slug').lean();
+      const updated = await CelebrityOutfit.findByIdAndUpdate(id, payload, { new: true, runValidators: true })
+        .populate('celebrity primaryCelebrity', 'name slug profileImage')
+        .lean();
 
-      if (!updated) return NextResponse.json({ success: false, message: 'Outfit not found' }, { status: 404 });
-      const obj: any = { ...updated, id: String((updated as any)._id) };
-      delete obj._id; delete obj.__v;
-      return NextResponse.json({ success: true, data: obj });
+      return NextResponse.json({ success: true, data: serializeOutfit(updated) });
     }
 
-    // ── DELETE ────────────────────────────────────────────────────────────
     if (request.method === 'DELETE') {
-      const removed = await CelebrityOutfit.findByIdAndDelete(id).lean();
-      if (!removed) return NextResponse.json({ success: false, message: 'Outfit not found' }, { status: 404 });
-      return NextResponse.json({ success: true, message: 'Outfit deleted successfully' });
+      const archived = await CelebrityOutfit.findByIdAndUpdate(
+        id,
+        { status: 'archived', isActive: false },
+        { new: true }
+      ).lean();
+      if (!archived) return NextResponse.json({ success: false, message: 'Outfit not found' }, { status: 404 });
+      return NextResponse.json({ success: true, message: 'Outfit archived successfully', data: serializeOutfit(archived) });
     }
 
     return NextResponse.json({ success: false, message: 'Method not allowed' }, { status: 405 });
   } catch (error: any) {
     console.error('Superadmin outfit [id] error:', error);
-    if (error.code === 11000)
+    if (error.code === 11000) {
       return NextResponse.json({ success: false, message: 'An outfit with this slug already exists' }, { status: 409 });
+    }
     return NextResponse.json({ success: false, message: error?.message || 'Server error' }, { status: 500 });
   }
 }
 
-export const GET    = withAuth(handler, ['superadmin']);
-export const PUT    = withAuth(handler, ['superadmin']);
+export const GET = withAuth(handler, ['superadmin']);
+export const PUT = withAuth(handler, ['superadmin']);
 export const DELETE = withAuth(handler, ['superadmin']);

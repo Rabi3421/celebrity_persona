@@ -51,8 +51,9 @@ export default function OutfitGallery({ outfits, loading }: Props) {
       {outfits.map((outfit, index) => {
         const isLarge  = index % 7 === 0 || index % 7 === 4;
         const isMedium = index % 7 === 2 || index % 7 === 5;
-        const img      = outfit.images?.[0] || '';
-        const label    = outfit.event ? outfit.event.toUpperCase() : outfit.category?.toUpperCase() || 'OUTFIT';
+        const img      = outfit.featuredImage || outfit.images?.[0] || '';
+        const label    = outfit.outfitType?.toUpperCase() || outfit.eventName?.toUpperCase() || outfit.event?.toUpperCase() || outfit.category?.toUpperCase() || 'OUTFIT';
+        const published = outfit.publishedAt || outfit.createdAt;
 
         return (
           <Link
@@ -66,7 +67,7 @@ export default function OutfitGallery({ outfits, loading }: Props) {
               {img ? (
                 <Image
                   src={img}
-                  alt={outfit.title}
+                  alt={outfit.featuredImageAlt || outfit.title}
                   fill
                   priority={index === 0}
                   sizes={isLarge ? '(min-width: 1024px) 50vw, 100vw' : '(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 100vw'}
@@ -103,23 +104,25 @@ export default function OutfitGallery({ outfits, loading }: Props) {
                 </h3>
                 <p className="text-neutral-300 text-sm font-montserrat mb-3 line-clamp-1">{outfit.title}</p>
                 <div className="flex items-center justify-between mb-4">
-                  {outfit.brand && (
-                    <span className="text-xs text-neutral-400 font-montserrat">{outfit.brand}</span>
-                  )}
+                  <span className="text-xs text-neutral-400 font-montserrat line-clamp-1">
+                    {outfit.brand || outfit.designer || outfit.category}
+                  </span>
                   <div className="flex items-center gap-1.5 ml-auto">
-                    <Icon name="HeartIcon" size={14} className="text-secondary" />
-                    <span className="text-xs text-neutral-400">{outfit.likesCount ?? 0}</span>
+                    <Icon name="CalendarIcon" size={14} className="text-secondary" />
+                    <span className="text-xs text-neutral-400">
+                      {published ? new Date(published).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'New'}
+                    </span>
                   </div>
                 </div>
                 {outfit.purchaseLink ? (
                   <div className="w-full glass-card px-4 py-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <Icon name="ShoppingBagIcon" size={14} className="text-secondary" />
-                    <span className="text-sm font-medium text-white">Shop Look</span>
+                    <span className="text-sm font-medium text-white">Decode the Look</span>
                     <Icon name="ArrowRightIcon" size={14} className="text-white" />
                   </div>
                 ) : (
                   <div className="w-full glass-card px-4 py-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <span className="text-sm font-medium text-white">View Details</span>
+                    <span className="text-sm font-medium text-white">View Outfit Details</span>
                     <Icon name="ArrowRightIcon" size={14} className="text-white" />
                   </div>
                 )}

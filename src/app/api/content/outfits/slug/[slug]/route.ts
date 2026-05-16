@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import CelebrityOutfit from '@/models/CelebrityOutfit';
+import { publicOutfitFilter, serializeOutfit } from '@/lib/celebrityOutfits';
 import '@/models/Celebrity';
 
 export async function GET(
@@ -12,8 +13,8 @@ export async function GET(
   try {
     await dbConnect();
 
-    const outfit = await CelebrityOutfit.findOne({ slug })
-      .populate('celebrity', 'name slug profileImage')
+    const outfit = await CelebrityOutfit.findOne(publicOutfitFilter({ slug }))
+      .populate('celebrity primaryCelebrity', 'name slug profileImage')
       .lean() as any;
 
     if (!outfit) {
@@ -21,7 +22,7 @@ export async function GET(
     }
 
     const data = {
-      ...outfit,
+      ...serializeOutfit(outfit),
       id:         String(outfit._id),
       // expose arrays as plain string arrays so the client can check membership
       likes:      (outfit.likes      ?? []).map(String),
@@ -35,7 +36,7 @@ export async function GET(
         createdAt:  c.createdAt,
       })),
     };
-    delete data._id;
+    delete (data as any)._id;
     delete data.__v;
 
     return NextResponse.json({ success: true, data });

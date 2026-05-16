@@ -9,6 +9,7 @@ import { withApiKey } from '@/lib/apiKeyMiddleware';
 import dbConnect from '@/lib/mongodb';
 import CelebrityOutfit from '@/models/CelebrityOutfit';
 import Celebrity from '@/models/Celebrity';
+import { publicOutfitFilter, serializeOutfit } from '@/lib/celebrityOutfits';
 
 export async function GET(
   request: NextRequest,
@@ -21,9 +22,9 @@ export async function GET(
 
       const { slug } = await params;
 
-      const outfit = await CelebrityOutfit.findOne({ slug: slug.toLowerCase().trim(), isActive: true })
+      const outfit = await CelebrityOutfit.findOne(publicOutfitFilter({ slug: slug.toLowerCase().trim() }))
         .select('-seo -__v -comments')
-        .populate('celebrity', 'name slug profileImage nationality')
+        .populate('celebrity primaryCelebrity', 'name slug profileImage nationality')
         .lean();
 
       if (!outfit) {
@@ -37,7 +38,7 @@ export async function GET(
         success: true,
         version: 'v1',
         resource: 'outfits',
-        data: outfit,
+        data: serializeOutfit(outfit),
       });
     } catch (error) {
       console.error('v1/outfits/[slug] error:', error);

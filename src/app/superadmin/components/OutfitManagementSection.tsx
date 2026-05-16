@@ -33,7 +33,7 @@ interface OutfitRow {
   tags?: string[];
   isActive: boolean;
   isFeatured: boolean;
-  status: 'draft' | 'published';
+  status: 'draft' | 'scheduled' | 'published' | 'archived';
   likesCount: number;
   commentsCount: number;
   createdAt?: string;
@@ -76,13 +76,13 @@ interface IOutfitSEO {
   nextUrl?: string;
 }
 
-interface OutfitFull extends OutfitRow {
+interface OutfitFull extends OutfitRow, Record<string, any> {
   description?: string;
   size?: string;
   seo?: IOutfitSEO;
 }
 
-type FormTab   = 'basic' | 'gallery' | 'meta' | 'description' | 'seo';
+type FormTab = 'basic' | 'celebrity' | 'look' | 'media' | 'products' | 'article' | 'source' | 'seo' | 'schema' | 'publishing';
 type PanelMode = 'add' | 'edit' | null;
 type Toast     = { type: 'success' | 'error'; message: string } | null;
 
@@ -90,7 +90,9 @@ const PAGE_SIZES = [10, 20, 50];
 
 const STATUS_COLORS: Record<string, string> = {
   published: 'bg-emerald-500/20 text-emerald-400',
+  scheduled: 'bg-sky-500/20 text-sky-400',
   draft:     'bg-yellow-500/20 text-yellow-400',
+  archived:  'bg-neutral-500/20 text-neutral-400',
 };
 
 const EMPTY_SEO: IOutfitSEO = {
@@ -108,19 +110,25 @@ const EMPTY_SEO: IOutfitSEO = {
 
 const EMPTY_FORM: OutfitFull = {
   id: '', title: '', slug: '', celebrity: '',
-  images: [''], event: '', designer: '', brand: '', category: '',
+  images: [''], featuredImage: '', featuredImageAlt: '', event: '', eventName: '', outfitType: '', designer: '', brand: '', category: '',
   color: '', price: '', purchaseLink: '', size: '',
-  description: '', tags: [], isActive: true, isFeatured: false, status: 'draft' as const,
+  excerpt: '', outfitSummary: '', outfitDescription: '', sourceType: '', sourceName: '', sourceUrl: '',
+  description: '', tags: [], isActive: true, isFeatured: false, isTrending: false, isEditorPick: false, status: 'draft' as const,
   likesCount: 0, commentsCount: 0,
   seo: { ...EMPTY_SEO },
 };
 
 const TABS: { key: FormTab; label: string; icon: string }[] = [
-  { key: 'basic',       label: 'Basic Info',   icon: 'InformationCircleIcon' },
-  { key: 'gallery',     label: 'Images',       icon: 'PhotoIcon'             },
-  { key: 'meta',        label: 'Details',      icon: 'TagIcon'               },
-  { key: 'description', label: 'Description',  icon: 'DocumentTextIcon'      },
-  { key: 'seo',         label: 'SEO',          icon: 'MagnifyingGlassIcon'   },
+  { key: 'basic', label: 'Basic Info', icon: 'InformationCircleIcon' },
+  { key: 'celebrity', label: 'Celebrity & Occasion', icon: 'StarIcon' },
+  { key: 'look', label: 'Look Breakdown', icon: 'TagIcon' },
+  { key: 'media', label: 'Images & Media', icon: 'PhotoIcon' },
+  { key: 'products', label: 'Products / Buy Links', icon: 'ShoppingBagIcon' },
+  { key: 'article', label: 'Description / Article', icon: 'DocumentTextIcon' },
+  { key: 'source', label: 'Source & Credits', icon: 'ShieldCheckIcon' },
+  { key: 'seo', label: 'SEO', icon: 'MagnifyingGlassIcon' },
+  { key: 'schema', label: 'Schema', icon: 'CodeBracketIcon' },
+  { key: 'publishing', label: 'Publishing', icon: 'RocketLaunchIcon' },
 ];
 
 const splitLines = (v: string) => v.split('\n').map((s) => s.trim()).filter(Boolean);
@@ -287,25 +295,39 @@ export default function OutfitManagementSection() {
       const celebId = typeof d.celebrity === 'object'
         ? (d.celebrity?.id || d.celebrity?._id || '')
         : (d.celebrity || '');
+      const primaryCelebritySlug = d.primaryCelebritySlug || (typeof d.celebrity === 'object' ? d.celebrity?.slug : '');
       setForm({
         id:           d.id,
         title:        d.title         || '',
         slug:         d.slug          || '',
         celebrity:    celebId,
         images:       Array.isArray(d.images) && d.images.length ? d.images : [''],
-        event:        d.event         || '',
+        featuredImage: d.featuredImage || d.images?.[0] || '',
+        featuredImageAlt: d.featuredImageAlt || '',
+        event:        d.eventName || d.event || '',
+        eventName:    d.eventName || d.event || '',
+        outfitType:   d.outfitType || '',
         designer:     d.designer      || '',
         brand:        d.brand         || '',
         category:     d.category      || '',
         color:        d.color         || '',
         price:        d.price         || '',
         purchaseLink: d.purchaseLink  || '',
+        primaryCelebritySlug,
+        excerpt:      d.excerpt || '',
+        outfitSummary: d.outfitSummary || '',
+        outfitDescription: d.outfitDescription || d.description || '',
+        sourceType:   d.sourceType || '',
+        sourceName:   d.sourceName || '',
+        sourceUrl:    d.sourceUrl || '',
         size:         d.size          || '',
         description:  d.description   || '',
         tags:         d.tags          || [],
         isActive:     d.isActive      ?? true,
         isFeatured:   d.isFeatured    ?? false,
-        status:       (d.status === 'published' ? 'published' : 'draft') as 'draft' | 'published',
+        isTrending:   d.isTrending     ?? false,
+        isEditorPick: d.isEditorPick   ?? false,
+        status:       (['draft', 'scheduled', 'published', 'archived'].includes(d.status) ? d.status : 'draft'),
         likesCount:   d.likesCount    ?? 0,
         commentsCount: d.commentsCount ?? 0,
         seo: d.seo ? {
@@ -345,6 +367,10 @@ export default function OutfitManagementSection() {
 
   // ─── payload ─────────────────────────────────────────────────────────────
   const buildPayload = () => {
+    const selectedCelebrity = celebrities.find((c) => c.id === String(form.celebrity));
+    const imageList = (form.images || []).filter(Boolean);
+    const featuredImage = form.featuredImage || imageList[0] || '';
+    const plainDescription = (form.outfitDescription || form.description || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     // Map form-friendly SEO aliases → DB field names
     const rawSeo = form.seo;
     const seoPayload = rawSeo ? {
@@ -383,21 +409,47 @@ export default function OutfitManagementSection() {
       title:        form.title.trim(),
       slug:         form.slug?.trim() || undefined,
       celebrity:    String(form.celebrity).trim(),
-      images:       (form.images || []).filter(Boolean),
+      primaryCelebrity: String(form.celebrity).trim(),
+      primaryCelebritySlug: form.primaryCelebritySlug || selectedCelebrity?.slug || undefined,
+      images:       imageList,
+      featuredImage,
+      featuredImageAlt: form.featuredImageAlt || (form.title ? `${selectedCelebrity?.name || 'Celebrity'} wearing ${form.title}` : undefined),
       event:        form.event?.trim()        || undefined,
+      eventName:    form.eventName?.trim() || form.event?.trim() || undefined,
+      outfitType:   form.outfitType?.trim() || form.category?.trim() || undefined,
       designer:     form.designer?.trim()     || undefined,
-      description:  form.description?.trim()  || undefined,
+      excerpt:      form.excerpt?.trim() || plainDescription.slice(0, 220) || undefined,
+      outfitSummary: form.outfitSummary?.trim() || plainDescription.slice(0, 220) || undefined,
+      outfitDescription: (form.outfitDescription || form.description || '').trim() || undefined,
+      description:  (form.outfitDescription || form.description || '').trim() || undefined,
       brand:        form.brand?.trim()        || undefined,
       category:     form.category?.trim()     || undefined,
       color:        form.color?.trim()        || undefined,
       price:        form.price?.trim()        || undefined,
       purchaseLink: form.purchaseLink?.trim() || undefined,
+      originalBuyUrl: form.purchaseLink?.trim() || undefined,
+      originalProductName: form.title.trim(),
+      originalBrand: form.brand?.trim() || undefined,
+      originalDesigner: form.designer?.trim() || undefined,
+      originalPrice: form.price?.trim() || undefined,
       size:         form.size?.trim()         || undefined,
+      sourceType:   form.sourceType?.trim() || undefined,
+      sourceName:   form.sourceName?.trim() || undefined,
+      sourceUrl:    form.sourceUrl?.trim() || undefined,
       tags:         form.tags || [],
       isActive:     form.isActive,
       isFeatured:   form.isFeatured,
+      isTrending:   form.isTrending,
+      isEditorPick: form.isEditorPick,
       status:       form.status,
       seo:          seoPayload,
+      focusKeyword: seoPayload?.focusKeyword,
+      metaTitle: seoPayload?.metaTitle || form.title.trim(),
+      metaDescription: seoPayload?.metaDescription || form.excerpt || plainDescription.slice(0, 155),
+      schemaType: 'Article',
+      schemaHeadline: seoPayload?.metaTitle || form.title.trim(),
+      schemaDescription: seoPayload?.metaDescription || form.excerpt || plainDescription.slice(0, 155),
+      schemaImage: featuredImage,
     };
   };
 
@@ -731,6 +783,21 @@ export default function OutfitManagementSection() {
           {/* Category */}
           <LabeledInput label="Category" value={form.category || ''} onChange={(v) => setField('category', v)} placeholder="e.g. Traditional Wear, Western Wear" />
 
+          <LabeledInput label="Outfit Type" value={form.outfitType || ''} onChange={(v) => setField('outfitType', v)} placeholder="e.g. Saree, Gown, Lehenga, Suit" required />
+
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
+              Excerpt
+            </label>
+            <textarea
+              value={form.excerpt || ''}
+              onChange={(e) => setField('excerpt', e.target.value)}
+              rows={3}
+              placeholder="Short public summary for listing cards and meta descriptions"
+              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-y"
+            />
+          </div>
+
           {/* Color */}
           <LabeledInput label="Color" value={form.color || ''} onChange={(v) => setField('color', v)} placeholder="e.g. Beige" />
 
@@ -838,12 +905,28 @@ export default function OutfitManagementSection() {
                 <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${form.isFeatured ? 'left-5' : 'left-0.5'}`} />
               </button>
             </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <span className="text-sm font-montserrat text-neutral-300">Trending</span>
+              <button type="button" onClick={() => setField('isTrending', !form.isTrending)}
+                className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${form.isTrending ? 'bg-yellow-500' : 'bg-white/10'}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${form.isTrending ? 'left-5' : 'left-0.5'}`} />
+              </button>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <span className="text-sm font-montserrat text-neutral-300">Editor Pick</span>
+              <button type="button" onClick={() => setField('isEditorPick', !form.isEditorPick)}
+                className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${form.isEditorPick ? 'bg-yellow-500' : 'bg-white/10'}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${form.isEditorPick ? 'left-5' : 'left-0.5'}`} />
+              </button>
+            </label>
           </div>
         </div>
       );
 
       // ── IMAGES (Gallery) ───────────────────────────────────────────────
-      case 'gallery': {
+      case 'media': {
         const canUpload = !!String(form.celebrity).trim() && !!form.title.trim();
         const celebSlugForPath = canUpload
           ? (celebrities.find((c) => c.id === String(form.celebrity))?.slug || slugify(getCelebrityName(form.celebrity as any)))
@@ -887,6 +970,14 @@ export default function OutfitManagementSection() {
           {formErrors.images && (
             <p className="text-red-400 text-xs font-montserrat bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-xl">{formErrors.images}</p>
           )}
+
+          <LabeledInput
+            label="Featured Image Alt Text"
+            value={form.featuredImageAlt || ''}
+            onChange={(v) => setField('featuredImageAlt', v)}
+            placeholder="e.g. Celebrity wearing a red saree at the premiere"
+            required
+          />
 
           {/* Empty state — first visit */}
           {(form.images || []).length === 0 && (
@@ -1014,7 +1105,26 @@ export default function OutfitManagementSection() {
       }
 
       // ── META / DETAILS ─────────────────────────────────────────────────
-      case 'meta': return (
+      case 'source':
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <LabeledInput label="Source Type" value={form.sourceType || ''} onChange={(v) => setField('sourceType', v)} placeholder="Official, Instagram, Brand, Interview" required />
+          <LabeledInput label="Source Name" value={form.sourceName || ''} onChange={(v) => setField('sourceName', v)} placeholder="Publication, brand, or platform" required />
+          <div className="md:col-span-2">
+            <LabeledInput label="Source URL" value={form.sourceUrl || ''} onChange={(v) => setField('sourceUrl', v)} type="url" placeholder="https://..." required />
+          </div>
+          <p className="md:col-span-2 text-xs text-neutral-500 font-montserrat">
+            Published outfits require at least one source. Credits are displayed on the public outfit detail page.
+          </p>
+        </div>
+      );
+
+      case 'celebrity':
+      case 'look':
+      case 'products':
+      case 'publishing':
+      case 'schema':
+      return (
         <div className="space-y-7">
 
           {/* ── Tags ──────────────────────────────────────────────────── */}
@@ -1206,7 +1316,7 @@ export default function OutfitManagementSection() {
       );
 
       // ── DESCRIPTION ───────────────────────────────────────────────────────
-      case 'description': return (
+      case 'article': return (
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-neutral-400 mb-3 font-montserrat uppercase tracking-wider">

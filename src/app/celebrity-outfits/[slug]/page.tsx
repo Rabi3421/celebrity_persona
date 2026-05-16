@@ -8,9 +8,10 @@ import InternalLinks from '@/components/seo/InternalLinks';
 import CelebrityOutfitDetail from './components/CelebrityOutfitDetail';
 import dbConnect from '@/lib/mongodb';
 import CelebrityOutfit from '@/models/CelebrityOutfit';
+import { publicOutfitFilter, serializeOutfit } from '@/lib/celebrityOutfits';
 import { createCelebrityOutfitMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
 import { getOutfitInternalLinks } from '@/lib/seo/internalLinks';
-import { createBreadcrumbSchema, createOutfitArticleSchema } from '@/lib/seo/structuredData';
+import { createBreadcrumbSchema, createOutfitArticleSchema, createOutfitProductSchemas } from '@/lib/seo/structuredData';
 import '@/models/Celebrity';
 
 export const revalidate = 900;
@@ -21,18 +22,12 @@ const fetchOutfit = cache(async (slug: string) => {
   try {
     await dbConnect();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const outfit: any = await CelebrityOutfit.findOne({
-      slug,
-      $and: [
-        { $or: [{ isActive: { $exists: false } }, { isActive: true }] },
-        { $or: [{ status: { $exists: false } }, { status: 'published' }] },
-      ],
-    })
-      .populate('celebrity', 'name slug profileImage')
+    const outfit: any = await CelebrityOutfit.findOne(publicOutfitFilter({ slug }))
+      .populate('celebrity primaryCelebrity', 'name slug profileImage')
       .lean();
     if (!outfit) return null;
     const data = {
-      ...outfit,
+      ...serializeOutfit(outfit),
       id:         String(outfit._id),
       likes:      (outfit.likes      ?? []).map(String),
       favourites: (outfit.favourites ?? []).map(String),
@@ -90,6 +85,7 @@ export default async function CelebrityOutfitPage({ params }: Props) {
             { name: celebName, path: '/fashion-gallery' },
             { name: outfit.title, path: `/celebrity-outfits/${outfit.slug}` },
           ]),
+          ...createOutfitProductSchemas(outfit),
         ]}
       />
       <PublicHeader />

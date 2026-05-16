@@ -312,32 +312,38 @@ export function createNewsArticleSchema(article: Record<string, any>): JsonLdSch
 
 export function createOutfitArticleSchema(outfit: Record<string, any>): JsonLdSchema {
   const url = absoluteUrl(`/celebrity-outfits/${outfit.slug}`);
-  const celebrityName = personName(outfit.celebrity, 'Celebrity');
+  const celebrityName = personName(outfit.primaryCelebrity || outfit.celebrity, 'Celebrity');
+  const seo = outfit.seo || {};
+  const schema = outfit.schema || {};
+  const featuredImage = schema.schemaImage || seo.ogImage || outfit.featuredImage || outfit.images?.[0];
 
   return compact({
     '@context': 'https://schema.org',
-    '@type': 'Article',
+    '@type': schema.schemaType || 'Article',
     '@id': `${url}/#article`,
-    headline: outfit.title,
-    description: outfit.description || `${outfit.title} worn by ${celebrityName}`,
-    image: imageArray(outfit.images),
-    datePublished: dateValue(outfit.createdAt),
-    dateModified: dateValue(outfit.updatedAt || outfit.createdAt),
-    author: { '@id': ORGANIZATION_ID },
-    publisher: { '@id': ORGANIZATION_ID },
-    mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+    headline: schema.schemaHeadline || seo.metaTitle || outfit.title,
+    description: schema.schemaDescription || seo.metaDescription || outfit.excerpt || outfit.outfitDescription || outfit.description || `${outfit.title} worn by ${celebrityName}`,
+    image: imageArray([featuredImage, ...(outfit.images || [])].filter(Boolean)),
+    datePublished: dateValue(outfit.publishedAt || outfit.createdAt),
+    dateModified: dateValue(outfit.updatedAt || outfit.publishedAt || outfit.createdAt),
+    author: outfit.authorName ? { '@type': 'Person', name: outfit.authorName } : { '@id': ORGANIZATION_ID },
+    publisher: schema.publisherName
+      ? { '@type': 'Organization', name: schema.publisherName, logo: schema.publisherLogo ? { '@type': 'ImageObject', url: schema.publisherLogo } : undefined }
+      : { '@id': ORGANIZATION_ID },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': schema.mainEntityOfPage || url },
     url,
-    articleSection: outfit.category || outfit.event || 'Celebrity Fashion',
-    keywords: [
+    articleSection: schema.schemaArticleSection || outfit.category || outfit.eventName || outfit.event || 'Celebrity Fashion',
+    keywords: textArray(schema.schemaKeywords || seo.secondaryKeywords || seo.contentTags || outfit.tags).concat([
       celebrityName,
       outfit.title,
       outfit.brand,
       outfit.designer,
       outfit.category,
-      outfit.event,
+      outfit.outfitType,
+      outfit.eventName || outfit.event,
       'celebrity outfit',
       'celebrity fashion',
-    ].filter(Boolean).join(', '),
+    ]).filter(Boolean).join(', '),
     about: { '@type': 'Person', name: celebrityName },
     mentions: [
       outfit.brand ? { '@type': 'Brand', name: outfit.brand } : undefined,
@@ -345,6 +351,47 @@ export function createOutfitArticleSchema(outfit: Record<string, any>): JsonLdSc
     ].filter(Boolean),
     isAccessibleForFree: true,
   });
+}
+
+export function createOutfitProductSchemas(outfit: Record<string, any>): JsonLdSchema[] {
+  if (outfit.schema?.enableProductSchema === false) return [];
+  const pageImage = outfit.featuredImage || outfit.images?.[0];
+  const products = [
+    outfit.originalOutfitAvailable && (outfit.originalProductName || outfit.originalBuyUrl || outfit.originalAffiliateUrl)
+      ? {
+          productName: outfit.originalProductName || outfit.title,
+          productImage: pageImage,
+          productBrand: outfit.originalBrand || outfit.brand,
+          productPrice: outfit.originalPrice || outfit.price,
+          productCurrency: outfit.originalCurrency,
+          productBuyUrl: outfit.originalBuyUrl,
+          affiliateUrl: outfit.originalAffiliateUrl,
+          storeName: outfit.originalBrand || outfit.brand,
+          availability: outfit.productAvailability,
+        }
+      : null,
+    ...(Array.isArray(outfit.similarProducts) ? outfit.similarProducts : []),
+  ].filter(Boolean);
+
+  return products
+    .filter((product: any) => product.productName && (product.productImage || pageImage))
+    .map((product: any) => compact({
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.productName,
+      image: product.productImage || pageImage,
+      brand: product.productBrand ? { '@type': 'Brand', name: product.productBrand } : undefined,
+      category: product.productCategory,
+      offers: (product.productBuyUrl || product.affiliateUrl)
+        ? compact({
+            '@type': 'Offer',
+            url: product.affiliateUrl || product.productBuyUrl,
+            price: product.productPrice,
+            priceCurrency: product.productCurrency,
+            availability: product.availability ? `https://schema.org/${String(product.availability).replace(/\s+/g, '')}` : undefined,
+          })
+        : undefined,
+    }));
 }
 
 export function createCommunityOutfitArticleSchema(outfit: Record<string, any>): JsonLdSchema {

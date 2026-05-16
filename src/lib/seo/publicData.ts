@@ -11,6 +11,7 @@ import UserOutfit from '@/models/UserOutfit';
 import User from '@/models/User';
 import { stripHtml } from './site';
 import { publicNewsFilter, serializeNews } from '@/lib/celebrityNews';
+import { publicOutfitFilter, serializeOutfit } from '@/lib/celebrityOutfits';
 
 const RELEASED_STATUSES = ['Released', 'Now Showing', 'Now Playing', 'In Theatres', 'In Theaters'];
 
@@ -28,15 +29,6 @@ function deriveCategory(cats: string[] = []): string {
 
 function publicCelebrityFilter() {
   return { $or: [{ status: { $exists: false } }, { status: 'published' }] };
-}
-
-function publicOutfitFilter() {
-  return {
-    $and: [
-      { $or: [{ isActive: { $exists: false } }, { isActive: true }] },
-      { $or: [{ status: { $exists: false } }, { status: 'published' }] },
-    ],
-  };
 }
 
 export async function getCelebrityList({
@@ -141,11 +133,7 @@ export async function getOutfitList({ page = 1, limit = 12 } = {}) {
       CelebrityOutfit.countDocuments(filter),
     ]);
 
-    const data = docs.map((d: any) => {
-      const obj = { ...d, id: String(d._id) };
-      delete obj._id;
-      return obj;
-    });
+    const data = docs.map((d: any) => serializeOutfit(d));
 
     return {
       data: plain(data),

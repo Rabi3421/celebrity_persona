@@ -15,10 +15,10 @@ interface Props { outfit: OutfitDoc; }
 
 export default function FeaturedOutfit({ outfit }: Props) {
   const [imgIdx, setImgIdx] = useState(0);
-  const images = outfit.images?.filter(Boolean) || [];
+  const images = [outfit.featuredImage, ...(outfit.images || [])].filter(Boolean) as string[];
   const img    = images[imgIdx] || '';
 
-  const occasionLabel = outfit.event ? outfit.event.toUpperCase() : outfit.category?.toUpperCase() || 'FEATURED';
+  const occasionLabel = outfit.outfitType?.toUpperCase() || outfit.eventName?.toUpperCase() || outfit.event?.toUpperCase() || outfit.category?.toUpperCase() || 'FEATURED';
 
   return (
     <section className="px-4 py-16 sm:px-6 sm:py-20 lg:py-24">
@@ -41,7 +41,7 @@ export default function FeaturedOutfit({ outfit }: Props) {
               {img ? (
                 <Image
                   src={img}
-                  alt={outfit.title}
+                  alt={outfit.featuredImageAlt || outfit.title}
                   fill
                   priority
                   sizes="(min-width: 1024px) 60vw, 100vw"
@@ -113,7 +113,7 @@ export default function FeaturedOutfit({ outfit }: Props) {
                 )}
                 {outfit.description && (
                   <div className="glass-card rounded-xl p-4">
-                    <p className="text-sm text-neutral-300 leading-relaxed line-clamp-4">{outfit.description}</p>
+                    <p className="text-sm text-neutral-300 leading-relaxed line-clamp-4">{outfit.excerpt || outfit.description}</p>
                   </div>
                 )}
               </div>
@@ -130,7 +130,7 @@ export default function FeaturedOutfit({ outfit }: Props) {
                   <a href={outfit.purchaseLink} target="_blank" rel="noopener noreferrer"
                     className="w-full glass-card px-6 py-4 rounded-full bg-secondary hover:bg-secondary/90 transition-all flex items-center justify-center gap-2">
                     <Icon name="ShoppingBagIcon" size={20} className="text-black" />
-                    <span className="text-base font-medium text-black">Shop This Look</span>
+                    <span className="text-base font-medium text-black">Decode the Look</span>
                   </a>
                 ) : (
                   <button className="w-full glass-card px-6 py-4 rounded-full bg-secondary/30 text-secondary/80 flex items-center justify-center gap-2 cursor-default">

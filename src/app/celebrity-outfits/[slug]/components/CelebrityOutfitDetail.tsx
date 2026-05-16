@@ -21,8 +21,20 @@ interface CelebrityOutfit {
   title: string;
   slug: string;
   description?: string;
+  excerpt?: string;
   images: string[];
+  featuredImage?: string;
+  featuredImageAlt?: string;
+  featuredImageCaption?: string;
+  imageCredit?: string;
+  imageSourceUrl?: string;
+  galleryImages?: Array<{ url: string; alt?: string; caption?: string; credit?: string; sourceUrl?: string }>;
   event?: string;
+  eventName?: string;
+  eventType?: string;
+  eventDate?: string;
+  location?: string;
+  outfitType?: string;
   category?: string;
   brand?: string;
   designer?: string;
@@ -30,6 +42,53 @@ interface CelebrityOutfit {
   size?: string;
   price?: string;
   purchaseLink?: string;
+  primaryCelebrity?: { name: string; slug?: string; profileImage?: string } | string;
+  primaryCelebritySlug?: string;
+  relatedCelebrities?: Array<{ name: string; slug?: string; image?: string; profileUrl?: string }>;
+  publishedAt?: string;
+  updatedAt?: string;
+  authorName?: string;
+  outfitSummary?: string;
+  mainOutfitName?: string;
+  fabric?: string;
+  pattern?: string;
+  neckline?: string;
+  sleeveStyle?: string;
+  fitSilhouette?: string;
+  length?: string;
+  workOrEmbellishment?: string;
+  accessories?: string;
+  jewelry?: string;
+  footwear?: string;
+  bag?: string;
+  hairstyle?: string;
+  makeup?: string;
+  stylingNotes?: string;
+  bestFor?: string[];
+  season?: string;
+  priceRange?: string;
+  styleLevel?: string;
+  introduction?: string;
+  outfitDescription?: string;
+  styleBreakdown?: string;
+  whyThisLookWorks?: string;
+  howToRecreateLook?: string;
+  occasionStylingTips?: string;
+  affordableAlternatives?: string;
+  finalVerdict?: string;
+  originalProductName?: string;
+  originalBrand?: string;
+  originalPrice?: string;
+  originalCurrency?: string;
+  originalBuyUrl?: string;
+  originalAffiliateUrl?: string;
+  similarProducts?: Array<any>;
+  sourceType?: string;
+  sourceName?: string;
+  sourceUrl?: string;
+  creditDisplayText?: string;
+  imageCreditText?: string;
+  additionalReferences?: Array<{ title?: string; url?: string; sourceName?: string }>;
   tags?: string[];
   createdAt: string;
   celebrity?: { name: string; slug?: string; profileImage?: string } | string;
@@ -42,6 +101,20 @@ function celebName(c: CelebrityOutfit['celebrity']): string {
   if (!c) return 'Unknown';
   if (typeof c === 'string') return c;
   return c.name || 'Celebrity';
+}
+
+function htmlToText(value = '') {
+  return value.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function RichSection({ title, content }: { title: string; content?: string }) {
+  if (!content) return null;
+  return (
+    <section className="mt-10">
+      <h2 className="font-playfair text-2xl font-bold text-white mb-4">{title}</h2>
+      <div className="prose prose-invert prose-sm max-w-none text-neutral-300 prose-p:leading-7 prose-a:text-primary" dangerouslySetInnerHTML={{ __html: content }} />
+    </section>
+  );
 }
 
 // ── Full-width About Section ───────────────────────────────────────────────
@@ -217,16 +290,36 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
     );
   }
 
-  const celeb     = outfit.celebrity;
+  const celeb     = outfit.primaryCelebrity || outfit.celebrity;
   const celebSlug = typeof celeb === 'object' && celeb?.slug ? celeb.slug : null;
   const name      = celebName(celeb);
-  const label     = outfit.event || outfit.category;
+  const label     = outfit.outfitType || outfit.eventName || outfit.event || outfit.category;
+  const displayImages: Array<{ url: string; alt?: string; caption?: string; credit?: string; sourceUrl?: string }> = (outfit.galleryImages?.length
+    ? outfit.galleryImages
+    : [outfit.featuredImage, ...(outfit.images || [])].filter(Boolean).map((url, i) => ({
+        url: String(url),
+        alt: i === 0 ? outfit.featuredImageAlt || `${outfit.title} worn by ${name}` : `${outfit.title} gallery image ${i + 1}`,
+      }))).filter((image: any) => image.url);
+  const activeImage = displayImages[activeImg];
 
   const details = [
     { label: 'Brand',    value: outfit.brand    },
     { label: 'Designer', value: outfit.designer },
     { label: 'Color',    value: outfit.color    },
-    { label: 'Size',     value: outfit.size     },
+    { label: 'Fabric', value: outfit.fabric },
+    { label: 'Pattern', value: outfit.pattern },
+    { label: 'Silhouette', value: outfit.fitSilhouette },
+    { label: 'Neckline', value: outfit.neckline },
+    { label: 'Sleeves', value: outfit.sleeveStyle },
+    { label: 'Length', value: outfit.length },
+    { label: 'Accessories', value: outfit.accessories },
+    { label: 'Jewelry', value: outfit.jewelry },
+    { label: 'Footwear', value: outfit.footwear },
+    { label: 'Bag', value: outfit.bag },
+    { label: 'Hair', value: outfit.hairstyle },
+    { label: 'Makeup', value: outfit.makeup },
+    { label: 'Season', value: outfit.season },
+    { label: 'Style Level', value: outfit.styleLevel },
   ].filter((d) => d.value);
 
   return (
@@ -254,12 +347,12 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
           {/* Main image */}
           <div
             className="relative rounded-2xl sm:rounded-3xl overflow-hidden h-[340px] min-[390px]:h-[380px] md:h-[540px] cursor-zoom-in glass-card border border-white/10 group"
-            onClick={() => outfit.images.length > 0 && setLightbox(true)}
+            onClick={() => displayImages.length > 0 && setLightbox(true)}
           >
-            {outfit.images[activeImg] ? (
+            {activeImage?.url ? (
               <AppImage
-                src={outfit.images[activeImg]}
-                alt={`${outfit.title} — worn by ${name}`}
+                src={activeImage.url}
+                alt={activeImage.alt || outfit.featuredImageAlt || `${outfit.title} worn by ${name}`}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 priority={activeImg === 0}
                 sizes="(min-width: 768px) 50vw, 100vw"
@@ -278,17 +371,17 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
             </div>
 
             {/* Image counter */}
-            {outfit.images.length > 1 && (
+            {displayImages.length > 1 && (
               <div className="absolute bottom-4 right-4 glass-card px-2.5 py-1 rounded-full text-xs text-white/70 flex items-center gap-1">
-                <Icon name="PhotoIcon" size={12} /> {activeImg + 1} / {outfit.images.length}
+                <Icon name="PhotoIcon" size={12} /> {activeImg + 1} / {displayImages.length}
               </div>
             )}
           </div>
 
           {/* Thumbnails */}
-          {outfit.images.length > 1 && (
+          {displayImages.length > 1 && (
             <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar">
-              {outfit.images.map((img, i) => (
+              {displayImages.map((image, i) => (
                 <button
                   key={i}
                   onClick={() => setActiveImg(i)}
@@ -298,10 +391,16 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
                       : 'border-white/10 hover:border-white/30'
                   }`}
                 >
-                  <AppImage src={img} alt={`View ${i + 1}`} className="w-full h-full object-cover" sizes="80px" quality={60} />
+                  <AppImage src={image.url} alt={image.alt || `View ${i + 1}`} className="w-full h-full object-cover" sizes="80px" quality={60} />
                 </button>
               ))}
             </div>
+          )}
+          {(activeImage?.caption || activeImage?.credit || outfit.featuredImageCaption || outfit.imageCredit) && (
+            <p className="text-xs text-neutral-500 leading-relaxed">
+              {activeImage?.caption || outfit.featuredImageCaption}
+              {(activeImage?.credit || outfit.imageCredit) && <> Credit: {activeImage?.credit || outfit.imageCredit}</>}
+            </p>
           )}
         </div>
 
@@ -365,9 +464,23 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
               <div className="flex flex-wrap justify-between gap-2 px-4 py-3.5 text-sm sm:px-5">
                 <span className="text-neutral-500">Posted on</span>
                 <span className="text-white">
-                  {new Date(outfit.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {new Date(outfit.publishedAt || outfit.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </span>
               </div>
+              {outfit.updatedAt && (
+                <div className="flex flex-wrap justify-between gap-2 px-4 py-3.5 text-sm sm:px-5">
+                  <span className="text-neutral-500">Updated on</span>
+                  <span className="text-white">
+                    {new Date(outfit.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </span>
+                </div>
+              )}
+              {outfit.eventName && (
+                <div className="flex flex-wrap justify-between gap-2 px-4 py-3.5 text-sm sm:px-5">
+                  <span className="text-neutral-500">Occasion</span>
+                  <span className="text-white">{[outfit.eventName, outfit.eventType, outfit.location].filter(Boolean).join(' • ')}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -450,8 +563,78 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
       </div>
 
       {/* ── About this look ───────────────────────────────────────────────── */}
-      {outfit.description && (
-        <AboutSection description={outfit.description} />
+      {outfit.outfitSummary && (
+        <section className="mt-10 glass-card rounded-2xl border border-white/10 p-5">
+          <h2 className="font-playfair text-xl font-bold text-white mb-3">Look Summary</h2>
+          <p className="text-neutral-300 text-sm leading-7">{outfit.outfitSummary}</p>
+        </section>
+      )}
+
+      {(outfit.description || outfit.outfitDescription) && (
+        <AboutSection description={htmlToText(outfit.outfitDescription || outfit.description || '')} />
+      )}
+
+      <RichSection title="Introduction" content={outfit.introduction} />
+      <RichSection title="Style Breakdown" content={outfit.styleBreakdown} />
+      <RichSection title="Why This Look Works" content={outfit.whyThisLookWorks} />
+      <RichSection title="How to Recreate the Look" content={outfit.howToRecreateLook} />
+      <RichSection title="Occasion Styling Tips" content={outfit.occasionStylingTips} />
+      <RichSection title="Affordable Alternatives" content={outfit.affordableAlternatives} />
+      <RichSection title="Final Verdict" content={outfit.finalVerdict} />
+
+      {((outfit.originalBuyUrl || outfit.originalAffiliateUrl || outfit.purchaseLink) || (outfit.similarProducts?.length ?? 0) > 0) && (
+        <section className="mt-12">
+          <h2 className="font-playfair text-2xl font-bold text-white mb-4">Shop Similar Pieces</h2>
+          <p className="mb-5 text-xs text-neutral-500">
+            Some links may be affiliate links. CelebrityPersona may earn a commission if you purchase through them, at no extra cost to you.
+          </p>
+          <div className="grid gap-4 md:grid-cols-3">
+            {(outfit.originalBuyUrl || outfit.originalAffiliateUrl || outfit.purchaseLink) && (
+              <a href={outfit.originalAffiliateUrl || outfit.originalBuyUrl || outfit.purchaseLink} target="_blank" rel="noopener noreferrer sponsored"
+                className="glass-card rounded-2xl border border-primary/20 p-5 hover:border-primary/50 transition-colors">
+                <span className="text-xs uppercase tracking-wider text-primary">Original Look</span>
+                <h3 className="mt-2 font-semibold text-white">{outfit.originalProductName || outfit.title}</h3>
+                <p className="text-sm text-neutral-400">{outfit.originalBrand || outfit.brand}</p>
+                {(outfit.originalPrice || outfit.price) && <p className="mt-3 text-primary font-bold">{[outfit.originalCurrency, outfit.originalPrice || outfit.price].filter(Boolean).join(' ')}</p>}
+                <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-white">View Product <Icon name="ArrowTopRightOnSquareIcon" size={14} /></span>
+              </a>
+            )}
+            {outfit.similarProducts?.map((product, index) => (
+              <a key={`${product.productName}-${index}`} href={product.affiliateUrl || product.productBuyUrl} target="_blank" rel="noopener noreferrer sponsored"
+                className="glass-card rounded-2xl border border-white/10 overflow-hidden hover:border-primary/40 transition-colors">
+                {(product.productImage || outfit.featuredImage) && (
+                  <AppImage src={product.productImage || outfit.featuredImage || ''} alt={product.productName ? `${product.productName} ${product.productBrand || ''}` : `${outfit.title} similar product`} className="h-48 w-full object-cover" sizes="(min-width: 768px) 33vw, 100vw" />
+                )}
+                <div className="p-4">
+                  {product.productPriority && <span className="text-[11px] uppercase tracking-wider text-secondary">{product.productPriority}</span>}
+                  <h3 className="mt-1 font-semibold text-white line-clamp-2">{product.productName}</h3>
+                  <p className="text-sm text-neutral-400">{product.productBrand || product.storeName}</p>
+                  {product.productPrice && <p className="mt-2 text-primary font-bold">{[product.productCurrency, product.productPrice].filter(Boolean).join(' ')}</p>}
+                  <span className="mt-4 inline-flex text-sm font-semibold text-white">{product.affiliateUrl ? 'Buy Similar' : 'View Product'}</span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {(outfit.sourceName || outfit.sourceUrl || outfit.creditDisplayText || outfit.imageCreditText) && (
+        <section className="mt-12 glass-card rounded-2xl border border-white/10 p-5">
+          <h2 className="font-playfair text-xl font-bold text-white mb-3">Sources & Credits</h2>
+          <p className="text-sm text-neutral-400">
+            {outfit.creditDisplayText || outfit.imageCreditText || outfit.sourceName}
+            {outfit.sourceUrl && <>: <a className="text-primary hover:underline" href={outfit.sourceUrl} target="_blank" rel="noopener noreferrer">View source</a></>}
+          </p>
+          {outfit.additionalReferences && outfit.additionalReferences.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {outfit.additionalReferences.map((ref, i) => ref.url ? (
+                <a key={i} href={ref.url} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-neutral-300 hover:text-primary">
+                  {ref.title || ref.sourceName || 'Reference'}
+                </a>
+              ) : null)}
+            </div>
+          )}
+        </section>
       )}
 
       {/* ── Comments section ──────────────────────────────────────────────── */}
@@ -562,17 +745,17 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
             <Icon name="XMarkIcon" size={22} className="text-white" />
           </button>
 
-          {outfit.images.length > 1 && (
+          {displayImages.length > 1 && (
             <>
               <button
                 className="absolute left-4 top-1/2 -translate-y-1/2 glass-card p-3 rounded-full hover:bg-white/10 transition-colors"
-                onClick={(e) => { e.stopPropagation(); setActiveImg((activeImg - 1 + outfit.images.length) % outfit.images.length); }}
+                onClick={(e) => { e.stopPropagation(); setActiveImg((activeImg - 1 + displayImages.length) % displayImages.length); }}
               >
                 <Icon name="ChevronLeftIcon" size={22} className="text-white" />
               </button>
               <button
                 className="absolute right-4 top-1/2 -translate-y-1/2 glass-card p-3 rounded-full hover:bg-white/10 transition-colors"
-                onClick={(e) => { e.stopPropagation(); setActiveImg((activeImg + 1) % outfit.images.length); }}
+                onClick={(e) => { e.stopPropagation(); setActiveImg((activeImg + 1) % displayImages.length); }}
               >
                 <Icon name="ChevronRightIcon" size={22} className="text-white" />
               </button>
@@ -580,15 +763,15 @@ export default function CelebrityOutfitDetail({ slug, prefetchedData }: Props) {
           )}
 
           <img
-            src={outfit.images[activeImg]}
-            alt={outfit.title}
+            src={activeImage?.url}
+            alt={activeImage?.alt || outfit.title}
             className="max-w-full max-h-[88vh] object-contain rounded-2xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
 
-          {outfit.images.length > 1 && (
+          {displayImages.length > 1 && (
             <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
-              {outfit.images.map((_, i) => (
+              {displayImages.map((_, i) => (
                 <button key={i} onClick={(e) => { e.stopPropagation(); setActiveImg(i); }}
                   className={`w-2 h-2 rounded-full transition-all ${i === activeImg ? 'bg-primary w-5' : 'bg-white/30 hover:bg-white/60'}`}
                 />

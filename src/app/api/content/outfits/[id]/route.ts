@@ -1,89 +1,65 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import CelebrityOutfit from '@/models/CelebrityOutfit';
-import '@/models/Celebrity'; // ensure Celebrity schema is registered for populate
+import '@/models/Celebrity';
 import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
+import { normalizeOutfitPayload, serializeOutfit, validateOutfitPayload } from '@/lib/celebrityOutfits';
 
-const ALLOWED_FIELDS = new Set([
-  'title', 'slug', 'celebrity', 'images', 'event', 'designer',
-  'description', 'tags', 'purchaseLink', 'price', 'brand',
-  'category', 'color', 'size', 'isActive', 'isFeatured', 'seo',
-]);
-
-// GET single outfit
-async function getOutfit(request: AuthenticatedRequest, { params }: { params: { id: string } }) {
+async function getOutfit(_request: AuthenticatedRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = params;
     await dbConnect();
-
-    const outfit = await CelebrityOutfit.findById(id)
-      .populate('celebrity', 'name slug')
+    const outfit = await CelebrityOutfit.findById(params.id)
+      .populate('celebrity primaryCelebrity', 'name slug profileImage')
       .lean();
-
-    if (!outfit)
-      return NextResponse.json({ success: false, message: 'Outfit not found' }, { status: 404 });
-
-    const obj: any = { ...outfit, id: String((outfit as any)._id) };
-    delete obj._id; delete obj.__v;
-    return NextResponse.json({ success: true, data: obj }, { status: 200 });
+    if (!outfit) return NextResponse.json({ success: false, message: 'Outfit not found' }, { status: 404 });
+    return NextResponse.json({ success: true, data: serializeOutfit(outfit) }, { status: 200 });
   } catch (error: any) {
     console.error('Get outfit error:', error);
     return NextResponse.json({ success: false, message: error.message || 'Failed to get outfit' }, { status: 500 });
   }
 }
 
-// UPDATE outfit
 async function updateOutfit(request: AuthenticatedRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = params;
     const body = await request.json();
     await dbConnect();
 
-    const update: any = {};
-    for (const key of Object.keys(body)) {
-      if (ALLOWED_FIELDS.has(key)) update[key] = body[key];
+    const existing = await CelebrityOutfit.findById(params.id).lean();
+    if (!existing) return NextResponse.json({ success: false, message: 'Outfit not found' }, { status: 404 });
+
+    const payload = normalizeOutfitPayload(body, existing);
+    const errors = validateOutfitPayload(payload);
+    if (Object.keys(errors).length) {
+      return NextResponse.json({ success: false, message: Object.values(errors)[0], errors }, { status: 400 });
     }
 
-    if (update.images !== undefined) {
-      if (!Array.isArray(update.images) || update.images.length === 0)
-        return NextResponse.json({ success: false, message: 'images must be a non-empty array' }, { status: 400 });
-    }
+    const duplicate = await CelebrityOutfit.findOne({ slug: payload.slug, _id: { $ne: params.id } }).select('_id').lean();
+    if (duplicate) return NextResponse.json({ success: false, message: 'An outfit with this slug already exists' }, { status: 409 });
 
-    const outfit = await CelebrityOutfit.findByIdAndUpdate(
-      id, update, { new: true, runValidators: true }
-    ).populate('celebrity', 'name slug').lean();
+    const outfit = await CelebrityOutfit.findByIdAndUpdate(params.id, payload, { new: true, runValidators: true })
+      .populate('celebrity primaryCelebrity', 'name slug profileImage')
+      .lean();
 
-    if (!outfit)
-      return NextResponse.json({ success: false, message: 'Outfit not found' }, { status: 404 });
-
-    const obj: any = { ...outfit, id: String((outfit as any)._id) };
-    delete obj._id; delete obj.__v;
-    return NextResponse.json({ success: true, message: 'Outfit updated successfully', data: obj }, { status: 200 });
+    return NextResponse.json({ success: true, message: 'Outfit updated successfully', data: serializeOutfit(outfit) }, { status: 200 });
   } catch (error: any) {
     console.error('Update outfit error:', error);
-    if (error.code === 11000)
-      return NextResponse.json({ success: false, message: 'An outfit with this slug already exists' }, { status: 409 });
+    if (error.code === 11000) return NextResponse.json({ success: false, message: 'An outfit with this slug already exists' }, { status: 409 });
     return NextResponse.json({ success: false, message: error.message || 'Failed to update outfit' }, { status: 500 });
   }
 }
 
-// DELETE outfit
-async function deleteOutfit(request: AuthenticatedRequest, { params }: { params: { id: string } }) {
+async function deleteOutfit(_request: AuthenticatedRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = params;
     await dbConnect();
-
-    const outfit = await CelebrityOutfit.findByIdAndDelete(id).lean();
-    if (!outfit)
-      return NextResponse.json({ success: false, message: 'Outfit not found' }, { status: 404 });
-
-    return NextResponse.json({ success: true, message: 'Outfit deleted successfully' }, { status: 200 });
+    const outfit = await CelebrityOutfit.findByIdAndUpdate(params.id, { status: 'archived', isActive: false }, { new: true }).lean();
+    if (!outfit) return NextResponse.json({ success: false, message: 'Outfit not found' }, { status: 404 });
+    return NextResponse.json({ success: true, message: 'Outfit archived successfully', data: serializeOutfit(outfit) }, { status: 200 });
   } catch (error: any) {
     console.error('Delete outfit error:', error);
-    return NextResponse.json({ success: false, message: error.message || 'Failed to delete outfit' }, { status: 500 });
+    return NextResponse.json({ success: false, message: error.message || 'Failed to archive outfit' }, { status: 500 });
   }
 }
 
-export const GET    = withAuth(getOutfit,    ['superadmin', 'admin']);
-export const PUT    = withAuth(updateOutfit, ['superadmin', 'admin']);
+export const GET = withAuth(getOutfit, ['superadmin', 'admin']);
+export const PUT = withAuth(updateOutfit, ['superadmin', 'admin']);
 export const DELETE = withAuth(deleteOutfit, ['superadmin', 'admin']);
