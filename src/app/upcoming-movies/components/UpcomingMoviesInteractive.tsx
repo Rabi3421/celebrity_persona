@@ -1,138 +1,62 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useCallback, useMemo, useState } from 'react';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function stripHtml(html: string): string {
-  return html
-    .replace(/<\/p>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// ── Types matching the real API payload ───────────────────────────────────────
-interface CastMember {
-  _id: string;
+type PersonCredit = {
   name: string;
-  role?: string;
-  character?: string;
+  slug?: string;
+  profileUrl?: string;
   image?: string;
-  celebrityId?: string;
-}
+  roleName?: string;
+};
 
-interface TicketLink {
+type Movie = {
   _id: string;
-  platform: string;
-  url: string;
-  available: boolean;
-}
-
-interface Movie {
-  _id: string;
+  id?: string;
   title: string;
   slug: string;
+  excerpt?: string;
   releaseDate?: string;
-  poster?: string;
-  backdrop?: string;
-  language?: string | string[];
-  originalLanguage?: string;
-  worldwide?: boolean;
-  genre?: string[];
-  director?: string;
-  writers?: string[];
-  producers?: string[];
-  cast?: CastMember[];
-  synopsis?: string;
-  plotSummary?: string;
-  productionNotes?: string;
+  releaseDateText?: string;
+  releaseYear?: number;
+  posterImage?: string;
+  posterImageAlt?: string;
+  backdropImage?: string;
+  genres?: string[];
+  languages?: string[];
+  ottPlatform?: string;
+  streamingPlatform?: string;
+  availabilityStatus?: string;
   status?: string;
-  anticipationScore?: number;
-  duration?: number;
-  mpaaRating?: string;
-  regions?: string[];
-  subtitles?: string[];
-  budget?: number;
-  boxOfficeProjection?: number;
-  featured?: boolean;
-  images?: string[];
-  studio?: string;
-  trailer?: string;
-  ticketLinks?: TicketLink[];
-  preOrderAvailable?: boolean;
-  seoData?: { metaTitle?: string; metaDescription?: string; keywords?: string[] };
-  createdAt?: string;
-  updatedAt?: string;
-}
+  isFeatured?: boolean;
+  isTrending?: boolean;
+  isEditorPick?: boolean;
+  leadCast?: PersonCredit[];
+  director?: PersonCredit[];
+  trailerUrl?: string;
+  whereToWatchText?: string;
+};
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatCountdown(dateStr?: string): string {
-  if (!dateStr) return 'TBA';
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return 'TBA';
-  const now = new Date();
-  const diffMs = date.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return 'Released';
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Tomorrow';
-  if (diffDays < 30) return `${diffDays} days`;
-  if (diffDays < 365) return `${Math.ceil(diffDays / 30)} months`;
-  return date.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-function formatFullDate(dateStr?: string): string {
-  if (!dateStr) return 'TBA';
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return 'TBA';
-  return date.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function formatBudget(n?: number): string {
-  if (!n || n === 0) return 'N/A';
-  if (n >= 1_00_00_00_000) return `₹${(n / 1_00_00_00_000).toFixed(1)}B`;
-  if (n >= 1_00_00_000)    return `₹${(n / 1_00_00_000).toFixed(0)}Cr`;
-  if (n >= 1_00_00_000_000) return `$${(n / 1_00_00_000_000).toFixed(1)}B`;
-  return `₹${n.toLocaleString('en-IN')}`;
-}
-
-function normalizeLanguages(lang?: string | string[]): string[] {
-  if (!lang) return [];
-  if (Array.isArray(lang)) return lang;
-  return [lang];
-}
-
-function scoreColor(score?: number): string {
-  if (!score) return 'text-neutral-400';
-  if (score >= 9)  return 'text-emerald-400';
-  if (score >= 7)  return 'text-yellow-400';
-  if (score >= 5)  return 'text-orange-400';
-  return 'text-red-400';
-}
-
-function scoreBar(score?: number): number {
-  return Math.round(((score ?? 0) / 10) * 100);
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
-
-interface UpcomingMoviesInteractiveProps {
+type Props = {
   initialMovies?: Movie[];
   initialTotal?: number;
   initialPages?: number;
   initialPage?: number;
   initialLoaded?: boolean;
+};
+
+function formatDate(movie: Movie) {
+  if (movie.releaseDateText) return movie.releaseDateText;
+  if (!movie.releaseDate) return 'Release date TBA';
+  const date = new Date(movie.releaseDate);
+  if (Number.isNaN(date.getTime())) return 'Release date TBA';
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function labelize(value?: string) {
+  return value ? value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()) : '';
 }
 
 export default function UpcomingMoviesInteractive({
@@ -140,433 +64,404 @@ export default function UpcomingMoviesInteractive({
   initialTotal = 0,
   initialPages = 1,
   initialPage = 1,
-  initialLoaded = false,
-}: UpcomingMoviesInteractiveProps) {
-  const [movies, setMovies]           = useState<Movie[]>(initialMovies);
-  const [total, setTotal]             = useState(initialTotal);
-  const [pages, setPages]             = useState(initialPages);
-  const [page, setPage]               = useState(initialPage);
-  const [loading, setLoading]         = useState(!initialLoaded && initialMovies.length === 0);
-  const [error, setError]             = useState('');
+}: Props) {
+  const [movies, setMovies] = useState<Movie[]>(initialMovies);
+  const [total, setTotal] = useState(initialTotal);
+  const [pages, setPages] = useState(initialPages);
+  const [page, setPage] = useState(initialPage);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [filters, setFilters] = useState({
+    q: '',
+    genre: 'all',
+    language: 'all',
+    releaseYear: 'all',
+    ottPlatform: 'all',
+    availabilityStatus: 'all',
+    sort: 'latest',
+  });
 
-  const router = useRouter();
-  const [searchTerm, setSearchTerm]   = useState('');
-  const [filterGenre, setFilterGenre] = useState('all');
-  const [sortBy, setSortBy]           = useState('anticipation');
-  const skippedInitialFetch = React.useRef(initialLoaded);
-  const skippedInitialSearch = React.useRef(initialLoaded);
+  const featuredMovie = movies.find((movie) => movie.isFeatured) || movies[0];
+  const trendingMovies = movies.filter((movie) => movie.isTrending).slice(0, 6);
 
-  // Collect all genres from loaded movies for the filter dropdown
-  const allGenres = Array.from(
-    new Set(movies.flatMap(m => m.genre ?? []))
-  ).sort();
+  const options = useMemo(
+    () => ({
+      genres: Array.from(new Set(movies.flatMap((movie) => movie.genres || []))).sort(),
+      languages: Array.from(new Set(movies.flatMap((movie) => movie.languages || []))).sort(),
+      years: Array.from(new Set(movies.map((movie) => movie.releaseYear).filter(Boolean))).sort(),
+      platforms: Array.from(
+        new Set(
+          movies
+            .map((movie) => movie.ottPlatform || movie.streamingPlatform)
+            .filter(Boolean) as string[]
+        )
+      ).sort(),
+    }),
+    [movies]
+  );
 
-  // ── Fetch from API ──────────────────────────────────────────────────────────
-  const fetchMovies = useCallback(async (
-    p = 1, q = searchTerm, genre = filterGenre, sort = sortBy
-  ) => {
-    setLoading(true);
-    setError('');
-    try {
-      const params = new URLSearchParams({
-        page:  String(p),
-        limit: '12',
-        sort,
-      });
-      if (q.trim())               params.set('q', q.trim());
-      if (genre && genre !== 'all') params.set('genre', genre);
+  const fetchMovies = useCallback(
+    async (nextPage = 1, nextFilters = filters) => {
+      setLoading(true);
+      setError('');
+      try {
+        const params = new URLSearchParams({
+          page: String(nextPage),
+          limit: '12',
+          sort: nextFilters.sort,
+        });
+        for (const [key, value] of Object.entries(nextFilters)) {
+          if (value && value !== 'all' && key !== 'sort') params.set(key, value);
+        }
+        const response = await fetch(`/api/user/movies/upcoming?${params}`, {
+          headers: { 'x-api-key': process.env.NEXT_PUBLIC_X_API_KEY || '' },
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || 'Failed to load movies');
+        setMovies(data.data || []);
+        setTotal(data.total || 0);
+        setPages(data.pages || 1);
+        setPage(data.page || nextPage);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load movies');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filters]
+  );
 
-      const res = await fetch(`/api/user/movies/upcoming?${params}`, {
-        headers: { 'x-api-key': process.env.NEXT_PUBLIC_X_API_KEY ?? '' },
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to load');
-      setMovies(data.data ?? []);
-      setTotal(data.total ?? 0);
-      setPages(data.pages ?? 1);
-      setPage(p);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load movies');
-    } finally {
-      setLoading(false);
-    }
-  }, [searchTerm, filterGenre, sortBy]);
-
-  useEffect(() => {
-    if (skippedInitialFetch.current) {
-      skippedInitialFetch.current = false;
-      return;
-    }
-    fetchMovies(1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // debounced search
-  useEffect(() => {
-    if (skippedInitialSearch.current) {
-      skippedInitialSearch.current = false;
-      return;
-    }
-    const t = setTimeout(() => fetchMovies(1, searchTerm, filterGenre, sortBy), 400);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm]);
-
-  const highlyAnticipated = movies.filter(m => (m.anticipationScore ?? 0) >= 8).length;
-
-  // ── Loading skeleton ────────────────────────────────────────────────────────
-  if (loading && movies.length === 0) {
-    return (
-      <>
-        {/* Hero skeleton */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white">
-          <div className="absolute inset-0 bg-black/30" />
-          <div className="container mx-auto px-4 py-20 relative z-10 text-center max-w-4xl mx-auto animate-pulse">
-            <div className="h-16 bg-white/20 rounded-2xl w-2/3 mx-auto mb-6" />
-            <div className="h-6  bg-white/15 rounded w-3/4 mx-auto mb-4" />
-            <div className="h-6  bg-white/15 rounded w-1/2 mx-auto" />
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
-        </section>
-        <div className="container mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-2xl overflow-hidden bg-white/5 animate-pulse">
-              <div className="h-72 bg-white/10" />
-              <div className="p-5 space-y-3">
-                <div className="h-4 bg-white/10 rounded w-1/2" />
-                <div className="h-6 bg-white/10 rounded w-3/4" />
-                <div className="h-4 bg-white/10 rounded w-full" />
-                <div className="h-4 bg-white/10 rounded w-2/3" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </>
-    );
-  }
+  const setFilter = (key: keyof typeof filters, value: string) => {
+    const next = { ...filters, [key]: value };
+    setFilters(next);
+    if (key !== 'q') fetchMovies(1, next);
+  };
 
   return (
     <>
-      {/* ── Hero ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white">
-        <div className="absolute inset-0 bg-black/30" />
-        <div className="container mx-auto px-4 py-14 sm:py-20 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center max-w-4xl mx-auto"
-          >
-            <h1 className="text-4xl font-bold mb-5 bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 bg-clip-text text-transparent sm:text-5xl md:text-7xl md:mb-6">
-              Upcoming Movies 2026
-            </h1>
-            <p className="text-base leading-7 md:text-2xl mb-8 text-gray-200">
-              Discover the most anticipated films of the year. From blockbuster spectacles to indie masterpieces.
-            </p>
-            <div className="flex flex-wrap justify-center gap-3 text-sm sm:gap-4 sm:text-lg">
-              <span className="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
-                🎬 {total} Movie{total !== 1 ? 's' : ''}
-              </span>
-              <span className="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
-                🏆 {highlyAnticipated} Highly Anticipated
-              </span>
-              <span className="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
-                🎭 {allGenres.length} Genres
-              </span>
-            </div>
-          </motion.div>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
-      </section>
-
-      {/* ── Filters ── */}
-      <section className="container mx-auto px-4 py-4 sm:py-6 sticky top-16 sm:top-20 bg-background/95 backdrop-blur-sm z-20 border-b border-white/10">
-        <div className="flex flex-wrap gap-3 items-center justify-between">
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
-            {/* Search */}
-            <div className="relative w-full sm:w-auto">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">🔍</span>
-              <input
-                type="text"
-                placeholder="Search movies, directors, actors..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 text-sm sm:w-64"
+      {featuredMovie && (
+        <section className="relative overflow-hidden border-b border-white/10">
+          <div className="absolute inset-0">
+            {featuredMovie.backdropImage || featuredMovie.posterImage ? (
+              <Image
+                src={featuredMovie.backdropImage || featuredMovie.posterImage!}
+                alt={featuredMovie.posterImageAlt || featuredMovie.title}
+                fill
+                priority
+                className="object-cover opacity-40"
+                sizes="100vw"
               />
-            </div>
-
-            {/* Genre */}
-            <select
-              value={filterGenre}
-              onChange={e => { setFilterGenre(e.target.value); fetchMovies(1, searchTerm, e.target.value, sortBy); }}
-              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer sm:w-auto"
-            >
-              <option value="all">All Genres</option>
-              {allGenres.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-
-            {/* Sort */}
-            <select
-              value={sortBy}
-              onChange={e => { setSortBy(e.target.value); fetchMovies(1, searchTerm, filterGenre, e.target.value); }}
-              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer sm:w-auto"
-            >
-              <option value="anticipation">Most Anticipated</option>
-              <option value="release">Release Date</option>
-            </select>
+            ) : (
+              <div className="h-full bg-neutral-950" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-background/85 to-background" />
           </div>
-
-          <p className="text-sm text-neutral-500">
-            Showing {movies.length} of {total} movies
-          </p>
-        </div>
-      </section>
-
-      {/* ── Error ── */}
-      {error && (
-        <div className="container mx-auto px-4 py-6">
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-red-400 text-sm flex items-center gap-3">
-            <span>⚠️</span> {error}
-            <button onClick={() => fetchMovies(1)} className="ml-auto text-yellow-400 hover:underline text-xs">Retry</button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Grid ── */}
-      <section className="container mx-auto px-4 py-10">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={filterGenre + sortBy + page}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.4 }}
-            className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-8 lg:grid-cols-3"
-          >
-            {movies.length === 0 && !loading && (
-              <div className="col-span-full py-20 text-center text-neutral-500">
-                <div className="text-5xl mb-4">🎬</div>
-                <p className="text-lg">No movies found. Try a different search or filter.</p>
+          <div className="container relative mx-auto grid min-h-[520px] items-end gap-8 px-4 pb-12 pt-24 md:grid-cols-[240px_1fr]">
+            {featuredMovie.posterImage && (
+              <div className="relative hidden aspect-[2/3] overflow-hidden rounded-lg border border-white/15 shadow-2xl md:block">
+                <Image
+                  src={featuredMovie.posterImage}
+                  alt={featuredMovie.posterImageAlt || `${featuredMovie.title} poster`}
+                  fill
+                  className="object-cover"
+                  sizes="240px"
+                />
               </div>
             )}
-
-            {movies.map((movie, index) => (
-              <motion.article
-                key={movie._id}
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, delay: index * 0.07 }}
-                className="group relative bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:border-yellow-500/30 transition-all duration-300 hover:-translate-y-1 cursor-pointer"
-                onClick={() => router.push(`/upcoming-movies/${movie.slug || movie._id}`)}
-              >
-                {/* Poster */}
-                <div className="relative h-80 overflow-hidden bg-gradient-to-br from-white/10 to-white/5">
-                  {movie.poster ? (
-                    <Image
-                      src={movie.poster}
-                      alt={movie.title}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-6xl text-neutral-600">🎬</div>
-                  )}
-
-                  {/* Backdrop gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-
-                  {/* Top badges */}
-                  <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-sm text-white px-2.5 py-1 rounded-full text-xs font-semibold">
-                    {formatCountdown(movie.releaseDate)}
-                  </div>
-                  {movie.anticipationScore !== undefined && (
-                    <div className={`absolute top-3 right-3 bg-black/70 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${scoreColor(movie.anticipationScore)}`}>
-                      ★ {movie.anticipationScore.toFixed(1)}
-                    </div>
-                  )}
-
-                  {/* Featured badge */}
-                  {movie.featured && (
-                    <div className="absolute top-10 right-3 mt-1 bg-yellow-500 text-black px-2 py-0.5 rounded-full text-xs font-bold">
-                      Featured
-                    </div>
-                  )}
-
-                  {/* Bottom info strip */}
-                  <div className="absolute bottom-0 left-0 right-0 p-3">
-                    {movie.mpaaRating && (
-                      <span className="inline-block bg-black/60 border border-white/20 text-white text-xs px-2 py-0.5 rounded mr-2">
-                        {movie.mpaaRating}
-                      </span>
-                    )}
-                    {movie.duration && (
-                      <span className="inline-block bg-black/60 border border-white/20 text-white text-xs px-2 py-0.5 rounded">
-                        ⏱ {Math.floor(movie.duration / 60)}h {movie.duration % 60}m
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Hover overlay — trailer button */}
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    whileHover={{ opacity: 1 }}
-                    className="absolute inset-0 bg-black/50 flex items-center justify-center"
+            <div className="max-w-3xl">
+              <div className="mb-3 flex flex-wrap gap-2">
+                <span className="rounded-full bg-yellow-500 px-3 py-1 text-xs font-bold text-black">
+                  Featured Upcoming Movie
+                </span>
+                {featuredMovie.availabilityStatus && (
+                  <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white">
+                    {labelize(featuredMovie.availabilityStatus)}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-4xl font-black text-white md:text-6xl">{featuredMovie.title}</h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-200">
+                {featuredMovie.excerpt}
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2 text-sm text-neutral-300">
+                <span>{formatDate(featuredMovie)}</span>
+                {(featuredMovie.genres || []).slice(0, 3).map((genre) => (
+                  <span key={genre}>/ {genre}</span>
+                ))}
+                {(featuredMovie.languages || []).slice(0, 2).map((language) => (
+                  <span key={language}>/ {language}</span>
+                ))}
+                {(featuredMovie.ottPlatform || featuredMovie.streamingPlatform) && (
+                  <span>/ {featuredMovie.ottPlatform || featuredMovie.streamingPlatform}</span>
+                )}
+              </div>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Link
+                  href={`/upcoming-movies/${featuredMovie.slug}`}
+                  className="rounded-xl bg-yellow-500 px-5 py-3 text-sm font-bold text-black hover:bg-yellow-400"
+                >
+                  View Details
+                </Link>
+                {featuredMovie.trailerUrl && (
+                  <a
+                    href={featuredMovie.trailerUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-xl border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10"
                   >
-                    {movie.trailer ? (
-                      <a
-                        href={movie.trailer}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-full font-semibold text-sm flex items-center gap-2 transition-colors"
-                      >
-                        ▶ Watch Trailer
-                      </a>
-                    ) : (
-                      <span className="bg-white/20 text-white px-5 py-2.5 rounded-full text-sm">View Details →</span>
-                    )}
-                  </motion.div>
-                </div>
+                    Watch Trailer
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
-                {/* Card body */}
-                <div className="p-5">
-                  {/* Genres */}
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {(movie.genre ?? []).slice(0, 3).map(g => (
-                      <span key={g} className="text-xs bg-blue-500/15 text-blue-300 border border-blue-500/20 px-2 py-0.5 rounded-full capitalize">
-                        {g}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Title */}
-                  <h2 className="text-lg font-bold text-white mb-2 leading-tight group-hover:text-yellow-400 transition-colors line-clamp-2">
-                    {movie.title}
-                  </h2>
-
-                  {/* Synopsis */}
-                  <p className="text-neutral-400 text-sm leading-relaxed line-clamp-2 mb-4">
-                    {stripHtml(movie.synopsis || movie.plotSummary || 'No synopsis available.')}
-                  </p>
-
-                  {/* Meta grid */}
-                  <div className="space-y-1.5 text-xs text-neutral-400 mb-4">
-                    {movie.director && (
-                      <div className="flex gap-2">
-                        <span className="text-neutral-500 w-14 shrink-0">Director</span>
-                        <span className="text-neutral-200 truncate">{movie.director}</span>
-                      </div>
-                    )}
-                    {(movie.cast ?? []).length > 0 && (
-                      <div className="flex gap-2">
-                        <span className="text-neutral-500 w-14 shrink-0">Cast</span>
-                        <span className="text-neutral-200 truncate">
-                          {(movie.cast ?? []).slice(0, 3).map(c => c.name).join(', ')}
-                          {(movie.cast ?? []).length > 3 ? ` +${(movie.cast ?? []).length - 3}` : ''}
-                        </span>
-                      </div>
-                    )}
-                    {movie.studio && (
-                      <div className="flex gap-2">
-                        <span className="text-neutral-500 w-14 shrink-0">Studio</span>
-                        <span className="text-neutral-200 truncate">{movie.studio}</span>
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <span className="text-neutral-500 w-14 shrink-0">Release</span>
-                      <span className="text-neutral-200">{formatFullDate(movie.releaseDate)}</span>
-                    </div>
-                  </div>
-
-                  {/* Anticipation bar */}
-                  {movie.anticipationScore !== undefined && (
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="text-neutral-500">Anticipation</span>
-                        <span className={`font-bold ${scoreColor(movie.anticipationScore)}`}>
-                          {movie.anticipationScore.toFixed(1)}/10
-                        </span>
-                      </div>
-                      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${scoreBar(movie.anticipationScore)}%` }}
-                          transition={{ duration: 0.8, delay: index * 0.05 }}
-                          className={`h-full rounded-full ${
-                            (movie.anticipationScore ?? 0) >= 9 ? 'bg-emerald-500' :
-                            (movie.anticipationScore ?? 0) >= 7 ? 'bg-yellow-500' :
-                            (movie.anticipationScore ?? 0) >= 5 ? 'bg-orange-500' : 'bg-red-500'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Ticket links or pre-order */}
-                  {(movie.ticketLinks ?? []).length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {(movie.ticketLinks ?? []).filter(t => t.available).slice(0, 2).map(t => (
-                        <a
-                          key={t._id}
-                          href={t.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={e => e.stopPropagation()}
-                          className="flex-1 text-center text-xs bg-yellow-500 hover:bg-yellow-400 text-black font-semibold py-2 rounded-lg transition-colors"
-                        >
-                          🎟 {t.platform}
-                        </a>
-                      ))}
-                    </div>
-                  ) : (
-                    <button
-                      className="w-full text-sm bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 py-2 rounded-lg transition-colors"
-                      onClick={e => { e.stopPropagation(); router.push(`/upcoming-movies/${movie.slug || movie._id}`); }}
-                    >
-                      View Details →
-                    </button>
-                  )}
-                </div>
-              </motion.article>
+      <section className="sticky top-16 z-20 border-b border-white/10 bg-background/95 backdrop-blur">
+        <div className="container mx-auto grid gap-3 px-4 py-4 md:grid-cols-[1.6fr_repeat(5,1fr)_auto]">
+          <input
+            value={filters.q}
+            onChange={(event) => setFilter('q', event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') fetchMovies(1);
+            }}
+            placeholder="Search by title, actor, director"
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-yellow-500/60"
+          />
+          <select
+            value={filters.genre}
+            onChange={(event) => setFilter('genre', event.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+          >
+            <option value="all">All Genres</option>
+            {options.genres.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
-          </motion.div>
-        </AnimatePresence>
+          </select>
+          <select
+            value={filters.language}
+            onChange={(event) => setFilter('language', event.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+          >
+            <option value="all">All Languages</option>
+            {options.languages.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filters.releaseYear}
+            onChange={(event) => setFilter('releaseYear', event.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+          >
+            <option value="all">All Years</option>
+            {options.years.map((item) => (
+              <option key={item} value={String(item)}>
+                {item}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filters.ottPlatform}
+            onChange={(event) => setFilter('ottPlatform', event.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+          >
+            <option value="all">All Platforms</option>
+            {options.platforms.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filters.availabilityStatus}
+            onChange={(event) => setFilter('availabilityStatus', event.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+          >
+            <option value="all">Availability</option>
+            {[
+              'coming_soon',
+              'in_cinemas',
+              'streaming_soon',
+              'now_streaming',
+              'tickets_open',
+              'watchlist_available',
+              'release_date_not_confirmed',
+              'postponed',
+            ].map((item) => (
+              <option key={item} value={item}>
+                {labelize(item)}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => fetchMovies(1)}
+            className="rounded-lg bg-yellow-500 px-4 py-2 text-sm font-bold text-black hover:bg-yellow-400"
+          >
+            Search
+          </button>
+        </div>
+      </section>
 
-        {/* Pagination */}
-        {pages > 1 && (
-          <div className="flex flex-wrap justify-center items-center gap-2 mt-12 sm:gap-3">
-            <button
-              onClick={() => fetchMovies(page - 1)}
-              disabled={page <= 1 || loading}
-              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-all text-sm"
+      {trendingMovies.length > 0 && (
+        <section className="container mx-auto px-4 pt-10">
+          <h2 className="mb-4 text-2xl font-bold text-white">Trending Upcoming Movies</h2>
+          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+            {trendingMovies.map((movie) => (
+              <Link key={movie._id} href={`/upcoming-movies/${movie.slug}`} className="group">
+                <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-white/5">
+                  {movie.posterImage && (
+                    <Image
+                      src={movie.posterImage}
+                      alt={movie.posterImageAlt || `${movie.title} poster`}
+                      fill
+                      className="object-cover transition group-hover:scale-105"
+                      sizes="16vw"
+                    />
+                  )}
+                </div>
+                <p className="mt-2 line-clamp-2 text-sm font-semibold text-white group-hover:text-yellow-300">
+                  {movie.title}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="container mx-auto px-4 py-12">
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white">Latest Upcoming Movies</h2>
+          <p className="text-sm text-neutral-500">
+            Showing {movies.length} of {total}
+          </p>
+        </div>
+        {error && (
+          <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+        {loading && <div className="py-12 text-center text-neutral-400">Loading movies...</div>}
+        {!loading && movies.length === 0 && (
+          <div className="py-12 text-center text-neutral-400">No upcoming movies found.</div>
+        )}
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {movies.map((movie) => (
+            <article
+              key={movie._id}
+              className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.04]"
             >
-              ← Prev
-            </button>
-            {Array.from({ length: pages }, (_, i) => i + 1).map(p => (
-              <button
-                key={p}
-                onClick={() => fetchMovies(p)}
-                className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${
-                  p === page
-                    ? 'bg-yellow-500 text-black'
-                    : 'bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10'
-                }`}
+              <Link
+                href={`/upcoming-movies/${movie.slug}`}
+                className="relative block aspect-[16/10] bg-white/5"
               >
-                {p}
-              </button>
-            ))}
+                {movie.posterImage || movie.backdropImage ? (
+                  <Image
+                    src={movie.backdropImage || movie.posterImage!}
+                    alt={movie.posterImageAlt || `${movie.title} movie image`}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                  />
+                ) : null}
+              </Link>
+              <div className="p-5">
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {(movie.genres || []).slice(0, 2).map((genre) => (
+                    <span
+                      key={genre}
+                      className="rounded-full bg-blue-500/15 px-2 py-1 text-xs text-blue-200"
+                    >
+                      {genre}
+                    </span>
+                  ))}
+                  {movie.availabilityStatus && (
+                    <span className="rounded-full bg-white/10 px-2 py-1 text-xs text-neutral-200">
+                      {labelize(movie.availabilityStatus)}
+                    </span>
+                  )}
+                </div>
+                <h3 className="line-clamp-2 text-xl font-bold text-white">
+                  <Link href={`/upcoming-movies/${movie.slug}`}>{movie.title}</Link>
+                </h3>
+                <p className="mt-2 line-clamp-3 text-sm leading-6 text-neutral-400">
+                  {movie.excerpt}
+                </p>
+                <dl className="mt-4 space-y-1 text-xs text-neutral-400">
+                  <div>
+                    <span className="text-neutral-500">Release:</span> {formatDate(movie)}
+                  </div>
+                  {(movie.languages || []).length > 0 && (
+                    <div>
+                      <span className="text-neutral-500">Language:</span>{' '}
+                      {(movie.languages || []).slice(0, 3).join(', ')}
+                    </div>
+                  )}
+                  {(movie.ottPlatform || movie.streamingPlatform) && (
+                    <div>
+                      <span className="text-neutral-500">Platform:</span>{' '}
+                      {movie.ottPlatform || movie.streamingPlatform}
+                    </div>
+                  )}
+                  {(movie.leadCast || []).length > 0 && (
+                    <div>
+                      <span className="text-neutral-500">Cast:</span>{' '}
+                      {(movie.leadCast || [])
+                        .slice(0, 3)
+                        .map((item) => item.name)
+                        .join(', ')}
+                    </div>
+                  )}
+                </dl>
+                <div className="mt-5 flex gap-2">
+                  <Link
+                    href={`/upcoming-movies/${movie.slug}`}
+                    className="flex-1 rounded-lg bg-white/10 px-3 py-2 text-center text-sm font-semibold text-white hover:bg-white/15"
+                  >
+                    View Details
+                  </Link>
+                  {movie.trailerUrl && (
+                    <a
+                      href={movie.trailerUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-lg border border-red-500/30 px-3 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/10"
+                    >
+                      Trailer
+                    </a>
+                  )}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {pages > 1 && (
+          <div className="mt-10 flex justify-center gap-2">
             <button
-              onClick={() => fetchMovies(page + 1)}
-              disabled={page >= pages || loading}
-              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-all text-sm"
+              disabled={page <= 1 || loading}
+              onClick={() => fetchMovies(page - 1)}
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm text-neutral-300 disabled:opacity-40"
             >
-              Next →
+              Prev
+            </button>
+            <span className="px-4 py-2 text-sm text-neutral-500">
+              Page {page} of {pages}
+            </span>
+            <button
+              disabled={page >= pages || loading}
+              onClick={() => fetchMovies(page + 1)}
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm text-neutral-300 disabled:opacity-40"
+            >
+              Next
             </button>
           </div>
         )}
       </section>
-
     </>
   );
 }

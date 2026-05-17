@@ -105,7 +105,9 @@ export function isNoIndex(seo?: SeoSource | null) {
 }
 
 export function isNoFollow(seo?: SeoSource | null) {
-  return seo?.nofollow === true || seo?.robotsFollow === false || hasRobotsDirective(seo, 'nofollow');
+  return (
+    seo?.nofollow === true || seo?.robotsFollow === false || hasRobotsDirective(seo, 'nofollow')
+  );
 }
 
 export function createDynamicSeoMetadata({
@@ -139,14 +141,8 @@ export function createDynamicSeoMetadata({
     ...images,
     DEFAULT_OG_IMAGE,
   ]);
-  const twitterImages = unique([
-    source.twitterImage,
-    ...ogImages,
-  ]);
-  const authorList = unique([
-    text(source.authorName),
-    ...authors,
-  ]);
+  const twitterImages = unique([source.twitterImage, ...ogImages]);
+  const authorList = unique([text(source.authorName), ...authors]);
 
   return createMetadata({
     title: finalTitle,
@@ -168,7 +164,8 @@ export function createDynamicSeoMetadata({
     ogLocale: text(source.ogLocale) || 'en_US',
     twitterCard: text(source.twitterCard) || 'summary_large_image',
     twitterTitle: text(source.twitterTitle) || text(source.ogTitle) || finalTitle,
-    twitterDescription: text(source.twitterDescription) || text(source.ogDescription) || finalDescription,
+    twitterDescription:
+      text(source.twitterDescription) || text(source.ogDescription) || finalDescription,
     twitterImages,
     twitterSite: text(source.twitterSite) || TWITTER_HANDLE,
     twitterCreator: text(source.twitterCreator) || TWITTER_HANDLE,
@@ -244,7 +241,11 @@ export function createCelebrityOutfitMetadata(outfit: AnyRecord): Metadata {
     title: `${title} | ${celebrityName} Outfit`,
     description,
     path: `/celebrity-outfits/${outfit.slug}`,
-    images: [seo.ogImage, outfit.featuredImage, ...(Array.isArray(outfit.images) ? outfit.images : [outfit.image])].filter(Boolean),
+    images: [
+      seo.ogImage,
+      outfit.featuredImage,
+      ...(Array.isArray(outfit.images) ? outfit.images : [outfit.image]),
+    ].filter(Boolean),
     imageAlt: outfit.featuredImageAlt || `${title} celebrity outfit`,
     type: 'article',
     keywords: [
@@ -321,10 +322,20 @@ export function createNewsArticleMetadata(article: AnyRecord): Metadata {
     title,
     description,
     path: `/celebrity-news/${article.slug}`,
-    images: [article.featuredImage || article.thumbnail, article.seo?.ogImage, ...(Array.isArray(article.images) ? article.images : [])],
+    images: [
+      article.featuredImage || article.thumbnail,
+      article.seo?.ogImage,
+      ...(Array.isArray(article.images) ? article.images : []),
+    ],
     imageAlt: article.featuredImageAlt || `${title} article image`,
     type: 'article',
-    keywords: [article.category, article.newsType, ...(article.seo?.contentTags || article.tags || []), 'celebrity news', 'entertainment news'],
+    keywords: [
+      article.category,
+      article.newsType,
+      ...(article.seo?.contentTags || article.tags || []),
+      'celebrity news',
+      'entertainment news',
+    ],
     publishedTime: article.publishedAt || article.publishDate || article.createdAt,
     modifiedTime: article.updatedAt,
     authors: [article.authorName || article.author],
@@ -363,29 +374,63 @@ export function createMoviePageMetadata(movie: AnyRecord, kind: 'released' | 'up
   const title = text(movie.title) || 'Movie Details';
   const isUpcoming = kind === 'upcoming';
   const description =
-    truncate(movie.synopsis || movie.plotSummary || movie.productionNotes || '', 155) ||
+    truncate(
+      movie.excerpt || movie.synopsis || movie.plotSummary || movie.productionNotes || '',
+      155
+    ) ||
     (isUpcoming
       ? `Everything about ${title}: release date, cast, trailers, tickets, and upcoming movie updates.`
       : `Explore ${title}: cast, director, synopsis, trailer, reviews, and movie details.`);
+  const movieSeo = {
+    ...pickSeoSource(movie.seoData, movie.seo),
+    metaTitle: movie.metaTitle || movie.seoData?.metaTitle || movie.seo?.metaTitle,
+    metaDescription:
+      movie.metaDescription || movie.seoData?.metaDescription || movie.seo?.metaDescription,
+    canonicalUrl: movie.canonicalUrl || movie.seoData?.canonicalUrl || movie.seo?.canonicalUrl,
+    robotsIndex: movie.robotsIndex ?? movie.seoData?.robotsIndex ?? movie.seo?.robotsIndex,
+    robotsFollow: movie.robotsFollow ?? movie.seoData?.robotsFollow ?? movie.seo?.robotsFollow,
+    ogTitle: movie.ogTitle || movie.seoData?.ogTitle || movie.seo?.ogTitle,
+    ogDescription: movie.ogDescription || movie.seoData?.ogDescription || movie.seo?.ogDescription,
+    ogImage: movie.ogImage || movie.seoData?.ogImage || movie.seo?.ogImage,
+    twitterTitle: movie.twitterTitle || movie.seoData?.twitterTitle || movie.seo?.twitterTitle,
+    twitterDescription:
+      movie.twitterDescription ||
+      movie.seoData?.twitterDescription ||
+      movie.seo?.twitterDescription,
+    twitterImage: movie.twitterImage || movie.seoData?.twitterImage || movie.seo?.twitterImage,
+    focusKeyword: movie.focusKeyword || movie.seoData?.focusKeyword || movie.seo?.focusKeyword,
+    keywords: movie.secondaryKeywords || movie.seoData?.keywords || movie.seo?.keywords,
+    relatedTopics: movie.contentTags || movie.seoData?.relatedTopics || movie.seo?.relatedTopics,
+    authorName: movie.authorName || movie.seoData?.authorName || movie.seo?.authorName,
+  };
 
   return createDynamicSeoMetadata({
-    seo: pickSeoSource(movie.seoData, movie.seo),
+    seo: movieSeo,
     title: `${title} | ${isUpcoming ? 'Upcoming Movie' : 'Movie Details'}`,
     description,
     path: `/${isUpcoming ? 'upcoming-movies' : 'movie-details'}/${movie.slug}`,
-    images: [movie.backdrop, movie.poster, ...(Array.isArray(movie.images) ? movie.images : [])],
-    imageAlt: `${title} movie poster`,
+    images: [
+      movie.ogImage,
+      movie.backdropImage,
+      movie.backdrop,
+      movie.posterImage,
+      movie.poster,
+      ...(Array.isArray(movie.images) ? movie.images : []),
+    ],
+    imageAlt: movie.posterImageAlt || `${title} movie poster`,
     type: 'video.movie',
     keywords: [
       title,
-      movie.director,
-      movie.studio,
-      ...(movie.genre || []),
-      ...castKeywords(movie.cast),
+      ...(Array.isArray(movie.director)
+        ? movie.director.map((item: AnyRecord) => item.name)
+        : [movie.director]),
+      movie.productionCompany || movie.studio,
+      ...(movie.genres || movie.genre || []),
+      ...castKeywords(movie.leadCast || movie.cast),
       isUpcoming ? 'upcoming movie' : 'movie details',
     ],
-    publishedTime: movie.createdAt,
+    publishedTime: movie.publishedAt || movie.createdAt,
     modifiedTime: movie.updatedAt,
-    authors: [movie.seoData?.authorName, movie.seo?.authorName],
+    authors: [movie.authorName, movie.seoData?.authorName, movie.seo?.authorName],
   });
 }

@@ -4,36 +4,39 @@ import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import { TokenService } from '@/lib/tokenService';
 
+function unauthorized(message: string) {
+  const response = NextResponse.json({ success: false, message }, { status: 401 });
+  response.cookies.set('cp_refresh_token', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 0,
+  });
+  return response;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Read refresh token from httpOnly cookie only — never from body
     const refreshToken = request.cookies.get('cp_refresh_token')?.value;
 
     if (!refreshToken) {
-      return NextResponse.json(
-        { success: false, message: 'No refresh token' },
-        { status: 401 }
-      );
+      return unauthorized('No refresh token');
     }
 
     let decoded;
     try {
       decoded = TokenService.verifyRefreshToken(refreshToken);
     } catch {
-      return NextResponse.json(
-        { success: false, message: 'Invalid or expired refresh token' },
-        { status: 401 }
-      );
+      return unauthorized('Invalid or expired refresh token');
     }
 
     await dbConnect();
 
     const user = await User.findById(decoded.userId);
     if (!user || !user.refreshTokens.includes(refreshToken) || !user.isActive) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid refresh token' },
-        { status: 401 }
-      );
+      return unauthorized('Invalid refresh token');
     }
 
     // Rotate refresh token (old one invalidated, new one issued)

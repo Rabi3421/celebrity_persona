@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { TokenService } from '@/lib/tokenService';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
+import jwt from 'jsonwebtoken';
 
 export interface AuthenticatedRequest extends NextRequest {
   user?: {
@@ -18,12 +19,12 @@ export function authMiddleware(requiredRoles?: string[]) {
     try {
       // Get access token from Authorization header
       const authHeader = request.headers.get('Authorization');
-      
+
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return NextResponse.json(
-          { 
+          {
             success: false,
-            message: 'Access token required. Please provide token in Authorization header.' 
+            message: 'Access token required. Please provide token in Authorization header.',
           },
           { status: 401 }
         );
@@ -36,10 +37,12 @@ export function authMiddleware(requiredRoles?: string[]) {
       try {
         decoded = TokenService.verifyAccessToken(accessToken);
       } catch (error) {
+        const expired = error instanceof jwt.TokenExpiredError;
         return NextResponse.json(
-          { 
+          {
             success: false,
-            message: 'Invalid or expired access token' 
+            message: expired ? 'Access token expired' : 'Invalid access token',
+            code: expired ? 'ACCESS_TOKEN_EXPIRED' : 'INVALID_ACCESS_TOKEN',
           },
           { status: 401 }
         );
@@ -51,9 +54,9 @@ export function authMiddleware(requiredRoles?: string[]) {
       const user = await User.findById(decoded.userId);
       if (!user) {
         return NextResponse.json(
-          { 
+          {
             success: false,
-            message: 'User not found' 
+            message: 'User not found',
           },
           { status: 401 }
         );
@@ -62,9 +65,9 @@ export function authMiddleware(requiredRoles?: string[]) {
       // Check if user is active
       if (!user.isActive) {
         return NextResponse.json(
-          { 
+          {
             success: false,
-            message: 'Account is deactivated' 
+            message: 'Account is deactivated',
           },
           { status: 401 }
         );
@@ -73,9 +76,9 @@ export function authMiddleware(requiredRoles?: string[]) {
       // Check role-based access
       if (requiredRoles && !requiredRoles.includes(user.role)) {
         return NextResponse.json(
-          { 
+          {
             success: false,
-            message: `Access denied. Required role: ${requiredRoles.join(' or ')}` 
+            message: `Access denied. Required role: ${requiredRoles.join(' or ')}`,
           },
           { status: 403 }
         );
@@ -94,9 +97,9 @@ export function authMiddleware(requiredRoles?: string[]) {
     } catch (error) {
       console.error('Auth middleware error:', error);
       return NextResponse.json(
-        { 
+        {
           success: false,
-          message: 'Authentication error' 
+          message: 'Authentication error',
         },
         { status: 500 }
       );

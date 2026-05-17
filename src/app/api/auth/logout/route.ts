@@ -1,18 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
-import { withAuth, AuthenticatedRequest } from '@/lib/authMiddleware';
+import { TokenService } from '@/lib/tokenService';
 
-async function logoutHandler(request: AuthenticatedRequest) {
+export async function POST(request: NextRequest) {
   try {
     // Read refresh token from httpOnly cookie — not from body
     const refreshToken = request.cookies.get('cp_refresh_token')?.value;
     let logoutAll = false;
-    try { const body = await request.json(); logoutAll = !!body.logoutAll; } catch { /* no body */ }
+    try {
+      const body = await request.json();
+      logoutAll = !!body.logoutAll;
+    } catch {
+      /* no body */
+    }
 
     await dbConnect();
 
-    const user = await User.findById(request.user?.userId);
+    let user = null;
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const decoded = TokenService.verifyAccessToken(authHeader.substring(7));
+        user = await User.findById(decoded.userId);
+      } catch {
+        // Access token may be expired during logout. Fall back to refresh cookie.
+      }
+    }
+
+    if (!user && refreshToken) {
+      try {
+        const decoded = TokenService.verifyRefreshToken(refreshToken);
+        user = await User.findById(decoded.userId);
+      } catch {
+        user = null;
+      }
+    }
+
     if (user) {
       if (logoutAll) {
         user.refreshTokens = [];
@@ -23,7 +47,10 @@ async function logoutHandler(request: AuthenticatedRequest) {
     }
 
     const response = NextResponse.json(
-      { success: true, message: logoutAll ? 'Logged out from all devices' : 'Logged out successfully' },
+      {
+        success: true,
+        message: logoutAll ? 'Logged out from all devices' : 'Logged out successfully',
+      },
       { status: 200 }
     );
 
@@ -45,5 +72,3 @@ async function logoutHandler(request: AuthenticatedRequest) {
     );
   }
 }
-
-export const POST = withAuth(logoutHandler, ['user', 'admin', 'superadmin']);

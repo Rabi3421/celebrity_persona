@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Email and password are required'
+          message: 'Email and password are required',
         },
         { status: 400 }
       );
@@ -21,17 +21,17 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     // Find superadmin and include password for comparison
-    const superAdmin = await User.findOne({ 
-      email, 
+    const superAdmin = await User.findOne({
+      email,
       role: 'superadmin',
-      isActive: true 
+      isActive: true,
     }).select('+password');
 
     if (!superAdmin) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Invalid credentials'
+          message: 'Invalid credentials',
         },
         { status: 401 }
       );
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Invalid credentials'
+          message: 'Invalid credentials',
         },
         { status: 401 }
       );
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     superAdmin.lastLogin = new Date();
     await superAdmin.save();
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         message: 'SuperAdmin login successful',
@@ -67,21 +67,37 @@ export async function POST(request: NextRequest) {
             email: superAdmin.email,
             name: superAdmin.name,
             role: superAdmin.role,
-            lastLogin: superAdmin.lastLogin
+            lastLogin: superAdmin.lastLogin,
           },
           accessToken,
-          refreshToken
-        }
+        },
+        accessToken,
+        user: {
+          id: superAdmin._id,
+          email: superAdmin.email,
+          name: superAdmin.name,
+          role: superAdmin.role,
+          lastLogin: superAdmin.lastLogin,
+        },
       },
       { status: 200 }
     );
 
+    response.cookies.set('cp_refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+
+    return response;
   } catch (error: any) {
     console.error('SuperAdmin login error:', error);
     return NextResponse.json(
       {
         success: false,
-        message: error.message || 'Failed to login'
+        message: error.message || 'Failed to login',
       },
       { status: 500 }
     );

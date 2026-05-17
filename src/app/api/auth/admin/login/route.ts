@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Email and password are required'
+          message: 'Email and password are required',
         },
         { status: 400 }
       );
@@ -21,17 +21,17 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     // Find admin and include password for comparison
-    const admin = await User.findOne({ 
-      email, 
+    const admin = await User.findOne({
+      email,
       role: 'admin',
-      isActive: true 
+      isActive: true,
     }).select('+password');
 
     if (!admin) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Invalid credentials'
+          message: 'Invalid credentials',
         },
         { status: 401 }
       );
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Invalid credentials'
+          message: 'Invalid credentials',
         },
         { status: 401 }
       );
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     admin.lastLogin = new Date();
     await admin.save();
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         message: 'Admin login successful',
@@ -67,21 +67,37 @@ export async function POST(request: NextRequest) {
             email: admin.email,
             name: admin.name,
             role: admin.role,
-            lastLogin: admin.lastLogin
+            lastLogin: admin.lastLogin,
           },
           accessToken,
-          refreshToken
-        }
+        },
+        accessToken,
+        user: {
+          id: admin._id,
+          email: admin.email,
+          name: admin.name,
+          role: admin.role,
+          lastLogin: admin.lastLogin,
+        },
       },
       { status: 200 }
     );
 
+    response.cookies.set('cp_refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Admin login error:', error);
     return NextResponse.json(
       {
         success: false,
-        message: error.message || 'Failed to login'
+        message: error.message || 'Failed to login',
       },
       { status: 500 }
     );

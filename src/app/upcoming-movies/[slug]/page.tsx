@@ -12,7 +12,13 @@ import Movie from '@/models/Movie';
 import { createMoviePageMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
 import { getMovieInternalLinks } from '@/lib/seo/internalLinks';
 import { upcomingMovieQuery } from '@/lib/seo/publicData';
-import { createBreadcrumbSchema, createMovieSchema } from '@/lib/seo/structuredData';
+import { serializeMovie } from '@/lib/upcomingMovies';
+import {
+  createArticleSchema,
+  createBreadcrumbSchema,
+  createMovieSchema,
+  createVideoObjectSchema,
+} from '@/lib/seo/structuredData';
 
 export const revalidate = 900;
 
@@ -44,7 +50,7 @@ interface Movie {
   originalLanguage?: string;
   worldwide?: boolean;
   genre?: string[];
-  director?: string;
+  director?: Array<{ name: string; slug?: string; profileUrl?: string; image?: string }>;
   writers?: string[];
   producers?: string[];
   cast?: CastMember[];
@@ -77,6 +83,17 @@ interface Movie {
     twitterDescription?: string;
     twitterImage?: string;
   };
+  enableMovieSchema?: boolean;
+  enableArticleSchema?: boolean;
+  enableVideoObjectSchema?: boolean;
+  posterImage?: string;
+  posterImageAlt?: string;
+  backdropImage?: string;
+  excerpt?: string;
+  genres?: string[];
+  languages?: string[];
+  leadCast?: CastMember[];
+  publishStatus?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -86,18 +103,22 @@ const getMovie = cache(async (slug: string): Promise<Movie | null> => {
   try {
     await dbConnect();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const movie: any = await Movie.findOne({ slug, ...upcomingMovieQuery() }).select('-__v').lean();
+    const movie: any = await Movie.findOne({ slug, ...upcomingMovieQuery() })
+      .select('-__v')
+      .lean();
     if (!movie) return null;
-    return JSON.parse(JSON.stringify(movie)) as Movie;
+    return serializeMovie(JSON.parse(JSON.stringify(movie))) as unknown as Movie;
   } catch {
     return null;
   }
 });
 
 // ── Dynamic metadata ──────────────────────────────────────────────────────────
-export async function generateMetadata(
-  { params }: { params: Promise<{ slug: string }> }
-): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
   const { slug } = await params;
   const movie = await getMovie(slug);
 
@@ -113,9 +134,7 @@ export async function generateMetadata(
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-export default async function MovieDetailPage(
-  { params }: { params: Promise<{ slug: string }> }
-) {
+export default async function MovieDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const movie = await getMovie(slug);
 
@@ -126,13 +145,21 @@ export default async function MovieDetailPage(
     <>
       <JsonLd
         data={[
-          createMovieSchema(movie, `/upcoming-movies/${movie.slug}`),
+          movie.enableMovieSchema !== false
+            ? createMovieSchema(movie, `/upcoming-movies/${movie.slug}`)
+            : null,
+          movie.enableArticleSchema !== false
+            ? createArticleSchema(movie, `/upcoming-movies/${movie.slug}`)
+            : null,
+          movie.enableVideoObjectSchema
+            ? createVideoObjectSchema(movie, `/upcoming-movies/${movie.slug}`)
+            : null,
           createBreadcrumbSchema([
             { name: 'Home', path: '/' },
             { name: 'Upcoming Movies', path: '/upcoming-movies' },
             { name: movie.title, path: `/upcoming-movies/${movie.slug}` },
           ]),
-        ]}
+        ].filter(Boolean)}
       />
       <PublicHeader />
       <main className="min-h-screen bg-background text-foreground">
