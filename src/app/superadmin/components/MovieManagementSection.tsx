@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { uploadImage, validateImageFile } from '@/lib/imageUpload';
 import {
   AVAILABILITY_STATUSES,
+  isMovieReleased,
   MOVIE_STATUSES,
   PUBLISH_STATUSES,
   slugifyMovie,
@@ -234,6 +235,8 @@ type TabKey =
   | 'publishing';
 
 type Toast = { type: 'success' | 'error'; message: string } | null;
+
+const PAGE_SIZES = [10, 20, 50];
 
 const STATUS_COLORS: Record<string, string> = {
   published: 'bg-emerald-500/20 text-emerald-400',
@@ -505,6 +508,27 @@ function labelize(value: string) {
   return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function serializeMovieRow(movie: any): MovieRow {
+  return {
+    id: String(movie.id || movie._id || ''),
+    title: movie.title || '',
+    slug: movie.slug || '',
+    posterImage: movie.posterImage || movie.poster || '',
+    releaseDate: movie.releaseDate,
+    releaseDateText: movie.releaseDateText,
+    releaseYear: movie.releaseYear,
+    genres: movie.genres || movie.genre || [],
+    languages: movie.languages || movie.language || [],
+    status: movie.status,
+    publishStatus: movie.publishStatus,
+    availabilityStatus: movie.availabilityStatus,
+    isFeatured: Boolean(movie.isFeatured ?? movie.featured),
+    isTrending: Boolean(movie.isTrending),
+    isEditorPick: Boolean(movie.isEditorPick),
+    updatedAt: movie.updatedAt,
+  };
+}
+
 function hydrateForm(movie: any): MovieForm {
   const form: MovieForm = { ...EMPTY_FORM };
   const data = { ...movie };
@@ -592,9 +616,11 @@ export default function MovieManagementSection() {
   const [movies, setMovies] = useState<MovieRow[]>([]);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const [releaseState, setReleaseState] = useState<'upcoming' | 'released'>('upcoming');
   const [statusFilter, setStatusFilter] = useState('');
   const [publishFilter, setPublishFilter] = useState('');
   const [panelOpen, setPanelOpen] = useState(false);
@@ -604,6 +630,7 @@ export default function MovieManagementSection() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [busyMap, setBusyMap] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<Toast>(null);
   const [confirmArchive, setConfirmArchive] = useState<MovieRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<MovieRow | null>(null);
@@ -616,11 +643,15 @@ export default function MovieManagementSection() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  const setBusy = (id: string, value: boolean) =>
+    setBusyMap((previous) => ({ ...previous, [id]: value }));
+
   const fetchMovies = useCallback(
-    async (nextPage = page) => {
+    async (nextPage = page, nextLimit = limit) => {
       setLoading(true);
       try {
-        const params = new URLSearchParams({ page: String(nextPage), limit: '20' });
+        const params = new URLSearchParams({ page: String(nextPage), limit: String(nextLimit) });
+        params.set('releaseState', releaseState);
         if (query.trim()) params.set('q', query.trim());
         if (statusFilter) params.set('status', statusFilter);
         if (publishFilter) params.set('publishStatus', publishFilter);
@@ -630,9 +661,10 @@ export default function MovieManagementSection() {
         const data = await response.json();
         if (!response.ok || !data.success)
           throw new Error(data.error || data.message || 'Failed to load movies');
-        setMovies(data.data || []);
+        setMovies((data.data || []).map(serializeMovieRow));
         setTotal(data.total || 0);
         setPage(data.page || nextPage);
+        setLimit(data.limit || nextLimit);
         setPages(data.pages || 1);
       } catch (error) {
         showToast('error', error instanceof Error ? error.message : 'Failed to load movies');
@@ -640,7 +672,7 @@ export default function MovieManagementSection() {
         setLoading(false);
       }
     },
-    [authHeaders, page, publishFilter, query, statusFilter]
+    [authHeaders, limit, page, publishFilter, query, releaseState, statusFilter]
   );
 
   useEffect(() => {
@@ -878,6 +910,14 @@ export default function MovieManagementSection() {
     setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
+  const closePanel = () => {
+    setPanelOpen(false);
+    setEditingId(null);
+    setErrors({});
+    setApiError('');
+    setTab('basic');
+  };
+
   const openEdit = async (movie: MovieRow) => {
     setPanelOpen(true);
     setEditingId(movie.id);
@@ -921,6 +961,27 @@ export default function MovieManagementSection() {
     } finally {
       setConfirmArchive(null);
       setConfirmDelete(null);
+    }
+  };
+
+  const updateMovieQuick = async (movie: MovieRow, patch: Partial<MovieRow>) => {
+    setBusy(movie.id, true);
+    try {
+      const response = await fetch(`/api/superadmin/movies/${movie.id}`, {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success)
+        throw new Error(data.error || data.message || 'Update failed');
+      const updated = serializeMovieRow(data.data);
+      setMovies((previous) => previous.map((item) => (item.id === movie.id ? updated : item)));
+      showToast('success', `"${movie.title}" updated`);
+    } catch (error) {
+      showToast('error', error instanceof Error ? error.message : 'Update failed');
+    } finally {
+      setBusy(movie.id, false);
     }
   };
 
@@ -1932,7 +1993,7 @@ export default function MovieManagementSection() {
         <div className="mt-5 flex flex-wrap gap-3">
           {form.slug && (
             <a
-              href={`/upcoming-movies/${form.slug}`}
+              href={`/${isMovieReleased(form) ? 'movie-details' : 'upcoming-movies'}/${form.slug}`}
               target="_blank"
               rel="noreferrer"
               className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-200 hover:bg-white/10"
@@ -1973,32 +2034,28 @@ export default function MovieManagementSection() {
 
   const dashboardStats = [
     {
-      label: 'Total Movies',
+      label: 'Total',
       value: total.toLocaleString(),
       icon: 'FilmIcon',
-      color: 'from-blue-500/20 to-blue-600/20',
-      border: 'border-blue-500/30',
-    },
-    {
-      label: 'Published',
-      value: movies.filter((movie) => movie.publishStatus === 'published').length.toString(),
-      icon: 'CheckBadgeIcon',
-      color: 'from-emerald-500/20 to-emerald-600/20',
-      border: 'border-emerald-500/30',
-    },
-    {
-      label: 'Trending',
-      value: movies.filter((movie) => movie.isTrending).length.toString(),
-      icon: 'FireIcon',
-      color: 'from-red-500/20 to-red-600/20',
-      border: 'border-red-500/30',
+      color: 'text-yellow-400',
     },
     {
       label: 'Featured',
       value: movies.filter((movie) => movie.isFeatured).length.toString(),
-      icon: 'StarIcon',
-      color: 'from-yellow-500/20 to-yellow-600/20',
-      border: 'border-yellow-500/30',
+      icon: 'SparklesIcon',
+      color: 'text-purple-400',
+    },
+    {
+      label: 'This Page',
+      value: movies.length.toString(),
+      icon: 'RectangleGroupIcon',
+      color: 'text-blue-400',
+    },
+    {
+      label: 'Pages',
+      value: pages.toString(),
+      icon: 'BookOpenIcon',
+      color: 'text-emerald-400',
     },
   ];
 
@@ -2015,214 +2072,314 @@ export default function MovieManagementSection() {
       {!panelOpen && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {dashboardStats.map((stat) => (
-            <div
-              key={stat.label}
-              className={`glass-card rounded-2xl p-5 border ${stat.border} bg-gradient-to-br ${stat.color}`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-neutral-400 text-xs font-montserrat uppercase tracking-wider truncate">
-                    {stat.label}
-                  </p>
-                  <p className="text-2xl font-bold text-white font-montserrat mt-1">{stat.value}</p>
-                </div>
-                <Icon name={stat.icon} size={24} className="text-yellow-400 shrink-0" />
-              </div>
+            <div key={stat.label} className="glass-card rounded-2xl p-5">
+              <Icon name={stat.icon} size={20} className={stat.color} />
+              <p className="font-playfair text-3xl font-bold text-white mt-3">
+                {loading ? (
+                  <span className="block h-8 w-10 rounded bg-white/10 animate-pulse" />
+                ) : (
+                  stat.value
+                )}
+              </p>
+              <p className="text-neutral-400 text-sm font-montserrat mt-1">{stat.label}</p>
             </div>
           ))}
         </div>
       )}
 
       <div className="glass-card rounded-2xl p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-white font-montserrat">Upcoming Movies</h2>
-            <p className="text-sm text-neutral-500 font-montserrat mt-0.5">
-              Manage movie database entries, publishing state, SEO metadata, and public listing
-              data.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative">
-              <Icon
-                name="MagnifyingGlassIcon"
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500"
-              />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') fetchMovies(1);
-                }}
-                placeholder="Search title, cast, director..."
-                className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 font-montserrat text-sm text-white placeholder-neutral-600 outline-none transition-all focus:border-yellow-500/60 sm:w-72"
-              />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-white font-montserrat">
+                {panelOpen
+                  ? editingId
+                    ? 'Edit Upcoming Movie'
+                    : 'Create Upcoming Movie'
+                  : 'Upcoming Movies'}
+              </h2>
+              <p className="text-sm text-neutral-500 font-montserrat mt-0.5">
+                {panelOpen
+                  ? 'Fill in the movie database details across the tabs below.'
+                  : releaseState === 'released'
+                    ? 'Released movies are shown on the user-side Movie Details pages.'
+                    : 'Upcoming movies are future or TBA releases shown on the user-side Upcoming Movies pages.'}
+              </p>
             </div>
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 font-montserrat text-sm text-white outline-none focus:border-yellow-500/60"
-            >
-              <option value="">All movie statuses</option>
-              {MOVIE_STATUSES.map((item) => (
-                <option key={item} value={item}>
-                  {labelize(item)}
-                </option>
-              ))}
-            </select>
-            <select
-              value={publishFilter}
-              onChange={(event) => setPublishFilter(event.target.value)}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 font-montserrat text-sm text-white outline-none focus:border-yellow-500/60"
-            >
-              <option value="">All publish states</option>
-              {PUBLISH_STATUSES.map((item) => (
-                <option key={item} value={item}>
-                  {labelize(item)}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => fetchMovies(1)}
-              className="rounded-xl bg-white/5 px-4 py-2.5 font-montserrat text-sm font-medium text-neutral-300 transition-all hover:bg-white/10 hover:text-white"
-            >
-              Filter
-            </button>
-            <button
-              type="button"
-              onClick={openAdd}
-              className="flex items-center justify-center gap-2 rounded-xl bg-yellow-500 px-4 py-2.5 font-montserrat text-sm font-semibold text-black transition-all hover:bg-yellow-400"
-            >
-              <Icon name="PlusIcon" size={16} /> Add Movie
-            </button>
+            {panelOpen && (
+              <button
+                type="button"
+                onClick={closePanel}
+                className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 font-montserrat text-sm font-semibold text-neutral-300 transition-all hover:bg-white/20 hover:text-white"
+              >
+                <Icon name="ChevronLeftIcon" size={16} /> Back to List
+              </button>
+            )}
           </div>
+
+          {!panelOpen && (
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:flex-nowrap">
+              <div className="flex shrink-0 rounded-xl border border-white/10 bg-white/5 p-1">
+                {[
+                  { key: 'upcoming', label: 'Upcoming' },
+                  { key: 'released', label: 'Released' },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      setReleaseState(item.key as 'upcoming' | 'released');
+                      setPage(1);
+                    }}
+                    className={`rounded-lg px-3 py-1.5 font-montserrat text-sm transition-all ${
+                      releaseState === item.key
+                        ? 'bg-yellow-500 text-black'
+                        : 'text-neutral-400 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <div className="relative min-w-[260px] flex-1">
+                <Icon
+                  name="MagnifyingGlassIcon"
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500"
+                />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') fetchMovies(1);
+                  }}
+                  placeholder="Search title, cast, director..."
+                  className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 font-montserrat text-sm text-white placeholder-neutral-600 outline-none transition-all focus:border-yellow-500/60"
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 font-montserrat text-sm text-white outline-none focus:border-yellow-500/60 xl:w-52"
+              >
+                <option value="">All movie statuses</option>
+                {MOVIE_STATUSES.map((item) => (
+                  <option key={item} value={item}>
+                    {labelize(item)}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={limit}
+                onChange={(event) => fetchMovies(1, Number(event.target.value))}
+                className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 font-montserrat text-sm text-white outline-none focus:border-yellow-500/60"
+              >
+                {PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size} / page
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => fetchMovies(page)}
+                disabled={loading}
+                title="Refresh"
+                className="shrink-0 rounded-xl bg-white/5 px-3 py-2.5 text-neutral-400 transition-all hover:bg-white/10 hover:text-white disabled:opacity-40"
+              >
+                <Icon name="ArrowPathIcon" size={16} className={loading ? 'animate-spin' : ''} />
+              </button>
+              <button
+                type="button"
+                onClick={openAdd}
+                className="flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-yellow-500 px-4 py-2.5 font-montserrat text-sm font-semibold text-black transition-all hover:bg-yellow-400"
+              >
+                <Icon name="PlusIcon" size={16} /> Add Movie
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="grid grid-cols-12 border-b border-white/10 px-4 py-3 font-montserrat text-xs uppercase tracking-wider text-neutral-500">
-          <span className="col-span-5">Movie</span>
-          <span className="col-span-2 hidden md:block">Release</span>
-          <span className="col-span-3 md:col-span-2">Status</span>
-          <span className="col-span-2 hidden lg:block">Flags</span>
-          <span className="col-span-4 md:col-span-3 lg:col-span-1 text-right">Actions</span>
-        </div>
-        {loading ? (
-          <div className="space-y-3 p-4">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-16 animate-pulse rounded-xl bg-white/5" />
-            ))}
+      {!panelOpen && (
+        <div className="glass-card rounded-2xl p-6">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h3 className="font-playfair text-xl font-bold text-white">
+              {releaseState === 'released' ? 'Released Movies' : 'Upcoming Movies'}
+            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              {(['', 'draft', 'published'] as const).map((state) => (
+                <button
+                  key={state}
+                  type="button"
+                  onClick={() => {
+                    setPublishFilter(state);
+                    setPage(1);
+                  }}
+                  className={`rounded-lg border px-3 py-1.5 font-montserrat text-xs font-medium transition-all ${
+                    publishFilter === state
+                      ? state === 'published'
+                        ? 'border-emerald-500/30 bg-emerald-500/25 text-emerald-300'
+                        : state === 'draft'
+                          ? 'border-yellow-500/30 bg-yellow-500/25 text-yellow-300'
+                          : 'border-white/20 bg-white/15 text-white'
+                      : 'border-white/5 bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {state === '' ? 'All' : labelize(state)}
+                </button>
+              ))}
+            </div>
+            {!loading && (
+              <span className="font-montserrat text-sm text-neutral-400">
+                {total > 0
+                  ? `Showing ${(page - 1) * limit + 1}-${Math.min(page * limit, total)} of ${total}`
+                  : '0 results'}
+              </span>
+            )}
           </div>
-        ) : movies.length === 0 ? (
-          <div className="p-10 text-center">
-            <Icon name="FilmIcon" size={36} className="mx-auto mb-3 text-neutral-600" />
-            <p className="font-montserrat text-neutral-400">No movies found.</p>
-            <button
-              type="button"
-              onClick={openAdd}
-              className="mt-3 font-montserrat text-sm text-yellow-400 hover:underline"
-            >
-              + Add the first movie
-            </button>
+
+          <div className="grid grid-cols-12 border-b border-white/10 px-3 py-3 font-montserrat text-xs uppercase tracking-wider text-neutral-500">
+            <span className="col-span-5">Movie</span>
+            <span className="col-span-2 hidden md:block">Release</span>
+            <span className="col-span-3 md:col-span-2">Status</span>
+            <span className="col-span-2 hidden lg:block">Featured</span>
+            <span className="col-span-4 md:col-span-3 lg:col-span-1 text-right">Actions</span>
           </div>
-        ) : (
-          movies.map((movie) => (
-            <div
-              key={movie.id}
-              className="grid grid-cols-12 items-center gap-3 border-b border-white/5 px-4 py-4 font-montserrat text-sm transition-all last:border-0 hover:bg-white/[0.03]"
-            >
-              <div className="col-span-5 min-w-0">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="relative hidden h-12 w-9 shrink-0 overflow-hidden rounded-lg bg-white/5 sm:block">
-                    {movie.posterImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={movie.posterImage} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <Icon
-                        name="FilmIcon"
-                        size={16}
-                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-neutral-600"
-                      />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-white">{movie.title}</p>
-                    <p className="truncate text-xs text-neutral-500">/{movie.slug}</p>
-                    <p className="mt-1 hidden truncate text-xs text-neutral-500 sm:block">
-                      {(movie.genres || []).slice(0, 3).join(', ') || 'No genres'}
-                    </p>
+          {loading ? (
+            <div className="space-y-3 p-4">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="h-16 animate-pulse rounded-xl bg-white/5" />
+              ))}
+            </div>
+          ) : movies.length === 0 ? (
+            <div className="p-10 text-center">
+              <Icon name="FilmIcon" size={36} className="mx-auto mb-3 text-neutral-600" />
+              <p className="font-montserrat text-neutral-400">No movies found.</p>
+              <button
+                type="button"
+                onClick={openAdd}
+                className="mt-3 font-montserrat text-sm text-yellow-400 hover:underline"
+              >
+                + Add the first movie
+              </button>
+            </div>
+          ) : (
+            movies.map((movie) => (
+              <div
+                key={movie.id}
+                className={`grid grid-cols-12 items-center gap-3 border-b border-white/5 px-3 py-4 font-montserrat text-sm transition-all last:border-0 hover:bg-white/[0.03] ${busyMap[movie.id] ? 'pointer-events-none opacity-50' : ''}`}
+              >
+                <div className="col-span-5 min-w-0">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="relative hidden h-12 w-9 shrink-0 overflow-hidden rounded-lg bg-white/5 sm:block">
+                      {movie.posterImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={movie.posterImage}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <Icon
+                          name="FilmIcon"
+                          size={16}
+                          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-neutral-600"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-white">{movie.title}</p>
+                      <p className="truncate text-xs text-neutral-500">/{movie.slug}</p>
+                      <p className="mt-1 hidden truncate text-xs text-neutral-500 sm:block">
+                        {(movie.genres || []).slice(0, 3).join(', ') || 'No genres'}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="col-span-2 hidden text-neutral-300 md:block">
-                {movie.releaseDateText ||
-                  toDateInput(movie.releaseDate) ||
-                  movie.releaseYear ||
-                  'TBA'}
-              </div>
-              <div className="col-span-3 md:col-span-2">
-                <span
-                  className={`rounded-full px-2 py-1 text-xs ${STATUS_COLORS[movie.publishStatus || 'draft'] || 'bg-white/10 text-neutral-300'}`}
-                >
-                  {labelize(movie.publishStatus || 'draft')}
-                </span>
-                <span
-                  className={`ml-2 hidden rounded-full px-2 py-1 text-xs xl:inline ${STATUS_COLORS[movie.status || 'announced'] || 'bg-blue-500/15 text-blue-200'}`}
-                >
-                  {labelize(movie.status || 'announced')}
-                </span>
-              </div>
-              <div className="col-span-2 hidden flex-wrap gap-1 lg:flex">
-                {movie.isFeatured && (
-                  <span className="rounded-full bg-yellow-500/15 px-2 py-1 text-xs text-yellow-200">
-                    Featured
+                <div className="col-span-2 hidden text-neutral-300 md:block">
+                  {movie.releaseDateText ||
+                    toDateInput(movie.releaseDate) ||
+                    movie.releaseYear ||
+                    'TBA'}
+                </div>
+                <div className="col-span-3 md:col-span-2">
+                  <div className="inline-flex overflow-hidden rounded-lg border border-white/10">
+                    {(['draft', 'published'] as const).map((state) => (
+                      <button
+                        key={state}
+                        type="button"
+                        onClick={() => updateMovieQuick(movie, { publishStatus: state })}
+                        disabled={!!busyMap[movie.id] || movie.publishStatus === state}
+                        title={`Set to ${labelize(state)}`}
+                        className={`px-2.5 py-1 font-montserrat text-xs font-medium transition-all disabled:opacity-80 ${
+                          (movie.publishStatus || 'draft') === state
+                            ? state === 'published'
+                              ? 'bg-emerald-500/25 text-emerald-300'
+                              : 'bg-yellow-500/25 text-yellow-300'
+                            : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
+                        }`}
+                      >
+                        {labelize(state)}
+                      </button>
+                    ))}
+                  </div>
+                  <span
+                    className={`ml-2 hidden rounded-full px-2 py-1 text-xs 2xl:inline ${STATUS_COLORS[movie.status || 'announced'] || 'bg-blue-500/15 text-blue-200'}`}
+                  >
+                    {labelize(movie.status || 'announced')}
                   </span>
-                )}
-                {movie.isTrending && (
-                  <span className="rounded-full bg-red-500/15 px-2 py-1 text-xs text-red-200">
-                    Trending
-                  </span>
-                )}
-                {movie.isEditorPick && (
-                  <span className="rounded-full bg-purple-500/15 px-2 py-1 text-xs text-purple-200">
-                    Pick
-                  </span>
-                )}
+                </div>
+                <div className="col-span-2 hidden items-center gap-3 lg:flex">
+                  <button
+                    type="button"
+                    onClick={() => updateMovieQuick(movie, { isFeatured: !movie.isFeatured })}
+                    title={movie.isFeatured ? 'Unfeature' : 'Feature'}
+                    className={`relative h-5 w-10 rounded-full transition-all ${movie.isFeatured ? 'bg-yellow-500' : 'bg-white/10'}`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${movie.isFeatured ? 'left-5' : 'left-0.5'}`}
+                    />
+                  </button>
+                  {movie.isTrending && (
+                    <span className="rounded-full bg-red-500/15 px-2 py-1 text-xs text-red-200">
+                      Trending
+                    </span>
+                  )}
+                </div>
+                <div className="col-span-4 md:col-span-3 lg:col-span-1 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(movie)}
+                    title="Edit"
+                    className="rounded-lg bg-yellow-500/10 p-2 text-yellow-400 transition-all hover:bg-yellow-500/20"
+                  >
+                    <Icon name="PencilSquareIcon" size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmArchive(movie)}
+                    title="Archive"
+                    className="rounded-lg bg-amber-500/10 p-2 text-amber-300 transition-all hover:bg-amber-500/20"
+                  >
+                    <Icon name="ArchiveBoxIcon" size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(movie)}
+                    title="Delete"
+                    className="rounded-lg bg-red-500/10 p-2 text-red-400 transition-all hover:bg-red-500/20"
+                  >
+                    <Icon name="TrashIcon" size={15} />
+                  </button>
+                </div>
               </div>
-              <div className="col-span-4 md:col-span-3 lg:col-span-1 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => openEdit(movie)}
-                  title="Edit"
-                  className="rounded-lg border border-white/10 p-2 text-neutral-300 hover:bg-white/10"
-                >
-                  <Icon name="PencilIcon" size={15} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmArchive(movie)}
-                  title="Archive"
-                  className="rounded-lg border border-amber-500/30 p-2 text-amber-200 hover:bg-amber-500/10"
-                >
-                  <Icon name="ArchiveBoxIcon" size={15} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(movie)}
-                  title="Delete"
-                  className="rounded-lg border border-red-500/30 p-2 text-red-300 hover:bg-red-500/10"
-                >
-                  <Icon name="TrashIcon" size={15} />
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+            ))
+          )}
+        </div>
+      )}
 
-      {pages > 1 && (
+      {!panelOpen && pages > 1 && (
         <div className="flex justify-center gap-2">
           <button
             type="button"
@@ -2282,7 +2439,7 @@ export default function MovieManagementSection() {
               </button>
               <button
                 type="button"
-                onClick={() => setPanelOpen(false)}
+                onClick={closePanel}
                 className="rounded-xl bg-white/5 p-2 text-neutral-400 transition-all hover:bg-white/10 hover:text-white"
                 title="Close"
               >

@@ -52,7 +52,11 @@ async function putHandler(request: NextRequest, { params }: { params: Promise<{ 
     await dbConnect();
     const { id } = await params;
     const body = await request.json();
-    const payload = toMovieWritePayload(body);
+    const existing = await Movie.findById(id).lean();
+    if (!existing)
+      return NextResponse.json({ success: false, error: 'Movie not found' }, { status: 404 });
+
+    const payload = toMovieWritePayload({ ...existing, ...body });
     payload.slug = await uniqueSlug(payload.slug || payload.title, id);
 
     const mode = payload.publishStatus === 'published' ? 'publish' : 'draft';

@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
@@ -19,34 +19,106 @@ import SystemControlsSection from './SystemControlsSection';
 import UserOutfitApprovalsSection from './UserOutfitApprovalsSection';
 import ApiKeyManagementSection from './ApiKeyManagementSection';
 
-type SectionType = 'overview' | 'roles' | 'celebrities' | 'outfits' | 'user-outfit-approvals' | 'news' | 'movies' | 'reviews' | 'data' | 'platform' | 'system' | 'settings' | 'api-keys';
+type SectionType =
+  | 'overview'
+  | 'roles'
+  | 'celebrities'
+  | 'outfits'
+  | 'user-outfit-approvals'
+  | 'news'
+  | 'movies'
+  | 'reviews'
+  | 'data'
+  | 'platform'
+  | 'system'
+  | 'settings'
+  | 'api-keys';
+type OverviewStats = {
+  totalUsers: number;
+  totalAdmins: number;
+  totalSuperadmins: number;
+  activeUsers: number;
+  totalCollections: number;
+  apiCallsToday: number;
+  apiCallsThisMonth: number;
+  activeApiKeys: number;
+  errorRatePercent: number | null;
+  telemetryFound: string | null;
+  storageUsedMB: number;
+  revenueMTD: number;
+  revenueAllTime: number;
+  ordersMTD: number;
+  paidOrdersAllTime: number;
+  contentCounts: {
+    celebrities: number;
+    outfits: number;
+    news: number;
+    movies: number;
+    reviews: number;
+    userOutfits: number;
+    apiKeys: number;
+  };
+  recentActivity: {
+    msg: string;
+    time: string;
+    color: string;
+  }[];
+};
 
 const menuItems: { id: SectionType; label: string; icon: string; desc: string }[] = [
-  { id: 'overview',  label: 'Overview',           icon: 'Squares2X2Icon',  desc: 'System at a glance'             },
-  { id: 'roles',       label: 'Role Management',    icon: 'KeyIcon',         desc: 'Manage roles & permissions'     },
-  { id: 'celebrities', label: 'Celebrity Profiles', icon: 'StarIcon',        desc: 'Manage celebrity profiles'       },
-  { id: 'outfits',             label: 'Celebrity Outfits',  icon: 'SparklesIcon',      desc: 'Manage celebrity outfits'                  },
-  { id: 'user-outfit-approvals', label: 'Outfit Approvals',   icon: 'CheckBadgeIcon',    desc: 'Review & approve user-submitted outfits'   },
-  { id: 'news',        label: 'Celebrity News',    icon: 'NewspaperIcon',   desc: 'Manage news articles'            },
-  { id: 'movies',      label: 'Upcoming Movies',   icon: 'FilmIcon',        desc: 'Manage movies & releases'        },
-  { id: 'reviews',     label: 'Movie Reviews',     icon: 'DocumentTextIcon', desc: 'Manage movie reviews'           },
-  { id: 'api-keys',    label: 'API Key Tracker',   icon: 'KeyIcon',          desc: 'Monitor user API usage & payments' },
+  { id: 'overview', label: 'Overview', icon: 'Squares2X2Icon', desc: 'System at a glance' },
+  { id: 'roles', label: 'Role Management', icon: 'KeyIcon', desc: 'Manage roles & permissions' },
+  {
+    id: 'celebrities',
+    label: 'Celebrity Profiles',
+    icon: 'StarIcon',
+    desc: 'Manage celebrity profiles',
+  },
+  {
+    id: 'outfits',
+    label: 'Celebrity Outfits',
+    icon: 'SparklesIcon',
+    desc: 'Manage celebrity outfits',
+  },
+  {
+    id: 'user-outfit-approvals',
+    label: 'Outfit Approvals',
+    icon: 'CheckBadgeIcon',
+    desc: 'Review & approve user-submitted outfits',
+  },
+  { id: 'news', label: 'Celebrity News', icon: 'NewspaperIcon', desc: 'Manage news articles' },
+  { id: 'movies', label: 'Upcoming Movies', icon: 'FilmIcon', desc: 'Manage movies & releases' },
+  { id: 'reviews', label: 'Movie Reviews', icon: 'DocumentTextIcon', desc: 'Manage movie reviews' },
+  {
+    id: 'api-keys',
+    label: 'API Key Tracker',
+    icon: 'KeyIcon',
+    desc: 'Monitor user API usage & payments',
+  },
   // { id: 'data',        label: 'All Data Access',    icon: 'CircleStackIcon', desc: 'Full database access'           },
   // { id: 'platform',  label: 'Platform Analytics', icon: 'PresentationChartLineIcon', desc: 'Deep platform metrics' },
   // { id: 'system',    label: 'System Controls',    icon: 'CpuChipIcon',     desc: 'Server & system management'     },
   // { id: 'settings',  label: 'SA Settings',        icon: 'AdjustmentsHorizontalIcon', desc: 'Super admin configuration' },
 ];
 
-const stats = [
-  { label: 'Total Users',    value: '12,842', change: '+8.2%',  icon: 'UsersIcon',             color: 'from-blue-500/20 to-blue-600/20',   border: 'border-blue-500/30'   },
-  { label: 'Admins',         value: '14',     change: '+2',     icon: 'ShieldCheckIcon',        color: 'from-indigo-500/20 to-indigo-600/20', border: 'border-indigo-500/30' },
-  { label: 'DB Collections', value: '28',     change: 'stable', icon: 'CircleStackIcon',        color: 'from-teal-500/20 to-teal-600/20',   border: 'border-teal-500/30'   },
-  { label: 'Server Uptime',  value: '99.97%', change: '↑',      icon: 'SignalIcon',             color: 'from-green-500/20 to-green-600/20', border: 'border-green-500/30'  },
-  { label: 'API Calls/day',  value: '284K',   change: '+14%',   icon: 'BoltIcon',               color: 'from-yellow-500/20 to-yellow-600/20', border: 'border-yellow-500/30' },
-  { label: 'Error Rate',     value: '0.03%',  change: '-0.01%', icon: 'ExclamationTriangleIcon', color: 'from-red-500/20 to-red-600/20',    border: 'border-red-500/30'    },
-  { label: 'Storage Used',   value: '48.2 GB', change: '+1.1 GB', icon: 'ServerIcon',           color: 'from-purple-500/20 to-purple-600/20', border: 'border-purple-500/30' },
-  { label: 'Revenue (MTD)',  value: '$9,214', change: '+18.3%', icon: 'CurrencyDollarIcon',     color: 'from-orange-500/20 to-orange-600/20', border: 'border-orange-500/30' },
-];
+const sectionMeta: Record<SectionType, { label: string; desc: string }> = {
+  overview: { label: 'Overview', desc: 'System at a glance' },
+  roles: { label: 'Role Management', desc: 'Manage roles & permissions' },
+  celebrities: { label: 'Celebrity Profiles', desc: 'Manage celebrity profiles' },
+  outfits: { label: 'Celebrity Outfits', desc: 'Manage celebrity outfits' },
+  'user-outfit-approvals': {
+    label: 'Outfit Approvals',
+    desc: 'Review & approve user-submitted outfits',
+  },
+  news: { label: 'Celebrity News', desc: 'Manage news articles' },
+  movies: { label: 'Upcoming Movies', desc: 'Manage movies & releases' },
+  reviews: { label: 'Movie Reviews', desc: 'Manage movie reviews' },
+  data: { label: 'All Data Access', desc: 'Full database access' },
+  platform: { label: 'Platform Analytics', desc: 'Deep platform metrics' },
+  system: { label: 'System Controls', desc: 'Server & system management' },
+  settings: { label: 'Platform Settings', desc: 'Super admin configuration' },
+  'api-keys': { label: 'API Key Tracker', desc: 'Monitor user API usage & payments' },
+};
 
 export default function SuperAdminDashboardInteractive() {
   const [activeSection, setActiveSection] = useState<SectionType>('overview');
@@ -62,29 +134,41 @@ export default function SuperAdminDashboardInteractive() {
     router.push('/login');
   };
 
-  const active = menuItems.find((m) => m.id === activeSection)!;
+  const active = sectionMeta[activeSection];
 
   const renderContent = () => {
     switch (activeSection) {
-      case 'overview':  return <OverviewSection />;
-      case 'roles':       return <RoleManagementSection />;
-      case 'celebrities': return <CelebrityManagementSection />;
-      case 'outfits':               return <OutfitManagementSection />;
-      case 'user-outfit-approvals':   return <UserOutfitApprovalsSection />;
-      case 'news':        return <NewsManagementSection />;
-      case 'movies':      return <MovieManagementSection />;
-      case 'reviews':     return <ReviewManagementSection />;
-      case 'api-keys':   return <ApiKeyManagementSection />;
-      case 'data':        return <AllDataAccessSection />;
-      case 'platform':  return <PlatformAnalyticsSection />;
-      case 'system':    return <SystemControlsSection />;
-      case 'settings':  return <SuperAdminSettingsSection />;
+      case 'overview':
+        return <OverviewSection onNavigate={setActiveSection} />;
+      case 'roles':
+        return <RoleManagementSection />;
+      case 'celebrities':
+        return <CelebrityManagementSection />;
+      case 'outfits':
+        return <OutfitManagementSection />;
+      case 'user-outfit-approvals':
+        return <UserOutfitApprovalsSection />;
+      case 'news':
+        return <NewsManagementSection />;
+      case 'movies':
+        return <MovieManagementSection />;
+      case 'reviews':
+        return <ReviewManagementSection />;
+      case 'api-keys':
+        return <ApiKeyManagementSection />;
+      case 'data':
+        return <AllDataAccessSection />;
+      case 'platform':
+        return <PlatformAnalyticsSection />;
+      case 'system':
+        return <SystemControlsSection />;
+      case 'settings':
+        return <SuperAdminSettingsSection />;
     }
   };
 
   return (
     <div className="flex min-h-screen bg-background">
-
       {/* ── Mobile overlay backdrop ──────────────────────────────────────── */}
       {mobileOpen && (
         <div
@@ -96,17 +180,24 @@ export default function SuperAdminDashboardInteractive() {
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
       {/* On mobile: slides in from left as drawer (translate-x-0 when open, -translate-x-full when closed)
           On lg+: always visible, collapses to icon-only */}
-      <aside className={`
+      <aside
+        className={`
         fixed top-0 left-0 bottom-0 z-40 flex flex-col glass-card border-r border-white/10 transition-all duration-300
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
         xl:translate-x-0
         ${collapsed ? 'xl:w-[72px]' : 'xl:w-64'}
         w-64
-      `}>
-
+      `}
+      >
         {/* Brand */}
-        <div className={`flex items-center gap-3 px-5 py-9 border-b border-white/10 ${collapsed ? 'xl:justify-center xl:px-0' : ''}`}>
-          <Link href="/" className="flex min-w-0 items-center shrink-0" onClick={() => setMobileOpen(false)}>
+        <div
+          className={`flex items-center gap-3 px-5 py-9 border-b border-white/10 ${collapsed ? 'xl:justify-center xl:px-0' : ''}`}
+        >
+          <Link
+            href="/"
+            className="flex min-w-0 items-center shrink-0"
+            onClick={() => setMobileOpen(false)}
+          >
             <BrandLogo
               variant="compact"
               tone="dark"
@@ -128,7 +219,10 @@ export default function SuperAdminDashboardInteractive() {
           {menuItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => { setActiveSection(item.id); setMobileOpen(false); }}
+              onClick={() => {
+                setActiveSection(item.id);
+                setMobileOpen(false);
+              }}
               title={collapsed ? item.label : undefined}
               className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition-all ${
                 activeSection === item.id
@@ -144,7 +238,8 @@ export default function SuperAdminDashboardInteractive() {
 
         {/* Bottom actions */}
         <div className="px-3 py-4 border-t border-white/10 space-y-1">
-          <Link href="/"
+          <Link
+            href="/"
             className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-neutral-400 hover:text-white hover:bg-white/5 transition-all ${collapsed ? 'xl:justify-center' : ''}`}
             title={collapsed ? 'Home' : undefined}
             onClick={() => setMobileOpen(false)}
@@ -159,7 +254,9 @@ export default function SuperAdminDashboardInteractive() {
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all disabled:opacity-50 ${collapsed ? 'xl:justify-center' : ''}`}
           >
             <Icon name="ArrowRightOnRectangleIcon" size={20} className="shrink-0" />
-            <span className={collapsed ? 'xl:hidden' : ''}>{logoutLoading ? 'Signing out...' : 'Sign Out'}</span>
+            <span className={collapsed ? 'xl:hidden' : ''}>
+              {logoutLoading ? 'Signing out...' : 'Sign Out'}
+            </span>
           </button>
         </div>
 
@@ -168,12 +265,18 @@ export default function SuperAdminDashboardInteractive() {
           onClick={() => setCollapsed(!collapsed)}
           className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-yellow-500 items-center justify-center hover:scale-110 transition-transform z-50 hidden xl:flex"
         >
-          <Icon name={collapsed ? 'ChevronRightIcon' : 'ChevronLeftIcon'} size={14} className="text-black" />
+          <Icon
+            name={collapsed ? 'ChevronRightIcon' : 'ChevronLeftIcon'}
+            size={14}
+            className="text-black"
+          />
         </button>
       </aside>
 
       {/* ── Main content ─────────────────────────────────────────────── */}
-      <main className={`flex-1 min-w-0 transition-all duration-300 ${collapsed ? 'xl:ml-[72px]' : 'xl:ml-64'}`}>
+      <main
+        className={`flex-1 min-w-0 transition-all duration-300 ${collapsed ? 'xl:ml-[72px]' : 'xl:ml-64'}`}
+      >
         {/* Top bar */}
         <div className="sticky top-0 z-30 glass-card border-b border-white/10 px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3">
           {/* Hamburger — mobile only */}
@@ -186,17 +289,32 @@ export default function SuperAdminDashboardInteractive() {
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full whitespace-nowrap">Super Admin Panel</span>
+              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full whitespace-nowrap">
+                Super Admin Panel
+              </span>
             </div>
-            <h1 className="font-playfair text-lg sm:text-2xl font-bold text-white truncate">{active.label}</h1>
-            <p className="text-neutral-400 text-xs sm:text-sm hidden sm:block truncate">{active.desc}</p>
+            <h1 className="font-playfair text-lg sm:text-2xl font-bold text-white truncate">
+              {active.label}
+            </h1>
+            <p className="text-neutral-400 text-xs sm:text-sm hidden sm:block truncate">
+              {active.desc}
+            </p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
             <div className="hidden sm:flex flex-col text-left max-w-[180px]">
               <span className="text-sm text-white font-semibold truncate">{user?.name}</span>
-              <span className="text-xs text-neutral-400 truncate hidden md:block">{user?.email}</span>
-              <span className="text-xs text-neutral-500 truncate hidden lg:block">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              <span className="text-xs text-neutral-400 truncate hidden md:block">
+                {user?.email}
+              </span>
+              <span className="text-xs text-neutral-500 truncate hidden lg:block">
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </span>
             </div>
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center shrink-0">
               <Icon name="StarIcon" size={16} className="text-black" />
@@ -213,31 +331,198 @@ export default function SuperAdminDashboardInteractive() {
 }
 
 // ── Overview section ──────────────────────────────────────────────────────────
-function OverviewSection() {
-  const { user } = useAuth();
+function formatCompactNumber(value?: number | null) {
+  if (value == null) return 'N/A';
+  return Intl.NumberFormat('en-US', {
+    notation: Math.abs(value) >= 10000 ? 'compact' : 'standard',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function formatStorage(megabytes?: number | null) {
+  if (!megabytes) return '0 MB';
+  if (megabytes >= 1024) return `${(megabytes / 1024).toFixed(megabytes >= 10240 ? 0 : 1)} GB`;
+  return `${megabytes.toFixed(megabytes >= 100 ? 0 : 1)} MB`;
+}
+
+function formatCurrencyINR(value?: number | null) {
+  return Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+}
+
+function buildOverviewCards(data: OverviewStats) {
+  const contentTotal = Object.entries(data.contentCounts)
+    .filter(([key]) => key !== 'apiKeys')
+    .reduce((sum, [, value]) => sum + value, 0);
+
+  return [
+    {
+      label: 'Total Users',
+      value: formatCompactNumber(data.totalUsers),
+      change: `${formatCompactNumber(data.activeUsers)} active`,
+      icon: 'UsersIcon',
+      color: 'from-blue-500/20 to-blue-600/20',
+      border: 'border-blue-500/30',
+    },
+    {
+      label: 'Admins',
+      value: formatCompactNumber(data.totalAdmins),
+      change: `${formatCompactNumber(data.totalSuperadmins)} superadmin`,
+      icon: 'ShieldCheckIcon',
+      color: 'from-indigo-500/20 to-indigo-600/20',
+      border: 'border-indigo-500/30',
+    },
+    {
+      label: 'DB Collections',
+      value: formatCompactNumber(data.totalCollections),
+      change: 'live',
+      icon: 'CircleStackIcon',
+      color: 'from-teal-500/20 to-teal-600/20',
+      border: 'border-teal-500/30',
+    },
+    {
+      label: 'Content Items',
+      value: formatCompactNumber(contentTotal),
+      change: `${formatCompactNumber(data.contentCounts.movies)} movies`,
+      icon: 'RectangleStackIcon',
+      color: 'from-green-500/20 to-green-600/20',
+      border: 'border-green-500/30',
+    },
+    {
+      label: 'API Calls/day',
+      value: formatCompactNumber(data.apiCallsToday),
+      change: `${formatCompactNumber(data.apiCallsThisMonth)} month`,
+      icon: 'BoltIcon',
+      color: 'from-yellow-500/20 to-yellow-600/20',
+      border: 'border-yellow-500/30',
+    },
+    {
+      label: 'Error Rate',
+      value: data.errorRatePercent == null ? 'N/A' : `${data.errorRatePercent}%`,
+      change: data.telemetryFound ? data.telemetryFound : 'no logs',
+      icon: 'ExclamationTriangleIcon',
+      color: 'from-red-500/20 to-red-600/20',
+      border: 'border-red-500/30',
+    },
+    {
+      label: 'Storage Used',
+      value: formatStorage(data.storageUsedMB),
+      change: 'database',
+      icon: 'ServerIcon',
+      color: 'from-purple-500/20 to-purple-600/20',
+      border: 'border-purple-500/30',
+    },
+    {
+      label: 'Revenue (MTD)',
+      value: formatCurrencyINR(data.revenueMTD),
+      change: `${formatCompactNumber(data.ordersMTD)} orders`,
+      icon: 'CurrencyDollarIcon',
+      color: 'from-orange-500/20 to-orange-600/20',
+      border: 'border-orange-500/30',
+    },
+  ];
+}
+
+function OverviewSection({ onNavigate }: { onNavigate: (section: SectionType) => void }) {
+  const { user, authHeaders } = useAuth();
+  const [statsData, setStatsData] = useState<OverviewStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadStats = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/superadmin/stats', {
+        headers: authHeaders(),
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || 'Failed to load platform stats');
+      }
+
+      setStatsData(payload.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load platform stats');
+    } finally {
+      setLoading(false);
+    }
+  }, [authHeaders]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  const statCards = statsData ? buildOverviewCards(statsData) : [];
+
   return (
     <div className="space-y-8">
       <div className="rounded-2xl bg-gradient-to-r from-yellow-500/10 to-orange-600/10 border border-yellow-500/20 p-4 sm:p-6">
         <h2 className="font-playfair text-2xl font-bold text-white mb-1 sm:text-3xl">
           Welcome, {user?.name?.split(' ')[0]}! ⭐
         </h2>
-        <p className="text-neutral-400">You have full platform access. Use these powers responsibly.</p>
+        <p className="text-neutral-400">
+          You have full platform access. Use these powers responsibly.
+        </p>
       </div>
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {stats.map((s) => (
-          <div key={s.label} className={`glass-card rounded-2xl p-5 border ${s.border} bg-gradient-to-br ${s.color}`}>
-            <div className="flex items-center justify-between mb-3">
-              <Icon name={s.icon as any} size={22} className="text-white/70" />
-              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-white/10 text-neutral-300">
-                {s.change}
-              </span>
+        {loading &&
+          Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="glass-card rounded-2xl border border-white/10 p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="h-6 w-6 animate-pulse rounded-lg bg-white/10" />
+                <div className="h-6 w-20 animate-pulse rounded-full bg-white/10" />
+              </div>
+              <div className="h-8 w-24 animate-pulse rounded bg-white/10" />
+              <div className="mt-3 h-4 w-28 animate-pulse rounded bg-white/10" />
             </div>
-            <p className="font-playfair text-2xl font-bold text-white">{s.value}</p>
-            <p className="text-neutral-400 text-sm mt-1">{s.label}</p>
+          ))}
+
+        {!loading && error && (
+          <div className="glass-card rounded-2xl border border-red-500/30 p-5 sm:col-span-2 xl:col-span-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <Icon name="ExclamationCircleIcon" size={22} className="text-red-400" />
+                <div>
+                  <p className="font-semibold text-red-300">Could not load dynamic stats</p>
+                  <p className="text-sm text-neutral-400">{error}</p>
+                </div>
+              </div>
+              <button
+                onClick={loadStats}
+                className="rounded-xl bg-yellow-500 px-4 py-2 text-sm font-semibold text-black transition-all hover:bg-yellow-400"
+              >
+                Retry
+              </button>
+            </div>
           </div>
-        ))}
+        )}
+
+        {!loading &&
+          !error &&
+          statCards.map((s) => (
+            <div
+              key={s.label}
+              className={`glass-card rounded-2xl p-5 border ${s.border} bg-gradient-to-br ${s.color}`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <Icon name={s.icon as any} size={22} className="text-white/70" />
+                <span className="text-xs font-semibold px-2 py-1 rounded-full bg-white/10 text-neutral-300">
+                  {s.change}
+                </span>
+              </div>
+              <p className="font-playfair text-2xl font-bold text-white">{s.value}</p>
+              <p className="text-neutral-400 text-sm mt-1">{s.label}</p>
+            </div>
+          ))}
       </div>
 
       {/* Quick actions */}
@@ -245,12 +530,36 @@ function OverviewSection() {
         <h3 className="font-playfair text-xl font-bold text-white mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Create Admin Account', icon: 'UserPlusIcon',      color: 'text-blue-400'   },
-            { label: 'Database Backup',       icon: 'CircleStackIcon',  color: 'text-teal-400'   },
-            { label: 'View Audit Logs',        icon: 'ClipboardDocumentListIcon', color: 'text-yellow-400' },
-            { label: 'Platform Settings',     icon: 'CogIcon',           color: 'text-purple-400' },
+            {
+              label: 'Create Admin Account',
+              icon: 'UserPlusIcon',
+              color: 'text-blue-400',
+              section: 'roles' as SectionType,
+            },
+            {
+              label: 'Manage API Keys',
+              icon: 'KeyIcon',
+              color: 'text-teal-400',
+              section: 'api-keys' as SectionType,
+            },
+            {
+              label: 'Review Outfits',
+              icon: 'CheckBadgeIcon',
+              color: 'text-yellow-400',
+              section: 'user-outfit-approvals' as SectionType,
+            },
+            {
+              label: 'Platform Settings',
+              icon: 'CogIcon',
+              color: 'text-purple-400',
+              section: 'settings' as SectionType,
+            },
           ].map((a) => (
-            <button key={a.label} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all text-left">
+            <button
+              key={a.label}
+              onClick={() => onNavigate(a.section)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all text-left"
+            >
               <Icon name={a.icon as any} size={20} className={a.color} />
               <span className="text-neutral-300 text-sm">{a.label}</span>
             </button>
@@ -262,19 +571,36 @@ function OverviewSection() {
       <div className="glass-card rounded-2xl p-6 border border-white/10">
         <h3 className="font-playfair text-xl font-bold text-white mb-4">Recent System Activity</h3>
         <div className="space-y-3">
-          {[
-            { msg: 'New admin account created by system',      time: '2 min ago',   color: 'bg-blue-500'   },
-            { msg: 'Scheduled DB backup completed successfully', time: '1 hr ago',  color: 'bg-green-500'  },
-            { msg: 'Rate limit triggered on /api/auth/login',  time: '3 hrs ago',   color: 'bg-yellow-500' },
-            { msg: 'User account #8821 suspended by admin',    time: '5 hrs ago',   color: 'bg-red-500'    },
-            { msg: 'Content batch upload completed (142 items)', time: 'Yesterday', color: 'bg-purple-500' },
-          ].map((item, i) => (
-            <div key={i} className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
-              <div className={`w-2 h-2 rounded-full ${item.color} shrink-0`} />
-              <span className="text-neutral-300 text-sm flex-1">{item.msg}</span>
-              <span className="text-neutral-500 text-xs">{item.time}</span>
+          {loading &&
+            Array.from({ length: 5 }).map((_, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0"
+              >
+                <div className="h-2 w-2 shrink-0 rounded-full bg-white/10" />
+                <div className="h-4 flex-1 animate-pulse rounded bg-white/10" />
+                <div className="h-3 w-16 animate-pulse rounded bg-white/10" />
+              </div>
+            ))}
+
+          {!loading && !error && statsData?.recentActivity.length === 0 && (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-neutral-400">
+              No recent activity found yet.
             </div>
-          ))}
+          )}
+
+          {!loading &&
+            !error &&
+            statsData?.recentActivity.map((item, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0"
+              >
+                <div className={`w-2 h-2 rounded-full ${item.color} shrink-0`} />
+                <span className="text-neutral-300 text-sm flex-1">{item.msg}</span>
+                <span className="text-neutral-500 text-xs">{item.time}</span>
+              </div>
+            ))}
         </div>
       </div>
     </div>

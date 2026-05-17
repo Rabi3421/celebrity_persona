@@ -38,6 +38,9 @@ const RELEASED_LEGACY_STATUSES = [
   'In Theaters',
 ];
 
+const RELEASED_STATUS_VALUES = ['released', ...RELEASED_LEGACY_STATUSES];
+const NOT_PUBLIC_STATUS_VALUES = ['cancelled', 'Cancelled', 'draft', 'scheduled', 'archived'];
+
 export function slugifyMovie(value: string) {
   return value
     .toString()
@@ -79,6 +82,46 @@ export function dateOrUndefined(value: unknown): Date | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
+export function releaseCutoffDate(referenceDate = new Date()): Date {
+  return new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    referenceDate.getDate() + 1
+  );
+}
+
+export function releasedMovieCondition(referenceDate = new Date()): AnyRecord {
+  return {
+    $or: [
+      { releaseDate: { $lt: releaseCutoffDate(referenceDate) } },
+      { status: { $in: RELEASED_STATUS_VALUES } },
+    ],
+  };
+}
+
+export function upcomingMovieCondition(referenceDate = new Date()): AnyRecord {
+  return {
+    $and: [
+      { status: { $nin: RELEASED_STATUS_VALUES } },
+      {
+        $or: [
+          { releaseDate: { $gte: releaseCutoffDate(referenceDate) } },
+          { releaseDate: null },
+          { releaseDate: { $exists: false } },
+          { availabilityStatus: 'release_date_not_confirmed' },
+        ],
+      },
+    ],
+  };
+}
+
+export function isMovieReleased(movie: AnyRecord, referenceDate = new Date()): boolean {
+  const status = text(movie.status);
+  if (RELEASED_STATUS_VALUES.includes(status)) return true;
+  const releaseDate = dateOrUndefined(movie.releaseDate);
+  return Boolean(releaseDate && releaseDate < releaseCutoffDate(referenceDate));
+}
+
 export function isValidUrl(value?: string) {
   if (!value) return true;
   try {
@@ -110,14 +153,7 @@ export function publicMovieQuery(extra: AnyRecord = {}): AnyRecord {
       },
       {
         status: {
-          $nin: [
-            'cancelled',
-            'Cancelled',
-            'draft',
-            'scheduled',
-            'archived',
-            ...RELEASED_LEGACY_STATUSES,
-          ],
+          $nin: NOT_PUBLIC_STATUS_VALUES,
         },
       },
       {
@@ -144,12 +180,15 @@ export function releasedMovieQuery(extra: AnyRecord = {}): AnyRecord {
           { publishStatus: { $exists: false }, status: { $ne: 'draft' } },
         ],
       },
+      { status: { $nin: NOT_PUBLIC_STATUS_VALUES } },
       {
         $or: [
-          { releaseDate: { $lte: new Date() } },
-          { status: { $in: ['released', ...RELEASED_LEGACY_STATUSES] } },
+          { scheduledAt: { $exists: false } },
+          { scheduledAt: null },
+          { scheduledAt: { $lte: new Date() } },
         ],
       },
+      releasedMovieCondition(),
     ],
   };
 }
@@ -159,17 +198,7 @@ export function upcomingMovieQuery(extra: AnyRecord = {}): AnyRecord {
   const { $and: _extraAnd, ...rest } = extra;
   return publicMovieQuery({
     ...rest,
-    $and: [
-      ...extraAnd,
-      {
-        $or: [
-          { releaseDate: { $gt: new Date() } },
-          { releaseDate: null },
-          { releaseDate: { $exists: false } },
-          { availabilityStatus: 'release_date_not_confirmed' },
-        ],
-      },
-    ],
+    $and: [...extraAnd, upcomingMovieCondition()],
   });
 }
 

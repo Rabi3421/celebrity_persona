@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
 import MovieReview from '@/models/MovieReview';
+import { releasedMovieQuery } from '@/lib/upcomingMovies';
 
 function isAuthorized(request: NextRequest): boolean {
   const key = request.headers.get('x-api-key');
@@ -24,40 +25,38 @@ export async function GET(request: NextRequest) {
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
-    const page   = Math.max(1, parseInt(searchParams.get('page')  || '1'));
-    const limit  = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '20')));
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '20')));
     const search = searchParams.get('search')?.trim() || '';
-    const genre  = searchParams.get('genre')?.trim()  || '';
-    const sort   = searchParams.get('sort') || 'release';
+    const genre = searchParams.get('genre')?.trim() || '';
+    const sort = searchParams.get('sort') || 'release';
 
-    // Fetch all movies that have been released (past release date OR released status)
-    const releasedQuery: Record<string, any> = {
-      $or: [
-        { releaseDate: { $lte: new Date() } },
-        { status: { $in: ['Released', 'Now Showing', 'Now Playing', 'In Theatres', 'In Theaters'] } },
-      ],
-    };
+    const releasedQuery: Record<string, any> = releasedMovieQuery();
 
     if (search) {
-      releasedQuery.$and = [
-        { $or: releasedQuery.$or },
-        {
-          $or: [
-            { title:    { $regex: search, $options: 'i' } },
-            { director: { $regex: search, $options: 'i' } },
-          ],
-        },
-      ];
-      delete releasedQuery.$or;
+      releasedQuery.$and.push({
+        $or: [
+          { title: { $regex: search, $options: 'i' } },
+          { 'director.name': { $regex: search, $options: 'i' } },
+          { director: { $regex: search, $options: 'i' } },
+        ],
+      });
     }
 
     if (genre && genre !== 'all') {
-      releasedQuery.genre = { $regex: genre, $options: 'i' };
+      releasedQuery.$and.push({
+        $or: [
+          { genres: { $regex: genre, $options: 'i' } },
+          { genre: { $regex: genre, $options: 'i' } },
+        ],
+      });
     }
 
     // Get all released movie titles (to cross-reference with reviews)
     const releasedMovies = await Movie.find(releasedQuery)
-      .select('title slug releaseDate poster backdrop genre director status anticipationScore duration mpaaRating language featured studio createdAt')
+      .select(
+        'title slug releaseDate poster backdrop genre director status anticipationScore duration mpaaRating language featured studio createdAt'
+      )
       .lean();
 
     if (releasedMovies.length === 0) {
@@ -104,7 +103,7 @@ export async function GET(request: NextRequest) {
 
     const total = unreviewedMovies.length;
     const pages = Math.ceil(total / limit);
-    const skip  = (page - 1) * limit;
+    const skip = (page - 1) * limit;
     const paginated = unreviewedMovies.slice(skip, skip + limit);
 
     return NextResponse.json({

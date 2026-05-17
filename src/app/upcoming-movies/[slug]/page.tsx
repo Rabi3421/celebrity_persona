@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { cache } from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import PublicHeader from '@/components/common/PublicHeader';
 import PublicFooter from '@/components/common/PublicFooter';
 import Breadcrumbs from '@/components/seo/Breadcrumbs';
@@ -11,7 +11,7 @@ import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
 import { createMoviePageMetadata, createNoIndexMetadata } from '@/lib/seo/dynamicMetadata';
 import { getMovieInternalLinks } from '@/lib/seo/internalLinks';
-import { upcomingMovieQuery } from '@/lib/seo/publicData';
+import { releasedMovieQuery, upcomingMovieQuery } from '@/lib/seo/publicData';
 import { serializeMovie } from '@/lib/upcomingMovies';
 import {
   createArticleSchema,
@@ -138,7 +138,14 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
   const { slug } = await params;
   const movie = await getMovie(slug);
 
-  if (!movie) notFound();
+  if (!movie) {
+    await dbConnect();
+    const releasedMovie = await Movie.findOne({ slug, ...releasedMovieQuery() })
+      .select('_id')
+      .lean();
+    if (releasedMovie) redirect(`/movie-details/${slug}`);
+    notFound();
+  }
   const internalLinks = await getMovieInternalLinks(movie);
 
   return (

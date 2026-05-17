@@ -3,9 +3,11 @@ import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
 import { withAuth } from '@/lib/authMiddleware';
 import {
+  releasedMovieCondition,
   serializeMovie,
   slugifyMovie,
   toMovieWritePayload,
+  upcomingMovieCondition,
   validateMoviePayload,
 } from '@/lib/upcomingMovies';
 
@@ -49,39 +51,48 @@ async function getHandler(request: NextRequest) {
     const ottPlatform = searchParams.get('ottPlatform')?.trim();
     const availabilityStatus = searchParams.get('availabilityStatus')?.trim();
     const featured = searchParams.get('featured');
+    const releaseState = searchParams.get('releaseState')?.trim();
 
+    const andFilters: Record<string, any>[] = [];
     const filter: Record<string, any> = {};
 
     if (q) {
-      filter.$or = [
-        { title: { $regex: q, $options: 'i' } },
-        { originalTitle: { $regex: q, $options: 'i' } },
-        { excerpt: { $regex: q, $options: 'i' } },
-        { synopsis: { $regex: q, $options: 'i' } },
-        { 'leadCast.name': { $regex: q, $options: 'i' } },
-        { 'supportingCast.name': { $regex: q, $options: 'i' } },
-        { 'director.name': { $regex: q, $options: 'i' } },
-        { 'cast.name': { $regex: q, $options: 'i' } },
-      ];
+      andFilters.push({
+        $or: [
+          { title: { $regex: q, $options: 'i' } },
+          { originalTitle: { $regex: q, $options: 'i' } },
+          { excerpt: { $regex: q, $options: 'i' } },
+          { synopsis: { $regex: q, $options: 'i' } },
+          { 'leadCast.name': { $regex: q, $options: 'i' } },
+          { 'supportingCast.name': { $regex: q, $options: 'i' } },
+          { 'director.name': { $regex: q, $options: 'i' } },
+          { 'cast.name': { $regex: q, $options: 'i' } },
+        ],
+      });
     }
     if (status) filter.status = status;
     if (publishStatus) filter.publishStatus = publishStatus;
     if (genre)
-      filter.$or = [
-        ...(filter.$or || []),
-        { genres: { $regex: genre, $options: 'i' } },
-        { genre: { $regex: genre, $options: 'i' } },
-      ];
+      andFilters.push({
+        $or: [
+          { genres: { $regex: genre, $options: 'i' } },
+          { genre: { $regex: genre, $options: 'i' } },
+        ],
+      });
     if (language)
-      filter.$or = [
-        ...(filter.$or || []),
-        { languages: { $regex: language, $options: 'i' } },
-        { language: { $regex: language, $options: 'i' } },
-      ];
+      andFilters.push({
+        $or: [
+          { languages: { $regex: language, $options: 'i' } },
+          { language: { $regex: language, $options: 'i' } },
+        ],
+      });
     if (releaseYear) filter.releaseYear = Number(releaseYear);
     if (ottPlatform) filter.ottPlatform = { $regex: ottPlatform, $options: 'i' };
     if (availabilityStatus) filter.availabilityStatus = availabilityStatus;
     if (featured !== null && featured !== undefined) filter.isFeatured = featured === 'true';
+    if (releaseState === 'released') andFilters.push(releasedMovieCondition());
+    if (releaseState === 'upcoming') andFilters.push(upcomingMovieCondition());
+    if (andFilters.length) filter.$and = andFilters;
 
     const skip = (page - 1) * limit;
     const [docs, total] = await Promise.all([
