@@ -2,120 +2,138 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
 import { withAuth } from '@/lib/authMiddleware';
+import {
+  serializeMovie,
+  slugifyMovie,
+  toMovieWritePayload,
+  validateMoviePayload,
+} from '@/lib/upcomingMovies';
 
-const ALLOWED_FIELDS = [
-  'title', 'slug', 'releaseDate', 'poster', 'backdrop',
-  'language', 'originalLanguage', 'worldwide', 'genre',
-  'director', 'writers', 'producers', 'cast', 'synopsis',
-  'plotSummary', 'productionNotes', 'status', 'anticipationScore',
-  'duration', 'mpaaRating', 'regions', 'subtitles', 'budget',
-  'boxOfficeProjection', 'featured', 'images', 'studio',
-  'trailer', 'ticketLinks', 'preOrderAvailable', 'seoData',
-];
+function cleanError(error: unknown) {
+  if (error && typeof error === 'object' && 'message' in error)
+    return String((error as { message: string }).message);
+  return 'Something went wrong';
+}
+
+async function uniqueSlug(baseSlug: string, currentId?: string) {
+  let slug = slugifyMovie(baseSlug);
+  if (!slug) slug = `movie-${Date.now()}`;
+  const original = slug;
+  let counter = 2;
+
+  while (
+    await Movie.findOne({ slug, ...(currentId ? { _id: { $ne: currentId } } : {}) })
+      .select('_id')
+      .lean()
+  ) {
+    slug = `${original}-${counter}`;
+    counter += 1;
+  }
+
+  return slug;
+}
 
 async function getHandler(request: NextRequest) {
   try {
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
-    const page     = Math.max(1, parseInt(searchParams.get('page')  || '1',  10));
-    const limit    = Math.min(100, parseInt(searchParams.get('limit') || '20', 10));
-    const q        = searchParams.get('q')?.trim();
-    const status   = searchParams.get('status');
-    const genre    = searchParams.get('genre');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20', 10)));
+    const q = searchParams.get('q')?.trim();
+    const status = searchParams.get('status')?.trim();
+    const publishStatus = searchParams.get('publishStatus')?.trim();
+    const genre = searchParams.get('genre')?.trim();
+    const language = searchParams.get('language')?.trim();
+    const releaseYear = searchParams.get('releaseYear')?.trim();
+    const ottPlatform = searchParams.get('ottPlatform')?.trim();
+    const availabilityStatus = searchParams.get('availabilityStatus')?.trim();
     const featured = searchParams.get('featured');
-    const director = searchParams.get('director');
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: Record<string, any> = {};
 
     if (q) {
       filter.$or = [
-        { title:    { $regex: q, $options: 'i' } },
-        { director: { $regex: q, $options: 'i' } },
+        { title: { $regex: q, $options: 'i' } },
+        { originalTitle: { $regex: q, $options: 'i' } },
+        { excerpt: { $regex: q, $options: 'i' } },
         { synopsis: { $regex: q, $options: 'i' } },
+        { 'leadCast.name': { $regex: q, $options: 'i' } },
+        { 'supportingCast.name': { $regex: q, $options: 'i' } },
+        { 'director.name': { $regex: q, $options: 'i' } },
+        { 'cast.name': { $regex: q, $options: 'i' } },
       ];
     }
-    if (status)  filter.status   = { $regex: status,   $options: 'i' };
-    if (genre)   filter.genre    = { $regex: genre,    $options: 'i' };
-    if (director) filter.director = { $regex: director, $options: 'i' };
-    if (featured !== null && featured !== undefined) {
-      filter.featured = featured === 'true';
-    }
+    if (status) filter.status = status;
+    if (publishStatus) filter.publishStatus = publishStatus;
+    if (genre)
+      filter.$or = [
+        ...(filter.$or || []),
+        { genres: { $regex: genre, $options: 'i' } },
+        { genre: { $regex: genre, $options: 'i' } },
+      ];
+    if (language)
+      filter.$or = [
+        ...(filter.$or || []),
+        { languages: { $regex: language, $options: 'i' } },
+        { language: { $regex: language, $options: 'i' } },
+      ];
+    if (releaseYear) filter.releaseYear = Number(releaseYear);
+    if (ottPlatform) filter.ottPlatform = { $regex: ottPlatform, $options: 'i' };
+    if (availabilityStatus) filter.availabilityStatus = availabilityStatus;
+    if (featured !== null && featured !== undefined) filter.isFeatured = featured === 'true';
 
-    const skip  = (page - 1) * limit;
-    const total = await Movie.countDocuments(filter);
-    const pages = Math.ceil(total / limit);
-
-    const data = await Movie.find(filter)
-      .sort({ releaseDate: 1, createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const skip = (page - 1) * limit;
+    const [docs, total] = await Promise.all([
+      Movie.find(filter).sort({ updatedAt: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Movie.countDocuments(filter),
+    ]);
 
     return NextResponse.json({
       success: true,
-      data,
+      data: docs.map(serializeMovie),
       total,
       page,
       limit,
-      pages,
+      pages: Math.ceil(total / limit) || 1,
     });
   } catch (error) {
     console.error('[GET /api/superadmin/movies]', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch movies' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Failed to fetch movies' }, { status: 500 });
   }
 }
 
 async function postHandler(request: NextRequest) {
   try {
     await dbConnect();
-
     const body = await request.json();
+    const payload = toMovieWritePayload(body);
+    payload.slug = await uniqueSlug(payload.slug || payload.title);
 
-    if (!body.title?.trim()) {
+    const mode = payload.publishStatus === 'published' ? 'publish' : 'draft';
+    const errors = validateMoviePayload(payload, mode);
+    if (Object.keys(errors).length) {
       return NextResponse.json(
-        { success: false, error: 'Title is required' },
+        { success: false, error: 'Please fix the highlighted fields', errors },
         { status: 400 }
       );
     }
 
-    let finalSlug = body.slug?.trim();
-    if (!finalSlug) {
-      finalSlug = body.title
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim();
-    }
-
-    const existing = await Movie.findOne({ slug: finalSlug }).lean();
-    if (existing) {
-      finalSlug = `${finalSlug}-${Date.now()}`;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const doc: Record<string, any> = { slug: finalSlug };
-    for (const field of ALLOWED_FIELDS) {
-      if (field !== 'slug' && field in body) doc[field] = body[field];
-    }
-    doc.title = body.title.trim();
-    if (!('featured' in doc)) doc.featured = false;
-
-    const movie = await Movie.create(doc);
-    return NextResponse.json({ success: true, data: movie }, { status: 201 });
+    if (payload.publishStatus === 'published' && !payload.publishedAt)
+      payload.publishedAt = new Date();
+    const movie = await Movie.create(payload);
+    return NextResponse.json(
+      { success: true, data: serializeMovie(movie.toObject()) },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('[POST /api/superadmin/movies]', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to create movie' },
+      { success: false, error: cleanError(error) || 'Failed to create movie' },
       { status: 500 }
     );
   }
 }
 
-export const GET    = withAuth(getHandler,  ['superadmin', 'admin']);
-export const POST   = withAuth(postHandler, ['superadmin']);
+export const GET = withAuth(getHandler, ['superadmin', 'admin']);
+export const POST = withAuth(postHandler, ['superadmin']);

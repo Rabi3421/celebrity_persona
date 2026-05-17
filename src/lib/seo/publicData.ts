@@ -12,8 +12,11 @@ import User from '@/models/User';
 import { stripHtml } from './site';
 import { publicNewsFilter, serializeNews } from '@/lib/celebrityNews';
 import { publicOutfitFilter, serializeOutfit } from '@/lib/celebrityOutfits';
-
-const RELEASED_STATUSES = ['Released', 'Now Showing', 'Now Playing', 'In Theatres', 'In Theaters'];
+import {
+  releasedMovieQuery as releasedUpcomingMovieQuery,
+  serializeMovie,
+  upcomingMovieQuery as upcomingMoviePublicQuery,
+} from '@/lib/upcomingMovies';
 
 function plain<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
@@ -107,7 +110,12 @@ export async function getCelebrityList({
 
     return {
       celebrities: plain(celebrities),
-      pagination: { page: safePage, limit: safeLimit, total, pages: Math.ceil(total / safeLimit) || 1 },
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        pages: Math.ceil(total / safeLimit) || 1,
+      },
     };
   } catch {
     return { celebrities: [], pagination: { page, limit, total: 0, pages: 1 } };
@@ -157,40 +165,24 @@ export async function getCommunityOutfits({ limit = 8 } = {}) {
       .limit(Math.min(50, Math.max(1, limit)))
       .populate('userId', 'name avatar')
       .lean();
-    return plain(data.map((outfit: any) => ({
-      ...outfit,
-      _id: String(outfit._id),
-      likes: (outfit.likes || []).map(String),
-    })));
+    return plain(
+      data.map((outfit: any) => ({
+        ...outfit,
+        _id: String(outfit._id),
+        likes: (outfit.likes || []).map(String),
+      }))
+    );
   } catch {
     return [];
   }
 }
 
 export function releasedMovieQuery(extra: Record<string, any> = {}) {
-  return {
-    ...extra,
-    $or: [
-      { releaseDate: { $lte: new Date() } },
-      { status: { $in: RELEASED_STATUSES } },
-    ],
-  };
+  return releasedUpcomingMovieQuery(extra);
 }
 
 export function upcomingMovieQuery(extra: Record<string, any> = {}) {
-  return {
-    ...extra,
-    $and: [
-      {
-        $or: [
-          { releaseDate: { $gt: new Date() } },
-          { releaseDate: null },
-          { releaseDate: { $exists: false } },
-        ],
-      },
-      { status: { $nin: RELEASED_STATUSES } },
-    ],
-  };
+  return upcomingMoviePublicQuery(extra);
 }
 
 function normalizeMovie(m: any) {
@@ -212,7 +204,9 @@ export async function getReleasedMovies({ page = 1, limit = 12 } = {}) {
     const skip = (safePage - 1) * safeLimit;
     const [movies, total] = await Promise.all([
       Movie.find(query)
-        .select('title slug releaseDate poster backdrop genre director status anticipationScore duration mpaaRating language featured studio trailer synopsis likes saves comments cast createdAt updatedAt')
+        .select(
+          'title slug releaseDate poster backdrop genre director status anticipationScore duration mpaaRating language featured studio trailer synopsis likes saves comments cast createdAt updatedAt'
+        )
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(safeLimit)
@@ -221,8 +215,13 @@ export async function getReleasedMovies({ page = 1, limit = 12 } = {}) {
     ]);
 
     return {
-      data: plain(movies.map(normalizeMovie)),
-      pagination: { page: safePage, limit: safeLimit, total, pages: Math.ceil(total / safeLimit) || 1 },
+      data: plain(movies.map((m: any) => normalizeMovie(serializeMovie(m)))),
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        pages: Math.ceil(total / safeLimit) || 1,
+      },
     };
   } catch {
     return { data: [], pagination: { page, limit, total: 0, pages: 1 } };
@@ -247,7 +246,7 @@ export async function getUpcomingMovies({ page = 1, limit = 12 } = {}) {
     ]);
 
     return {
-      data: plain(movies.map((m: any) => ({ ...m, _id: String(m._id) }))),
+      data: plain(movies.map((m: any) => serializeMovie(m))),
       total,
       page: safePage,
       limit: safeLimit,
@@ -277,9 +276,10 @@ export async function getReviews({
     await dbConnect();
     const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
     const safeLimit = Number.isFinite(limit) ? Math.min(50, Math.max(1, Math.floor(limit))) : 12;
-    const safeMinRating = typeof minRating === 'number' && Number.isFinite(minRating)
-      ? Math.min(10, Math.max(0, minRating))
-      : 0;
+    const safeMinRating =
+      typeof minRating === 'number' && Number.isFinite(minRating)
+        ? Math.min(10, Math.max(0, minRating))
+        : 0;
     const query: Record<string, any> = {
       status: 'published',
       rating: { $gte: safeMinRating, $lte: 10 },
@@ -305,7 +305,9 @@ export async function getReviews({
 
     const [reviews, total] = await Promise.all([
       MovieReview.find(query)
-        .select('title slug movieTitle poster backdropImage rating excerpt author publishDate featured scores pros cons verdict stats createdAt')
+        .select(
+          'title slug movieTitle poster backdropImage rating excerpt author publishDate featured scores pros cons verdict stats createdAt'
+        )
         .sort(sortMap[sort] || sortMap.latest)
         .skip(skip)
         .limit(safeLimit)
@@ -315,7 +317,12 @@ export async function getReviews({
 
     return {
       data: plain(reviews.map((r: any) => ({ ...r, _id: String(r._id) }))),
-      pagination: { page: safePage, limit: safeLimit, total, pages: Math.ceil(total / safeLimit) || 1 },
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        pages: Math.ceil(total / safeLimit) || 1,
+      },
     };
   } catch {
     return { data: [], pagination: { page, limit, total: 0, pages: 1 } };
@@ -326,7 +333,9 @@ export async function getAvailableForReviewMovies({ limit = 20 } = {}) {
   try {
     await dbConnect();
     const movies = await Movie.find(releasedMovieQuery())
-      .select('title slug releaseDate poster backdrop genre director status anticipationScore duration mpaaRating language featured studio createdAt')
+      .select(
+        'title slug releaseDate poster backdrop genre director status anticipationScore duration mpaaRating language featured studio createdAt'
+      )
       .lean();
 
     const reviewedTitles = await MovieReview.distinct('movieTitle', { status: 'published' });
@@ -383,9 +392,11 @@ export async function getNewsArticle(slugOrId: string) {
     await dbConnect();
     const slug = slugOrId.toLowerCase().trim();
     const idFilter = /^[a-f\d]{24}$/i.test(slugOrId) ? { _id: slugOrId } : null;
-    const article = await CelebrityNews.findOne(publicNewsFilter({
-      $or: [{ slug }, ...(idFilter ? [idFilter] : [])],
-    }))
+    const article = await CelebrityNews.findOne(
+      publicNewsFilter({
+        $or: [{ slug }, ...(idFilter ? [idFilter] : [])],
+      })
+    )
       .populate('celebrity primaryCelebrity', 'name slug profileImage')
       .lean();
 
@@ -428,15 +439,19 @@ export async function getNewsArticle(slugOrId: string) {
         commentCount: comments.length,
         liked: false,
         saved: false,
-        comments: comments.slice().reverse().slice(0, 50).map((c: any) => ({
-          id: String(c._id),
-          userId: String(c.userId),
-          userName: c.userName,
-          userAvatar: c.userAvatar || '',
-          text: c.text,
-          createdAt: c.createdAt,
-          isOwn: false,
-        })),
+        comments: comments
+          .slice()
+          .reverse()
+          .slice(0, 50)
+          .map((c: any) => ({
+            id: String(c._id),
+            userId: String(c.userId),
+            userName: c.userName,
+            userAvatar: c.userAvatar || '',
+            text: c.text,
+            createdAt: c.createdAt,
+            isOwn: false,
+          })),
       },
       related: related.map(normalize),
       sidebar: sidebar.map(normalize),
@@ -453,10 +468,7 @@ export async function getPublicUserOutfit(slugOrId: string) {
     const outfit = await UserOutfit.findOne({
       isApproved: true,
       isPublished: true,
-      $or: [
-        { slug: slugOrId },
-        { _id: /^[0-9a-fA-F]{24}$/.test(slugOrId) ? slugOrId : null },
-      ],
+      $or: [{ slug: slugOrId }, { _id: /^[0-9a-fA-F]{24}$/.test(slugOrId) ? slugOrId : null }],
     })
       .populate('userId', 'name avatar')
       .lean();

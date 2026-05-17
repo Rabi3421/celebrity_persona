@@ -62,10 +62,12 @@ function personName(value: unknown, fallback = SITE_NAME): string {
 }
 
 function slugPart(value: string): string {
-  return text(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'item-list';
+  return (
+    text(value)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'item-list'
+  );
 }
 
 function configuredSameAs(): string[] {
@@ -76,7 +78,9 @@ function configuredSameAs(): string[] {
     process.env.NEXT_PUBLIC_TWITTER_URL,
     process.env.NEXT_PUBLIC_YOUTUBE_URL,
     process.env.NEXT_PUBLIC_LINKEDIN_URL,
-  ].map(text).filter(Boolean);
+  ]
+    .map(text)
+    .filter(Boolean);
 }
 
 function compact<T>(value: T): T {
@@ -92,7 +96,11 @@ function compact<T>(value: T): T {
       .filter(([, item]) => {
         if (item === undefined || item === null || item === '') return false;
         if (Array.isArray(item) && item.length === 0) return false;
-        return !(typeof item === 'object' && !Array.isArray(item) && Object.keys(item).length === 0);
+        return !(
+          typeof item === 'object' &&
+          !Array.isArray(item) &&
+          Object.keys(item).length === 0
+        );
       });
 
     return Object.fromEntries(entries) as T;
@@ -260,11 +268,17 @@ export function createPersonSchema(celebrity: Record<string, any>): JsonLdSchema
     birthDate: dateValue(celebrity.born),
     birthPlace: celebrity.birthPlace ? { '@type': 'Place', name: celebrity.birthPlace } : undefined,
     deathDate: dateValue(celebrity.died),
-    nationality: celebrity.nationality ? { '@type': 'Country', name: celebrity.nationality } : undefined,
+    nationality: celebrity.nationality
+      ? { '@type': 'Country', name: celebrity.nationality }
+      : undefined,
     jobTitle: occupation.join(', ') || text(celebrity.profession),
     hasOccupation: occupation.map((name) => ({ '@type': 'Occupation', name })),
-    height: celebrity.height ? { '@type': 'QuantitativeValue', description: celebrity.height } : undefined,
-    weight: celebrity.weight ? { '@type': 'QuantitativeValue', description: celebrity.weight } : undefined,
+    height: celebrity.height
+      ? { '@type': 'QuantitativeValue', description: celebrity.height }
+      : undefined,
+    weight: celebrity.weight
+      ? { '@type': 'QuantitativeValue', description: celebrity.weight }
+      : undefined,
     award: Array.isArray(celebrity.awards)
       ? celebrity.awards.map((award: Record<string, unknown>) =>
           [award.title, award.organization, award.year].filter(Boolean).join(' - ')
@@ -286,7 +300,12 @@ export function createNewsArticleSchema(article: Record<string, any>): JsonLdSch
   const url = absoluteUrl(`/celebrity-news/${article.slug}`);
   const schema = article.schema || {};
   const seo = article.seo || {};
-  const description = schema.schemaDescription || seo.metaDescription || article.excerpt || truncate(article.body || article.content, 200) || DEFAULT_DESCRIPTION;
+  const description =
+    schema.schemaDescription ||
+    seo.metaDescription ||
+    article.excerpt ||
+    truncate(article.body || article.content, 200) ||
+    DEFAULT_DESCRIPTION;
 
   return compact({
     '@context': 'https://schema.org',
@@ -294,12 +313,23 @@ export function createNewsArticleSchema(article: Record<string, any>): JsonLdSch
     '@id': `${url}/#newsarticle`,
     headline: schema.schemaHeadline || article.title,
     description,
-    image: imageArray(schema.schemaImage || article.featuredImage || article.thumbnail, article.images),
+    image: imageArray(
+      schema.schemaImage || article.featuredImage || article.thumbnail,
+      article.images
+    ),
     datePublished: dateValue(article.publishedAt || article.publishDate || article.createdAt),
-    dateModified: dateValue(article.updatedAt || article.publishedAt || article.publishDate || article.createdAt),
+    dateModified: dateValue(
+      article.updatedAt || article.publishedAt || article.publishDate || article.createdAt
+    ),
     author: { '@type': 'Person', name: article.authorName || article.author || SITE_NAME },
     publisher: schema.publisherName
-      ? { '@type': 'Organization', name: schema.publisherName, logo: schema.publisherLogo ? { '@type': 'ImageObject', url: schema.publisherLogo } : undefined }
+      ? {
+          '@type': 'Organization',
+          name: schema.publisherName,
+          logo: schema.publisherLogo
+            ? { '@type': 'ImageObject', url: schema.publisherLogo }
+            : undefined,
+        }
       : { '@id': ORGANIZATION_ID },
     mainEntityOfPage: { '@type': 'WebPage', '@id': schema.mainEntityOfPage || url },
     url,
@@ -315,35 +345,60 @@ export function createOutfitArticleSchema(outfit: Record<string, any>): JsonLdSc
   const celebrityName = personName(outfit.primaryCelebrity || outfit.celebrity, 'Celebrity');
   const seo = outfit.seo || {};
   const schema = outfit.schema || {};
-  const featuredImage = schema.schemaImage || seo.ogImage || outfit.featuredImage || outfit.images?.[0];
+  const featuredImage =
+    schema.schemaImage || seo.ogImage || outfit.featuredImage || outfit.images?.[0];
 
   return compact({
     '@context': 'https://schema.org',
     '@type': schema.schemaType || 'Article',
     '@id': `${url}/#article`,
     headline: schema.schemaHeadline || seo.metaTitle || outfit.title,
-    description: schema.schemaDescription || seo.metaDescription || outfit.excerpt || outfit.outfitDescription || outfit.description || `${outfit.title} worn by ${celebrityName}`,
+    description:
+      schema.schemaDescription ||
+      seo.metaDescription ||
+      outfit.excerpt ||
+      outfit.outfitDescription ||
+      outfit.description ||
+      `${outfit.title} worn by ${celebrityName}`,
     image: imageArray([featuredImage, ...(outfit.images || [])].filter(Boolean)),
     datePublished: dateValue(outfit.publishedAt || outfit.createdAt),
     dateModified: dateValue(outfit.updatedAt || outfit.publishedAt || outfit.createdAt),
-    author: outfit.authorName ? { '@type': 'Person', name: outfit.authorName } : { '@id': ORGANIZATION_ID },
+    author: outfit.authorName
+      ? { '@type': 'Person', name: outfit.authorName }
+      : { '@id': ORGANIZATION_ID },
     publisher: schema.publisherName
-      ? { '@type': 'Organization', name: schema.publisherName, logo: schema.publisherLogo ? { '@type': 'ImageObject', url: schema.publisherLogo } : undefined }
+      ? {
+          '@type': 'Organization',
+          name: schema.publisherName,
+          logo: schema.publisherLogo
+            ? { '@type': 'ImageObject', url: schema.publisherLogo }
+            : undefined,
+        }
       : { '@id': ORGANIZATION_ID },
     mainEntityOfPage: { '@type': 'WebPage', '@id': schema.mainEntityOfPage || url },
     url,
-    articleSection: schema.schemaArticleSection || outfit.category || outfit.eventName || outfit.event || 'Celebrity Fashion',
-    keywords: textArray(schema.schemaKeywords || seo.secondaryKeywords || seo.contentTags || outfit.tags).concat([
-      celebrityName,
-      outfit.title,
-      outfit.brand,
-      outfit.designer,
-      outfit.category,
-      outfit.outfitType,
-      outfit.eventName || outfit.event,
-      'celebrity outfit',
-      'celebrity fashion',
-    ]).filter(Boolean).join(', '),
+    articleSection:
+      schema.schemaArticleSection ||
+      outfit.category ||
+      outfit.eventName ||
+      outfit.event ||
+      'Celebrity Fashion',
+    keywords: textArray(
+      schema.schemaKeywords || seo.secondaryKeywords || seo.contentTags || outfit.tags
+    )
+      .concat([
+        celebrityName,
+        outfit.title,
+        outfit.brand,
+        outfit.designer,
+        outfit.category,
+        outfit.outfitType,
+        outfit.eventName || outfit.event,
+        'celebrity outfit',
+        'celebrity fashion',
+      ])
+      .filter(Boolean)
+      .join(', '),
     about: { '@type': 'Person', name: celebrityName },
     mentions: [
       outfit.brand ? { '@type': 'Brand', name: outfit.brand } : undefined,
@@ -357,7 +412,8 @@ export function createOutfitProductSchemas(outfit: Record<string, any>): JsonLdS
   if (outfit.schema?.enableProductSchema === false) return [];
   const pageImage = outfit.featuredImage || outfit.images?.[0];
   const products = [
-    outfit.originalOutfitAvailable && (outfit.originalProductName || outfit.originalBuyUrl || outfit.originalAffiliateUrl)
+    outfit.originalOutfitAvailable &&
+    (outfit.originalProductName || outfit.originalBuyUrl || outfit.originalAffiliateUrl)
       ? {
           productName: outfit.originalProductName || outfit.title,
           productImage: pageImage,
@@ -375,23 +431,28 @@ export function createOutfitProductSchemas(outfit: Record<string, any>): JsonLdS
 
   return products
     .filter((product: any) => product.productName && (product.productImage || pageImage))
-    .map((product: any) => compact({
-      '@context': 'https://schema.org',
-      '@type': 'Product',
-      name: product.productName,
-      image: product.productImage || pageImage,
-      brand: product.productBrand ? { '@type': 'Brand', name: product.productBrand } : undefined,
-      category: product.productCategory,
-      offers: (product.productBuyUrl || product.affiliateUrl)
-        ? compact({
-            '@type': 'Offer',
-            url: product.affiliateUrl || product.productBuyUrl,
-            price: product.productPrice,
-            priceCurrency: product.productCurrency,
-            availability: product.availability ? `https://schema.org/${String(product.availability).replace(/\s+/g, '')}` : undefined,
-          })
-        : undefined,
-    }));
+    .map((product: any) =>
+      compact({
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        name: product.productName,
+        image: product.productImage || pageImage,
+        brand: product.productBrand ? { '@type': 'Brand', name: product.productBrand } : undefined,
+        category: product.productCategory,
+        offers:
+          product.productBuyUrl || product.affiliateUrl
+            ? compact({
+                '@type': 'Offer',
+                url: product.affiliateUrl || product.productBuyUrl,
+                price: product.productPrice,
+                priceCurrency: product.productCurrency,
+                availability: product.availability
+                  ? `https://schema.org/${String(product.availability).replace(/\s+/g, '')}`
+                  : undefined,
+              })
+            : undefined,
+      })
+    );
 }
 
 export function createCommunityOutfitArticleSchema(outfit: Record<string, any>): JsonLdSchema {
@@ -412,10 +473,20 @@ export function createCommunityOutfitArticleSchema(outfit: Record<string, any>):
     mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     url,
     articleSection: outfit.category || 'Community Fashion',
-    keywords: [outfit.title, outfit.brand, outfit.category, ...textArray(outfit.tags)].filter(Boolean).join(', '),
+    keywords: [outfit.title, outfit.brand, outfit.category, ...textArray(outfit.tags)]
+      .filter(Boolean)
+      .join(', '),
     interactionStatistic: [
-      { '@type': 'InteractionCounter', interactionType: 'https://schema.org/ViewAction', userInteractionCount: outfit.views || 0 },
-      { '@type': 'InteractionCounter', interactionType: 'https://schema.org/LikeAction', userInteractionCount: outfit.likes?.length || 0 },
+      {
+        '@type': 'InteractionCounter',
+        interactionType: 'https://schema.org/ViewAction',
+        userInteractionCount: outfit.views || 0,
+      },
+      {
+        '@type': 'InteractionCounter',
+        interactionType: 'https://schema.org/LikeAction',
+        userInteractionCount: outfit.likes?.length || 0,
+      },
     ],
     isAccessibleForFree: true,
   });
@@ -424,25 +495,106 @@ export function createCommunityOutfitArticleSchema(outfit: Record<string, any>):
 export function createMovieSchema(movie: Record<string, any>, path: string): JsonLdSchema {
   const url = absoluteUrl(path);
   const ratingValue = Number(movie.anticipationScore);
+  const directorNames = textArray(movie.schemaDirector || movie.director);
+  const actorNames = textArray(movie.schemaActor || movie.leadCast || movie.cast);
+  const image = imageArray(
+    movie.schemaMovieImage || movie.posterImage || movie.poster,
+    movie.backdropImage || movie.backdrop,
+    movie.galleryImages?.map((item: Record<string, unknown>) => item.url),
+    movie.images
+  );
 
   return compact({
     '@context': 'https://schema.org',
     '@type': 'Movie',
     '@id': `${url}/#movie`,
-    name: movie.title,
+    name: movie.schemaMovieName || movie.title,
     url,
-    image: imageArray(movie.poster, movie.backdrop, movie.images),
-    datePublished: dateValue(movie.releaseDate),
-    genre: movie.genre,
-    director: movie.director ? { '@type': 'Person', name: movie.director } : undefined,
-    actor: Array.isArray(movie.cast)
-      ? movie.cast.slice(0, 10).map((member: Record<string, unknown>) => ({ '@type': 'Person', name: member.name }))
-      : undefined,
-    description: stripHtml(movie.synopsis || movie.plotSummary || '').slice(0, 500),
+    image,
+    datePublished: dateValue(movie.schemaReleaseDate || movie.releaseDate),
+    dateCreated: movie.releaseYear,
+    genre: textArray(movie.schemaGenre || movie.genres || movie.genre),
+    countryOfOrigin:
+      movie.schemaCountryOfOrigin || movie.country
+        ? { '@type': 'Country', name: movie.schemaCountryOfOrigin || movie.country }
+        : undefined,
+    director: directorNames.map((name) => ({ '@type': 'Person', name })),
+    actor: actorNames.slice(0, 20).map((name) => ({ '@type': 'Person', name })),
+    description: (
+      movie.schemaMovieDescription ||
+      stripHtml(movie.synopsis || movie.excerpt || movie.plotSummary || '')
+    ).slice(0, 500),
     duration: movie.duration ? `PT${movie.duration}M` : undefined,
     aggregateRating: Number.isFinite(ratingValue)
       ? { '@type': 'AggregateRating', ratingValue, bestRating: 10, ratingCount: 1 }
       : undefined,
+  });
+}
+
+export function createArticleSchema(article: Record<string, any>, path: string): JsonLdSchema {
+  const url = absoluteUrl(path);
+  const headline = article.schemaArticleHeadline || article.metaTitle || article.title;
+  const description =
+    article.schemaArticleDescription ||
+    article.metaDescription ||
+    article.excerpt ||
+    stripHtml(article.synopsis || '').slice(0, 240);
+
+  return compact({
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    '@id': `${url}/#article`,
+    headline,
+    description,
+    image: imageArray(
+      article.schemaMovieImage || article.ogImage || article.posterImage || article.poster
+    ),
+    datePublished: dateValue(article.publishedAt || article.createdAt),
+    dateModified: dateValue(article.updatedAt || article.publishedAt || article.createdAt),
+    author: { '@type': 'Person', name: article.authorName || SITE_NAME },
+    publisher: article.publisherName
+      ? {
+          '@type': 'Organization',
+          name: article.publisherName,
+          logo: article.publisherLogo
+            ? { '@type': 'ImageObject', url: absoluteUrl(article.publisherLogo) }
+            : undefined,
+        }
+      : { '@id': ORGANIZATION_ID },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': article.mainEntityOfPage || url },
+    url,
+    articleSection: article.schemaArticleSection || 'Upcoming Movies',
+    keywords: textArray(
+      article.schemaKeywords || article.secondaryKeywords || article.contentTags
+    ).join(', '),
+    about: { '@type': 'Movie', name: article.schemaMovieName || article.title },
+    isAccessibleForFree: true,
+  });
+}
+
+export function createVideoObjectSchema(movie: Record<string, any>, path: string): JsonLdSchema {
+  const url = absoluteUrl(path);
+  const thumbnail =
+    movie.schemaVideoThumbnail || movie.trailerThumbnail || movie.posterImage || movie.poster;
+  if (!thumbnail || !(movie.trailerUrl || movie.videoEmbedUrl || movie.youtubeVideoId)) return {};
+
+  return compact({
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    '@id': `${url}/#video`,
+    name: movie.schemaVideoName || `${movie.title} Official Trailer`,
+    description: movie.schemaVideoDescription || movie.excerpt || movie.metaDescription,
+    thumbnailUrl: imageArray(thumbnail),
+    uploadDate: dateValue(movie.schemaVideoUploadDate || movie.trailerPublishedAt),
+    duration: movie.schemaVideoDuration || movie.trailerDuration,
+    embedUrl:
+      movie.videoEmbedUrl ||
+      (movie.youtubeVideoId ? `https://www.youtube.com/embed/${movie.youtubeVideoId}` : undefined),
+    contentUrl: movie.trailerUrl || movie.youtubeTrailerUrl,
+    publisher: movie.publisherName
+      ? { '@type': 'Organization', name: movie.publisherName }
+      : { '@id': ORGANIZATION_ID },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': url },
   });
 }
 
@@ -484,15 +636,14 @@ export function createReviewSchema(review: Record<string, any>): JsonLdSchema {
 
 function schemaKey(schema: JsonLdSchema): string {
   const type = Array.isArray(schema['@type']) ? schema['@type'].join(',') : text(schema['@type']);
-  return [
-    type,
-    text(schema['@id']),
-    text(schema.url),
-    text(schema.name || schema.headline),
-  ].filter(Boolean).join('|');
+  return [type, text(schema['@id']), text(schema.url), text(schema.name || schema.headline)]
+    .filter(Boolean)
+    .join('|');
 }
 
-export function dedupeStructuredData(data: JsonLdSchema | JsonLdSchema[]): JsonLdSchema | JsonLdSchema[] {
+export function dedupeStructuredData(
+  data: JsonLdSchema | JsonLdSchema[]
+): JsonLdSchema | JsonLdSchema[] {
   const list = Array.isArray(data) ? data : [data];
   const seen = new Set<string>();
   const result: JsonLdSchema[] = [];

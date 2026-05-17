@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Movie from '@/models/Movie';
+import { serializeMovie, upcomingMovieQuery } from '@/lib/upcomingMovies';
 
-// ── API Key guard ─────────────────────────────────────────────────────────────
 function isAuthorized(request: NextRequest): boolean {
   const key = request.headers.get('x-api-key');
-  return key === process.env.X_API_KEY;
+  return !process.env.X_API_KEY || key === process.env.X_API_KEY;
 }
 
-// ── GET /api/user/movies/upcoming ─────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json(
@@ -21,78 +20,99 @@ export async function GET(request: NextRequest) {
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
-    const page  = Math.max(1, parseInt(searchParams.get('page')  || '1',  10));
-    const limit = Math.min(50, parseInt(searchParams.get('limit') || '20', 10));
-    const q          = searchParams.get('q')?.trim();
-    const genre      = searchParams.get('genre')?.trim();
-    const celebrity  = searchParams.get('celebrity')?.trim();
-    const sort  = searchParams.get('sort') || 'anticipation'; // anticipation | release | rating
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '12', 10)));
+    const q = searchParams.get('q')?.trim();
+    const genre = searchParams.get('genre')?.trim();
+    const language = searchParams.get('language')?.trim();
+    const releaseYear = searchParams.get('releaseYear')?.trim();
+    const ottPlatform = searchParams.get('ottPlatform')?.trim();
+    const availabilityStatus = searchParams.get('availabilityStatus')?.trim();
+    const celebrity = searchParams.get('celebrity')?.trim();
+    const director = searchParams.get('director')?.trim();
+    const featured = searchParams.get('featured');
+    const trending = searchParams.get('trending');
+    const editorPick = searchParams.get('editorPick');
+    const sort = searchParams.get('sort') || 'latest';
 
-    // Only surface movies whose release date is in the future
-    // (excludes already-released / now-showing movies)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filter: Record<string, any> = {
-      $and: [
-        // releaseDate must be in the future OR not set yet (TBA)
-        {
-          $or: [
-            { releaseDate: { $gt: new Date() } },
-            { releaseDate: null },
-            { releaseDate: { $exists: false } },
-          ],
-        },
-        // exclude statuses that mean the movie is already out
-        {
-          status: {
-            $nin: ['Released', 'Now Showing', 'Now Playing', 'In Theatres', 'In Theaters'],
-          },
-        },
-      ],
-    };
+    const filter: Record<string, any> = upcomingMovieQuery();
 
     if (q) {
       filter.$and.push({
         $or: [
-          { title:       { $regex: q, $options: 'i' } },
-          { director:    { $regex: q, $options: 'i' } },
+          { title: { $regex: q, $options: 'i' } },
+          { originalTitle: { $regex: q, $options: 'i' } },
+          { 'leadCast.name': { $regex: q, $options: 'i' } },
+          { 'supportingCast.name': { $regex: q, $options: 'i' } },
+          { 'director.name': { $regex: q, $options: 'i' } },
           { 'cast.name': { $regex: q, $options: 'i' } },
-          { synopsis:    { $regex: q, $options: 'i' } },
+          { synopsis: { $regex: q, $options: 'i' } },
         ],
       });
     }
+    if (genre && genre !== 'all')
+      filter.$and.push({
+        $or: [
+          { genres: { $regex: genre, $options: 'i' } },
+          { genre: { $regex: genre, $options: 'i' } },
+        ],
+      });
+    if (language && language !== 'all')
+      filter.$and.push({
+        $or: [
+          { languages: { $regex: language, $options: 'i' } },
+          { language: { $regex: language, $options: 'i' } },
+        ],
+      });
+    if (releaseYear && releaseYear !== 'all')
+      filter.$and.push({ releaseYear: Number(releaseYear) });
+    if (ottPlatform && ottPlatform !== 'all')
+      filter.$and.push({ ottPlatform: { $regex: ottPlatform, $options: 'i' } });
+    if (availabilityStatus && availabilityStatus !== 'all')
+      filter.$and.push({ availabilityStatus });
+    if (celebrity)
+      filter.$and.push({
+        $or: [
+          { 'leadCast.slug': celebrity },
+          { 'leadCast.name': { $regex: celebrity, $options: 'i' } },
+          { 'cast.name': { $regex: celebrity, $options: 'i' } },
+        ],
+      });
+    if (director)
+      filter.$and.push({
+        $or: [
+          { 'director.slug': director },
+          { 'director.name': { $regex: director, $options: 'i' } },
+        ],
+      });
+    if (featured === 'true') filter.$and.push({ $or: [{ isFeatured: true }, { featured: true }] });
+    if (trending === 'true') filter.$and.push({ isTrending: true });
+    if (editorPick === 'true') filter.$and.push({ isEditorPick: true });
 
-    if (genre && genre !== 'all') {
-      filter.$and.push({ genre: { $regex: genre, $options: 'i' } });
-    }
+    let sortOption: Record<string, any> = { publishedAt: -1, createdAt: -1 };
+    if (sort === 'release') sortOption = { releaseDate: 1, releaseYear: 1, createdAt: -1 };
+    if (sort === 'trending') sortOption = { isTrending: -1, publishedAt: -1, createdAt: -1 };
+    if (sort === 'featured')
+      sortOption = { isFeatured: -1, featured: -1, publishedAt: -1, createdAt: -1 };
 
-    if (celebrity) {
-      filter.$and.push({ 'cast.name': { $regex: celebrity, $options: 'i' } });
-    }
-
-    // Sort strategy
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let sortOption: Record<string, any> = { anticipationScore: -1, createdAt: -1 };
-    if (sort === 'release') sortOption = { releaseDate: 1, createdAt: -1 };
-    if (sort === 'rating')  sortOption = { anticipationScore: -1, createdAt: -1 };
-
-    const skip  = (page - 1) * limit;
-    const total = await Movie.countDocuments(filter);
-    const pages = Math.ceil(total / limit);
-
-    const data = await Movie.find(filter)
-      .select('-__v')
-      .sort(sortOption)
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const skip = (page - 1) * limit;
+    const [docs, total] = await Promise.all([
+      Movie.find(filter)
+        .select('-__v -likes -saves -comments')
+        .sort(sortOption)
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Movie.countDocuments(filter),
+    ]);
 
     return NextResponse.json({
       success: true,
-      data,
+      data: docs.map(serializeMovie),
       total,
       page,
       limit,
-      pages,
+      pages: Math.ceil(total / limit) || 1,
     });
   } catch (error) {
     console.error('[GET /api/user/movies/upcoming]', error);

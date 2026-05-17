@@ -1,2879 +1,2373 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import { useAuth } from '@/context/AuthContext';
-import { uploadImage, deleteImage, validateImageFile } from '@/lib/imageUpload';
+import { uploadImage, validateImageFile } from '@/lib/imageUpload';
+import {
+  AVAILABILITY_STATUSES,
+  MOVIE_STATUSES,
+  PUBLISH_STATUSES,
+  slugifyMovie,
+} from '@/lib/upcomingMovies';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface ICastMember {
+type PersonCredit = {
   name: string;
-  role?: string;
-  character?: string;
+  slug?: string;
+  profileUrl?: string;
   image?: string;
-  celebrityId?: string;
-}
-
-interface ITicketLink {
-  platform: string;
-  url: string;
-  available: boolean;
-}
-
-interface IMovieSEO {
-  metaTitle?: string;
-  metaDescription?: string;
-  focusKeyword?: string;
-  keywords?: string[];        // secondary keywords
-  canonicalUrl?: string;
-  robots?: string;
-  robotsIndex?: boolean;
-  robotsFollow?: boolean;
-  ogTitle?: string;
-  ogDescription?: string;
-  ogImage?: string;
-  ogType?: string;
-  twitterCard?: string;
-  twitterTitle?: string;
-  twitterDescription?: string;
-  twitterImage?: string;
-  twitterCreator?: string;
-  schemaType?: string;
-  structuredData?: string;
-  authorName?: string;
-  authorUrl?: string;
-  articleSection?: string;
-  relatedTopics?: string[];
-  altText?: string;
-  imageDescription?: string;
-  priority?: number;
-  changeFreq?: string;
-}
-
-type MovieStatus = 'draft' | 'published' | 'announced' | 'filming' | 'post-production' | 'upcoming' | 'released' | 'cancelled';
-
-const STATUS_COLORS: Record<string, string> = {
-  published:        'bg-emerald-500/20 text-emerald-400',
-  draft:            'bg-yellow-500/20 text-yellow-400',
-  announced:        'bg-blue-500/20 text-blue-400',
-  filming:          'bg-purple-500/20 text-purple-400',
-  'post-production':'bg-indigo-500/20 text-indigo-400',
-  upcoming:         'bg-sky-500/20 text-sky-400',
-  released:         'bg-emerald-500/20 text-emerald-400',
-  cancelled:        'bg-red-500/20 text-red-400',
+  roleName?: string;
+  characterDescription?: string;
+  displayOrder?: number;
 };
 
-interface MovieRow {
+type CrewCredit = {
+  name: string;
+  slug?: string;
+  profileUrl?: string;
+  image?: string;
+};
+
+type GalleryImage = {
+  url: string;
+  alt?: string;
+  caption?: string;
+  credit?: string;
+  sourceUrl?: string;
+};
+
+type ReferenceLink = {
+  title?: string;
+  url?: string;
+  sourceName?: string;
+};
+
+type MovieForm = {
+  id?: string;
+  title: string;
+  originalTitle: string;
+  slug: string;
+  tagline: string;
+  excerpt: string;
+  status: string;
+  movieType: string;
+  languages: string[];
+  originalLanguage: string;
+  country: string;
+  genres: string[];
+  subgenres: string[];
+  certification: string;
+  runtimeValue: string;
+  runtimeUnit: 'minutes' | 'hours';
+  isFeatured: boolean;
+  isTrending: boolean;
+  isEditorPick: boolean;
+  releaseDate: string;
+  releaseDateText: string;
+  releaseYear: string;
+  theatricalReleaseDate: string;
+  ottReleaseDate: string;
+  ottPlatform: string;
+  streamingPlatform: string;
+  worldwideRelease: boolean;
+  indiaRelease: boolean;
+  releaseCountries: string[];
+  releaseLanguages: string[];
+  dubbedLanguages: string[];
+  preorderOrWatchlistUrl: string;
+  ticketBookingUrl: string;
+  whereToWatchText: string;
+  availabilityStatus: string;
+  leadCast: PersonCredit[];
+  supportingCast: PersonCredit[];
+  cameoCast: PersonCredit[];
+  director: CrewCredit[];
+  producers: CrewCredit[];
+  writers: CrewCredit[];
+  screenplay: string[];
+  storyBy: string[];
+  musicDirector: string[];
+  cinematographer: string[];
+  editor: string[];
+  productionDesigner: string[];
+  costumeDesigner: string[];
+  actionDirector: string[];
+  choreographer: string[];
+  castingDirector: string[];
+  productionCompanies: string[];
+  distributor: string;
+  ottPartner: string;
+  synopsis: string;
+  plotSummary: string;
+  storyline: string;
+  premise: string;
+  officialDescription: string;
+  whatToExpect: string;
+  trailerBreakdown: string;
+  castPerformanceExpectations: string;
+  whyThisMovieIsImportant: string;
+  audienceBuzz: string;
+  similarMovies: string[];
+  finalPreviewNote: string;
+  spoilerWarning: boolean;
+  spoilerContent: string;
+  posterImage: string;
+  posterImageAlt: string;
+  posterImageCaption: string;
+  backdropImage: string;
+  featuredImage: string;
+  galleryImages: GalleryImage[];
+  trailerUrl: string;
+  teaserUrl: string;
+  videoEmbedUrl: string;
+  youtubeVideoId: string;
+  trailerThumbnail: string;
+  trailerDuration: string;
+  trailerPublishedAt: string;
+  officialClipUrls: string[];
+  instagramEmbedUrl: string;
+  xEmbedUrl: string;
+  productionStatus: string;
+  filmingStartDate: string;
+  filmingEndDate: string;
+  filmingLocations: string[];
+  budget: string;
+  boxOfficeCollection: string;
+  productionCompany: string;
+  distributorName: string;
+  musicLabel: string;
+  aspectRatio: string;
+  soundMix: string;
+  color: string;
+  primaryFilmingLanguage: string;
+  officialWebsite: string;
+  imdbUrl: string;
+  wikipediaUrl: string;
+  platformUrl: string;
+  youtubeTrailerUrl: string;
+  pressReleaseUrl: string;
+  sourceType: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourcePublishedAt: string;
+  isSourceVerified: boolean;
+  sourceCreditText: string;
+  additionalReferences: ReferenceLink[];
+  factCheckNotes: string;
+  focusKeyword: string;
+  secondaryKeywords: string[];
+  metaTitle: string;
+  metaDescription: string;
+  canonicalUrl: string;
+  robotsIndex: boolean;
+  robotsFollow: boolean;
+  ogTitle: string;
+  ogDescription: string;
+  ogImage: string;
+  twitterTitle: string;
+  twitterDescription: string;
+  twitterImage: string;
+  contentTags: string[];
+  breadcrumbTitle: string;
+  enableMovieSchema: boolean;
+  enableArticleSchema: boolean;
+  enableVideoObjectSchema: boolean;
+  schemaMovieName: string;
+  schemaMovieDescription: string;
+  schemaMovieImage: string;
+  schemaReleaseDate: string;
+  schemaDirector: string[];
+  schemaActor: string[];
+  schemaGenre: string[];
+  schemaCountryOfOrigin: string;
+  schemaDuration: string;
+  schemaArticleHeadline: string;
+  schemaArticleDescription: string;
+  schemaArticleSection: string;
+  schemaVideoName: string;
+  schemaVideoDescription: string;
+  schemaVideoThumbnail: string;
+  schemaVideoUploadDate: string;
+  schemaVideoDuration: string;
+  publisherName: string;
+  publisherLogo: string;
+  mainEntityOfPage: string;
+  schemaKeywords: string[];
+  publishStatus: 'draft' | 'scheduled' | 'published' | 'archived';
+  publishedAt: string;
+  scheduledAt: string;
+  authorName: string;
+  reviewerName: string;
+  readingTime: string;
+};
+
+type MovieRow = {
   id: string;
   title: string;
   slug: string;
-  director?: string;
-  status?: MovieStatus | string;
-  language?: string[];
+  posterImage?: string;
   releaseDate?: string;
-  poster?: string;
-  featured: boolean;
-  worldwide?: boolean;
-  duration?: number;
-  genre?: string[];
-  createdAt?: string;
-}
+  releaseDateText?: string;
+  releaseYear?: number;
+  genres?: string[];
+  languages?: string[];
+  status?: string;
+  publishStatus?: string;
+  availabilityStatus?: string;
+  isFeatured?: boolean;
+  isTrending?: boolean;
+  isEditorPick?: boolean;
+  updatedAt?: string;
+};
 
-interface MovieFull extends MovieRow {
-  backdrop?: string;
-  originalLanguage?: string;
-  synopsis?: string;
-  plotSummary?: string;
-  productionNotes?: string;
-  studio?: string;
-  trailer?: string;
-  mpaaRating?: string;
-  anticipationScore?: number;
-  budget?: number;
-  boxOfficeProjection?: number;
-  preOrderAvailable?: boolean;
-  cast?: ICastMember[];
-  writers?: string[];
-  producers?: string[];
-  regions?: string[];
-  subtitles?: string[];
-  images?: string[];
-  ticketLinks?: ITicketLink[];
-  seoData?: IMovieSEO;
-}
+type TabKey =
+  | 'basic'
+  | 'release'
+  | 'cast'
+  | 'story'
+  | 'media'
+  | 'production'
+  | 'sources'
+  | 'seo'
+  | 'schema'
+  | 'publishing';
 
-type FormTab = 'basic' | 'content' | 'cast' | 'details' | 'images' | 'seo';
-type PanelMode = 'add' | 'edit' | null;
 type Toast = { type: 'success' | 'error'; message: string } | null;
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const PAGE_SIZES = [10, 20, 50];
-
-type UploadSlot = { uploading: boolean; progress: number; error: string };
-const emptySlot = (): UploadSlot => ({ uploading: false, progress: 0, error: '' });
-
-const EMPTY_MOVIE_SEO: IMovieSEO = {
-  metaTitle: '', metaDescription: '', focusKeyword: '', keywords: [],
-  canonicalUrl: '', robots: 'index,follow', robotsIndex: true, robotsFollow: true,
-  ogTitle: '', ogDescription: '', ogImage: '', ogType: 'video.movie',
-  twitterCard: 'summary_large_image', twitterTitle: '', twitterDescription: '',
-  twitterImage: '', twitterCreator: '',
-  schemaType: 'Movie', structuredData: '',
-  authorName: '', authorUrl: '', articleSection: '', relatedTopics: [],
-  altText: '', imageDescription: '', priority: 0.8, changeFreq: 'weekly',
+const STATUS_COLORS: Record<string, string> = {
+  published: 'bg-emerald-500/20 text-emerald-400',
+  scheduled: 'bg-sky-500/20 text-sky-400',
+  draft: 'bg-yellow-500/20 text-yellow-400',
+  archived: 'bg-neutral-500/20 text-neutral-400',
+  announced: 'bg-blue-500/20 text-blue-400',
+  in_production: 'bg-purple-500/20 text-purple-400',
+  post_production: 'bg-indigo-500/20 text-indigo-400',
+  trailer_released: 'bg-red-500/20 text-red-400',
+  coming_soon: 'bg-cyan-500/20 text-cyan-400',
+  released: 'bg-emerald-500/20 text-emerald-400',
+  postponed: 'bg-orange-500/20 text-orange-400',
+  cancelled: 'bg-red-500/20 text-red-400',
 };
 
-const TABS: { key: FormTab; label: string; icon: string }[] = [
-  { key: 'basic',   label: 'Basic Info', icon: 'FilmIcon'            },
-  { key: 'content', label: 'Content',    icon: 'DocumentTextIcon'   },
-  { key: 'cast',    label: 'Cast',       icon: 'UsersIcon'           },
-  { key: 'details', label: 'Details',    icon: 'TagIcon'             },
-  { key: 'images',  label: 'Images',     icon: 'PhotoIcon'           },
-  { key: 'seo',     label: 'SEO',        icon: 'MagnifyingGlassIcon' },
+const TABS: Array<{ key: TabKey; label: string; icon: string }> = [
+  { key: 'basic', label: 'Basic Info', icon: 'FilmIcon' },
+  { key: 'release', label: 'Release & Availability', icon: 'CalendarDaysIcon' },
+  { key: 'cast', label: 'Cast & Crew', icon: 'UsersIcon' },
+  { key: 'story', label: 'Story & Content', icon: 'DocumentTextIcon' },
+  { key: 'media', label: 'Media', icon: 'PhotoIcon' },
+  { key: 'production', label: 'Production Details', icon: 'Cog6ToothIcon' },
+  { key: 'sources', label: 'External Links & Sources', icon: 'LinkIcon' },
+  { key: 'seo', label: 'SEO', icon: 'MagnifyingGlassIcon' },
+  { key: 'schema', label: 'Schema', icon: 'CodeBracketIcon' },
+  { key: 'publishing', label: 'Publishing', icon: 'PaperAirplaneIcon' },
 ];
 
-const EMPTY_FORM: MovieFull = {
-  id: '',
+const EMPTY_FORM: MovieForm = {
   title: '',
+  originalTitle: '',
   slug: '',
-  director: '',
-  status: '',
-  language: [],
+  tagline: '',
+  excerpt: '',
+  status: 'announced',
+  movieType: 'Feature Film',
+  languages: [],
   originalLanguage: '',
+  country: '',
+  genres: [],
+  subgenres: [],
+  certification: '',
+  runtimeValue: '',
+  runtimeUnit: 'minutes',
+  isFeatured: false,
+  isTrending: false,
+  isEditorPick: false,
+  releaseDate: '',
+  releaseDateText: '',
+  releaseYear: '',
+  theatricalReleaseDate: '',
+  ottReleaseDate: '',
+  ottPlatform: '',
+  streamingPlatform: '',
+  worldwideRelease: false,
+  indiaRelease: false,
+  releaseCountries: [],
+  releaseLanguages: [],
+  dubbedLanguages: [],
+  preorderOrWatchlistUrl: '',
+  ticketBookingUrl: '',
+  whereToWatchText: '',
+  availabilityStatus: 'coming_soon',
+  leadCast: [],
+  supportingCast: [],
+  cameoCast: [],
+  director: [],
+  producers: [],
+  writers: [],
+  screenplay: [],
+  storyBy: [],
+  musicDirector: [],
+  cinematographer: [],
+  editor: [],
+  productionDesigner: [],
+  costumeDesigner: [],
+  actionDirector: [],
+  choreographer: [],
+  castingDirector: [],
+  productionCompanies: [],
+  distributor: '',
+  ottPartner: '',
   synopsis: '',
   plotSummary: '',
-  productionNotes: '',
-  studio: '',
-  trailer: '',
-  poster: '',
-  backdrop: '',
-  mpaaRating: '',
-  featured: false,
-  worldwide: false,
-  preOrderAvailable: false,
-  anticipationScore: undefined,
-  duration: undefined,
-  budget: undefined,
-  boxOfficeProjection: undefined,
-  releaseDate: '',
-  cast: [],
-  genre: [],
-  regions: [],
-  subtitles: [],
-  images: [],
-  writers: [],
-  producers: [],
-  ticketLinks: [],
-  seoData: EMPTY_MOVIE_SEO,
+  storyline: '',
+  premise: '',
+  officialDescription: '',
+  whatToExpect: '',
+  trailerBreakdown: '',
+  castPerformanceExpectations: '',
+  whyThisMovieIsImportant: '',
+  audienceBuzz: '',
+  similarMovies: [],
+  finalPreviewNote: '',
+  spoilerWarning: false,
+  spoilerContent: '',
+  posterImage: '',
+  posterImageAlt: '',
+  posterImageCaption: '',
+  backdropImage: '',
+  featuredImage: '',
+  galleryImages: [],
+  trailerUrl: '',
+  teaserUrl: '',
+  videoEmbedUrl: '',
+  youtubeVideoId: '',
+  trailerThumbnail: '',
+  trailerDuration: '',
+  trailerPublishedAt: '',
+  officialClipUrls: [],
+  instagramEmbedUrl: '',
+  xEmbedUrl: '',
+  productionStatus: '',
+  filmingStartDate: '',
+  filmingEndDate: '',
+  filmingLocations: [],
+  budget: '',
+  boxOfficeCollection: '',
+  productionCompany: '',
+  distributorName: '',
+  musicLabel: '',
+  aspectRatio: '',
+  soundMix: '',
+  color: '',
+  primaryFilmingLanguage: '',
+  officialWebsite: '',
+  imdbUrl: '',
+  wikipediaUrl: '',
+  platformUrl: '',
+  youtubeTrailerUrl: '',
+  pressReleaseUrl: '',
+  sourceType: 'official',
+  sourceName: '',
+  sourceUrl: '',
+  sourcePublishedAt: '',
+  isSourceVerified: false,
+  sourceCreditText: '',
+  additionalReferences: [],
+  factCheckNotes: '',
+  focusKeyword: '',
+  secondaryKeywords: [],
+  metaTitle: '',
+  metaDescription: '',
+  canonicalUrl: '',
+  robotsIndex: true,
+  robotsFollow: true,
+  ogTitle: '',
+  ogDescription: '',
+  ogImage: '',
+  twitterTitle: '',
+  twitterDescription: '',
+  twitterImage: '',
+  contentTags: [],
+  breadcrumbTitle: '',
+  enableMovieSchema: true,
+  enableArticleSchema: true,
+  enableVideoObjectSchema: false,
+  schemaMovieName: '',
+  schemaMovieDescription: '',
+  schemaMovieImage: '',
+  schemaReleaseDate: '',
+  schemaDirector: [],
+  schemaActor: [],
+  schemaGenre: [],
+  schemaCountryOfOrigin: '',
+  schemaDuration: '',
+  schemaArticleHeadline: '',
+  schemaArticleDescription: '',
+  schemaArticleSection: 'Upcoming Movies',
+  schemaVideoName: '',
+  schemaVideoDescription: '',
+  schemaVideoThumbnail: '',
+  schemaVideoUploadDate: '',
+  schemaVideoDuration: '',
+  publisherName: 'CelebrityPersona',
+  publisherLogo: '',
+  mainEntityOfPage: '',
+  schemaKeywords: [],
+  publishStatus: 'draft',
+  publishedAt: '',
+  scheduledAt: '',
+  authorName: '',
+  reviewerName: '',
+  readingTime: '',
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const ARRAY_FIELDS: Array<keyof MovieForm> = [
+  'languages',
+  'genres',
+  'subgenres',
+  'releaseCountries',
+  'releaseLanguages',
+  'dubbedLanguages',
+  'screenplay',
+  'storyBy',
+  'musicDirector',
+  'cinematographer',
+  'editor',
+  'productionDesigner',
+  'costumeDesigner',
+  'actionDirector',
+  'choreographer',
+  'castingDirector',
+  'productionCompanies',
+  'similarMovies',
+  'officialClipUrls',
+  'filmingLocations',
+  'secondaryKeywords',
+  'contentTags',
+  'schemaDirector',
+  'schemaActor',
+  'schemaGenre',
+  'schemaKeywords',
+];
 
-function joinLines(arr?: string[]): string {
-  return (arr || []).join('\n');
+const REQUIRED_PUBLISH_FIELDS: Array<keyof MovieForm> = [
+  'title',
+  'slug',
+  'excerpt',
+  'movieType',
+  'synopsis',
+  'posterImage',
+  'posterImageAlt',
+  'sourceType',
+  'sourceName',
+  'sourceUrl',
+  'focusKeyword',
+  'metaTitle',
+  'metaDescription',
+  'publishStatus',
+];
+
+function toDateInput(value?: string | Date) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
 }
 
-function splitLines(s: string): string[] {
-  return s.split('\n').map((l) => l.trim()).filter(Boolean);
-}
-
-// Comma-separated helpers (useful where inputs should be comma-separated)
-function joinComma(arr?: string[]): string {
-  return (arr || []).join(', ');
-}
-
-function splitComma(s: string): string[] {
-  if (!s) return [];
-  // split on comma and also allow semicolon for flexibility
-  return s
-    .split(/[,;]+/)
-    .map((l) => l.trim())
+function splitLines(value: string) {
+  return value
+    .split(/[\n,;]+/)
+    .map((item) => item.trim())
     .filter(Boolean);
 }
 
-function slugify(s: string) {
-  return s
-    .toString()
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '');
+function joinLines(value?: string[]) {
+  return (value || []).join('\n');
 }
 
-const LANGUAGES = [
-  // Indian languages
-  'Hindi','English','Telugu','Tamil','Kannada','Malayalam','Bengali','Marathi','Gujarati','Punjabi','Odia','Assamese','Sindhi','Urdu','Bhojpuri','Konkani','Maithili','Manipuri','Kashmiri','Nepali','Sanskrit',
-  // Global languages
-  'Spanish','French','German','Chinese (Simplified)','Chinese (Traditional)','Japanese','Korean','Portuguese','Russian','Arabic','Italian','Dutch','Turkish','Vietnamese','Indonesian','Thai','Swedish','Polish','Hebrew'
-];
-
-function formatDate(d?: string) {
-  if (!d) return '—';
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return '—';
-  return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+function isValidUrl(value: string) {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
-function toDateInputValue(d?: string | Date): string {
-  if (!d) return '';
-  const date = new Date(d as string);
-  if (isNaN(date.getTime())) return '';
-  return date.toISOString().split('T')[0];
+function stripHtml(value: string) {
+  return value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+function labelize(value: string) {
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function hydrateForm(movie: any): MovieForm {
+  const form: MovieForm = { ...EMPTY_FORM };
+  const data = { ...movie };
+  form.id = data.id || data._id;
+
+  for (const key of Object.keys(form) as Array<keyof MovieForm>) {
+    const value = data[key];
+    if (value === undefined || value === null) continue;
+    if (ARRAY_FIELDS.includes(key))
+      (form as any)[key] = Array.isArray(value) ? value : splitLines(String(value));
+    else if (key.endsWith('Date') || key.endsWith('At')) (form as any)[key] = toDateInput(value);
+    else (form as any)[key] = value;
+  }
+
+  form.releaseYear = data.releaseYear ? String(data.releaseYear) : '';
+  form.runtimeValue = data.runtimeValue ? String(data.runtimeValue) : '';
+  form.readingTime = data.readingTime ? String(data.readingTime) : '';
+  form.posterImage = data.posterImage || data.poster || '';
+  form.backdropImage = data.backdropImage || data.backdrop || '';
+  form.featuredImage = data.featuredImage || '';
+  form.trailerUrl = data.trailerUrl || data.trailer || '';
+  form.languages = data.languages || data.language || [];
+  form.genres = data.genres || data.genre || [];
+  form.posterImageAlt = data.posterImageAlt || data.seoData?.altText || '';
+  form.metaTitle = data.metaTitle || data.seoData?.metaTitle || '';
+  form.metaDescription = data.metaDescription || data.seoData?.metaDescription || '';
+  form.focusKeyword = data.focusKeyword || data.seoData?.focusKeyword || '';
+  form.secondaryKeywords = data.secondaryKeywords || data.seoData?.keywords || [];
+  form.ogTitle = data.ogTitle || data.seoData?.ogTitle || '';
+  form.ogDescription = data.ogDescription || data.seoData?.ogDescription || '';
+  form.ogImage = data.ogImage || data.seoData?.ogImage || '';
+  form.twitterTitle = data.twitterTitle || data.seoData?.twitterTitle || '';
+  form.twitterDescription = data.twitterDescription || data.seoData?.twitterDescription || '';
+  form.twitterImage = data.twitterImage || data.seoData?.twitterImage || '';
+  form.robotsIndex = data.robotsIndex ?? data.seoData?.robotsIndex ?? true;
+  form.robotsFollow = data.robotsFollow ?? data.seoData?.robotsFollow ?? true;
+  form.leadCast = data.leadCast?.length
+    ? data.leadCast
+    : (data.cast || []).map((item: any, index: number) => ({
+        name: item.name,
+        slug: item.slug || slugifyMovie(item.name || ''),
+        profileUrl:
+          item.profileUrl || `/celebrity-profiles/${item.slug || slugifyMovie(item.name || '')}`,
+        image: item.image,
+        roleName: item.role || item.roleName || item.character,
+        characterDescription: item.characterDescription || item.character,
+        displayOrder: item.displayOrder ?? index + 1,
+      }));
+  form.director = Array.isArray(data.director)
+    ? data.director
+    : data.director
+      ? [
+          {
+            name: data.director,
+            slug: slugifyMovie(data.director),
+            profileUrl: `/celebrity-profiles/${slugifyMovie(data.director)}`,
+          },
+        ]
+      : [];
+  form.producers = Array.isArray(data.producers)
+    ? data.producers.map((item: any) =>
+        typeof item === 'string' ? { name: item, slug: slugifyMovie(item) } : item
+      )
+    : [];
+  form.writers = Array.isArray(data.writers)
+    ? data.writers.map((item: any) =>
+        typeof item === 'string' ? { name: item, slug: slugifyMovie(item) } : item
+      )
+    : [];
+  form.galleryImages = data.galleryImages?.length
+    ? data.galleryImages
+    : (data.images || []).map((url: string) => ({
+        url,
+        alt: `${data.title} gallery image`,
+        caption: '',
+        credit: '',
+        sourceUrl: '',
+      }));
+  form.publishStatus = data.publishStatus || (data.status === 'published' ? 'published' : 'draft');
+  return form;
+}
 
 export default function MovieManagementSection() {
   const { authHeaders } = useAuth();
-
-  // List state
-  const [movies, setMovies]       = useState<MovieRow[]>([]);
-  const [total, setTotal]         = useState(0);
-  const [page, setPage]           = useState(1);
-  const [pages, setPages]         = useState(1);
-  const [limit, setLimit]         = useState(20);
-  const [loading, setLoading]     = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [movies, setMovies] = useState<MovieRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-
-  // Row actions
-  const [busyMap, setBusyMap]         = useState<Record<string, boolean>>({});
+  const [publishFilter, setPublishFilter] = useState('');
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabKey>('basic');
+  const [form, setForm] = useState<MovieForm>(EMPTY_FORM);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<Toast>(null);
+  const [confirmArchive, setConfirmArchive] = useState<MovieRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<MovieRow | null>(null);
-  const [toast, setToast]             = useState<Toast>(null);
-
-  // Panel
-  const [panelMode, setPanelMode]     = useState<PanelMode>(null);
-  const [formTab, setFormTab]         = useState<FormTab>('basic');
-  const [form, setForm]               = useState<MovieFull>(EMPTY_FORM);
-  const [formErrors, setFormErrors]   = useState<Partial<Record<keyof MovieFull, string>>>({});
-  const [formLoading, setFormLoading] = useState(false);
-  const [draftLoading, setDraftLoading] = useState(false);
-  const [formApiError, setFormApiError] = useState('');
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const slugEdited = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const isSlugEditedRef = useRef(false);
 
-  // ── helpers ────────────────────────────────────────────────────────────
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3500);
   };
 
-  const setBusy = (id: string, v: boolean) =>
-    setBusyMap((p) => ({ ...p, [id]: v }));
-
-  const setField = <K extends keyof MovieFull>(key: K, value: MovieFull[K]) =>
-    setForm((p) => ({ ...p, [key]: value }));
-
-  // ── fetch ──────────────────────────────────────────────────────────────
-  const fetchList = useCallback(async (p = 1, lim = limit) => {
-    setLoading(true); setFetchError(null);
-    try {
-      const params = new URLSearchParams({ page: String(p), limit: String(lim) });
-      if (searchQuery.trim()) params.set('q', searchQuery.trim());
-      if (statusFilter.trim()) params.set('status', statusFilter.trim());
-      const res  = await fetch(`/api/superadmin/movies?${params}`, { headers: authHeaders() });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to load');
-      const rows: MovieRow[] = (data.data || []).map((m: any) => ({
-        id:          m._id || m.id,
-        title:       m.title,
-        slug:        m.slug,
-        director:    m.director,
-        status:      m.status,
-        language:    m.language,
-        releaseDate: m.releaseDate,
-        poster:      m.poster,
-        featured:    m.featured    ?? false,
-        worldwide:   m.worldwide   ?? false,
-        duration:    m.duration,
-        genre:       m.genre,
-        createdAt:   m.createdAt,
-      }));
-      setMovies(rows);
-      setTotal(data.total);
-      setPage(p);
-      setLimit(lim);
-      setPages(data.pages);
-    } catch (err: any) {
-      setFetchError(err.message || 'Failed to load movies');
-    } finally {
-      setLoading(false);
-    }
-  }, [authHeaders, searchQuery, statusFilter, limit]);
-
-  useEffect(() => { fetchList(1); }, [fetchList]);
-
-  // ── open add ────────────────────────────────────────────────────────────
-  const openAdd = () => {
-    setForm(EMPTY_FORM); setFormErrors({}); setFormApiError('');
-    setFormTab('basic'); setPanelMode('add');
-    isSlugEditedRef.current = false;
-    setDurationMode('minutes'); setDurationHours(undefined); setDurationMinutes(undefined);
-    setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-  };
-
-  // ── open edit ───────────────────────────────────────────────────────────
-  const openEdit = async (row: MovieRow) => {
-    setFormErrors({}); setFormApiError(''); setFormTab('basic');
-    setPanelMode('edit'); setLoadingDetail(true);
-    setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-    try {
-      const res  = await fetch(`/api/superadmin/movies/${row.id}`, {
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to load');
-      const d: any = data.data;
-      const generatedSlug = slugify(d.title || '');
-      isSlugEditedRef.current = (d.slug || '') !== generatedSlug;
-
-      // Ensure all array fields are actual arrays (DB may return string for single-value arrays)
-      const toArr = (v: any): string[] => {
-        if (!v) return [];
-        if (Array.isArray(v)) return v;
-        if (typeof v === 'string') return v ? [v] : [];
-        return [];
-      };
-
-      setForm({
-        id:                  d._id || d.id,
-        title:               d.title               || '',
-        slug:                d.slug                || '',
-        director:            d.director            || '',
-        status:              d.status              || '',
-        language:            toArr(d.language),
-        originalLanguage:    d.originalLanguage    || '',
-        synopsis:            d.synopsis            || '',
-        plotSummary:         d.plotSummary         || '',
-        productionNotes:     d.productionNotes     || '',
-        studio:              d.studio              || '',
-        trailer:             d.trailer             || '',
-        poster:              d.poster              || '',
-        backdrop:            d.backdrop            || '',
-        mpaaRating:          d.mpaaRating          || '',
-        featured:            d.featured            ?? false,
-        worldwide:           d.worldwide           ?? false,
-        preOrderAvailable:   d.preOrderAvailable   ?? false,
-        anticipationScore:   d.anticipationScore   ?? undefined,
-        duration:            d.duration            ?? undefined,
-        budget:              d.budget              ?? undefined,
-        boxOfficeProjection: d.boxOfficeProjection ?? undefined,
-        releaseDate:         toDateInputValue(d.releaseDate),
-        cast:                Array.isArray(d.cast) ? d.cast : [],
-        genre:               toArr(d.genre),
-        regions:             toArr(d.regions),
-        subtitles:           toArr(d.subtitles),
-        images:              toArr(d.images),
-        writers:             toArr(d.writers),
-        producers:           toArr(d.producers),
-        ticketLinks:         Array.isArray(d.ticketLinks) ? d.ticketLinks : [],
-        seoData:             d.seoData ? {
-          ...d.seoData,
-          keywords:      toArr(d.seoData.keywords),
-          relatedTopics: toArr(d.seoData.relatedTopics),
-          robotsIndex:   d.seoData.robotsIndex  !== undefined ? d.seoData.robotsIndex  : !String(d.seoData.robots || '').includes('noindex'),
-          robotsFollow:  d.seoData.robotsFollow !== undefined ? d.seoData.robotsFollow : !String(d.seoData.robots || '').includes('nofollow'),
-        } : EMPTY_MOVIE_SEO,
-      });
-      // set duration mode based on loaded value
-      if (d.duration && typeof d.duration === 'number' && d.duration >= 60) {
-        setDurationMode('hours');
-        setDurationHours(Math.floor(d.duration / 60));
-        setDurationMinutes(d.duration % 60);
-      } else {
-        setDurationMode('minutes');
-        setDurationHours(undefined);
-        setDurationMinutes(d.duration ?? undefined);
+  const fetchMovies = useCallback(
+    async (nextPage = page) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ page: String(nextPage), limit: '20' });
+        if (query.trim()) params.set('q', query.trim());
+        if (statusFilter) params.set('status', statusFilter);
+        if (publishFilter) params.set('publishStatus', publishFilter);
+        const response = await fetch(`/api/superadmin/movies?${params}`, {
+          headers: authHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success)
+          throw new Error(data.error || data.message || 'Failed to load movies');
+        setMovies(data.data || []);
+        setTotal(data.total || 0);
+        setPage(data.page || nextPage);
+        setPages(data.pages || 1);
+      } catch (error) {
+        showToast('error', error instanceof Error ? error.message : 'Failed to load movies');
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      showToast('error', err.message || 'Failed to load movie');
-      setPanelMode(null);
-    } finally {
-      setLoadingDetail(false);
+    },
+    [authHeaders, page, publishFilter, query, statusFilter]
+  );
+
+  useEffect(() => {
+    fetchMovies(1);
+  }, [fetchMovies]);
+
+  const seoWarnings = useMemo(() => {
+    const keyword = form.focusKeyword.trim().toLowerCase();
+    if (!keyword) return ['Focus keyword is missing.'];
+    const checks = [
+      ['title', form.title],
+      ['slug', form.slug],
+      ['excerpt', form.excerpt],
+      ['meta title', form.metaTitle],
+      ['meta description', form.metaDescription],
+      ['synopsis', stripHtml(form.synopsis)],
+    ];
+    return checks
+      .filter(
+        ([, value]) =>
+          !String(value || '')
+            .toLowerCase()
+            .includes(keyword)
+      )
+      .map(([name]) => `Focus keyword is missing from ${name}.`);
+  }, [
+    form.excerpt,
+    form.focusKeyword,
+    form.metaDescription,
+    form.metaTitle,
+    form.slug,
+    form.synopsis,
+    form.title,
+  ]);
+
+  const patchForm = (patch: Partial<MovieForm>) =>
+    setForm((previous) => ({ ...previous, ...patch }));
+
+  const setField = <K extends keyof MovieForm>(key: K, value: MovieForm[K]) => {
+    setForm((previous) => {
+      const next = { ...previous, [key]: value };
+      if (key === 'title') {
+        const title = String(value);
+        if (!slugEdited.current) next.slug = slugifyMovie(title);
+        if (!previous.metaTitle)
+          next.metaTitle = `${title} release date, cast, trailer and OTT updates`.slice(0, 90);
+        if (!previous.ogTitle) next.ogTitle = next.metaTitle;
+        if (!previous.twitterTitle) next.twitterTitle = next.metaTitle;
+        if (!previous.schemaMovieName) next.schemaMovieName = title;
+        if (!previous.schemaArticleHeadline) next.schemaArticleHeadline = next.metaTitle;
+        if (!previous.breadcrumbTitle) next.breadcrumbTitle = title;
+      }
+      if (key === 'excerpt') {
+        const excerpt = String(value);
+        if (!previous.metaDescription) next.metaDescription = excerpt.slice(0, 160);
+        if (!previous.ogDescription) next.ogDescription = excerpt.slice(0, 200);
+        if (!previous.twitterDescription) next.twitterDescription = excerpt.slice(0, 200);
+        if (!previous.schemaMovieDescription) next.schemaMovieDescription = excerpt;
+        if (!previous.schemaArticleDescription) next.schemaArticleDescription = excerpt;
+      }
+      if (key === 'posterImage') {
+        const image = String(value);
+        if (!previous.ogImage) next.ogImage = image;
+        if (!previous.twitterImage) next.twitterImage = image;
+        if (!previous.schemaMovieImage) next.schemaMovieImage = image;
+        if (!previous.schemaVideoThumbnail)
+          next.schemaVideoThumbnail = previous.trailerThumbnail || image;
+      }
+      if (key === 'releaseDate') {
+        const date = String(value);
+        const year = date ? String(new Date(date).getFullYear()) : '';
+        next.releaseYear = Number.isNaN(Number(year)) ? '' : year;
+        if (!previous.schemaReleaseDate) next.schemaReleaseDate = date;
+        if (!previous.focusKeyword && previous.title)
+          next.focusKeyword = `${previous.title} release date`;
+      }
+      if (key === 'ottPlatform') {
+        const platform = String(value);
+        if (platform && previous.title && !previous.focusKeyword)
+          next.focusKeyword = `${previous.title} ${platform} release date`;
+        if (platform && !previous.whereToWatchText)
+          next.whereToWatchText = `The movie is expected to stream on ${platform}.`;
+      }
+      if (key === 'trailerUrl' || key === 'youtubeVideoId') {
+        next.enableVideoObjectSchema = true;
+        if (!previous.schemaVideoName && previous.title)
+          next.schemaVideoName = `${previous.title} Official Trailer`;
+        if (!previous.schemaVideoDescription) next.schemaVideoDescription = previous.excerpt;
+        if (!previous.schemaVideoThumbnail)
+          next.schemaVideoThumbnail = previous.trailerThumbnail || previous.posterImage;
+      }
+      return next;
+    });
+  };
+
+  const setArray = (key: keyof MovieForm, value: string) => {
+    patchForm({ [key]: splitLines(value) } as Partial<MovieForm>);
+  };
+
+  const selectImage = async (field: keyof MovieForm, folder: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const validation = validateImageFile(file);
+      if (validation) {
+        showToast('error', validation);
+        return;
+      }
+      setUploadingField(String(field));
+      try {
+        const url = await uploadImage(
+          file,
+          `movies/${form.slug || slugifyMovie(form.title) || 'movie'}/${folder}`
+        );
+        setField(field, url as any);
+        showToast('success', 'Image uploaded');
+      } catch {
+        showToast('error', 'Image upload failed');
+      } finally {
+        setUploadingField(null);
+      }
+    };
+    input.click();
+  };
+
+  const validate = (publishStatus = form.publishStatus) => {
+    const nextErrors: Record<string, string> = {};
+    const urlFields: Array<keyof MovieForm> = [
+      'sourceUrl',
+      'officialWebsite',
+      'imdbUrl',
+      'wikipediaUrl',
+      'platformUrl',
+      'trailerUrl',
+      'youtubeTrailerUrl',
+      'canonicalUrl',
+      'ticketBookingUrl',
+      'preorderOrWatchlistUrl',
+    ];
+    if (!form.title.trim()) nextErrors.title = 'Title is required';
+    if (publishStatus === 'published') {
+      for (const field of REQUIRED_PUBLISH_FIELDS) {
+        if (!String(form[field] || '').trim()) nextErrors[field] = 'Required before publish';
+      }
+      if (!form.languages.length) nextErrors.languages = 'At least one language is required';
+      if (!form.genres.length) nextErrors.genres = 'At least one genre is required';
+      if (!form.publishedAt) nextErrors.publishedAt = 'Published movies need a published date';
+      if (!form.isSourceVerified && !form.sourceCreditText.trim())
+        nextErrors.sourceCreditText = 'Add a verified source or clear source credit';
     }
+    if (publishStatus === 'scheduled' && !form.scheduledAt)
+      nextErrors.scheduledAt = 'Scheduled movies need a scheduled date';
+    for (const field of urlFields) {
+      if (!isValidUrl(String(form[field] || ''))) nextErrors[field] = 'Enter a valid http(s) URL';
+    }
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
-  const closePanel = () => setPanelMode(null);
-
-  // ── validate ─────────────────────────────────────────────────────────────
-  const validate = () => {
-    const errs: Partial<Record<keyof MovieFull, string>> = {};
-    if (!form.title.trim()) errs.title = 'Title is required';
-    setFormErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  // ── payload ──────────────────────────────────────────────────────────────
-  const buildPayload = () => ({
-    title:               form.title.trim(),
-    slug:                form.slug?.trim()               || undefined,
-    director:            form.director?.trim()           || undefined,
-    status:              form.status?.trim()             || 'draft',
-    language:            form.language && form.language.length ? form.language : undefined,
-    originalLanguage:    form.originalLanguage?.trim()   || undefined,
-    synopsis:            form.synopsis?.trim()           || undefined,
-    plotSummary:         form.plotSummary?.trim()        || undefined,
-    productionNotes:     form.productionNotes?.trim()    || undefined,
-    studio:              form.studio?.trim()             || undefined,
-    trailer:             form.trailer?.trim()            || undefined,
-    poster:              form.poster?.trim()             || undefined,
-    backdrop:            form.backdrop?.trim()           || undefined,
-    mpaaRating:          form.mpaaRating?.trim()         || undefined,
-    featured:            form.featured,
-    worldwide:           form.worldwide,
-    preOrderAvailable:   form.preOrderAvailable,
-    anticipationScore:   form.anticipationScore          ?? undefined,
-    duration:            form.duration                   ?? undefined,
-    budget:              form.budget                     ?? undefined,
-    boxOfficeProjection: form.boxOfficeProjection        ?? undefined,
-    releaseDate:         form.releaseDate                || undefined,
-    cast:                form.cast                       || [],
-    genre:               form.genre                      || [],
-    regions:             form.regions                    || [],
-    subtitles:           form.subtitles                  || [],
-    writers:             form.writers                    || [],
-    producers:           form.producers                  || [],
-    ticketLinks:         form.ticketLinks                || [],
-    seoData:             form.seoData ? (() => {
-      const { robotsIndex, robotsFollow, ...rest } = form.seoData!;
-      const idx = robotsIndex !== false;
-      const fol = robotsFollow !== false;
-      return {
-        ...rest,
-        robotsIndex: idx,
-        robotsFollow: fol,
-        robots: `${idx ? 'index' : 'noindex'}, ${fol ? 'follow' : 'nofollow'}`,
-      };
-    })() : undefined,
+  const buildPayload = (publishStatus = form.publishStatus) => ({
+    ...form,
+    publishStatus,
+    releaseYear: form.releaseYear ? Number(form.releaseYear) : undefined,
+    runtimeValue: form.runtimeValue ? Number(form.runtimeValue) : undefined,
+    readingTime: form.readingTime ? Number(form.readingTime) : undefined,
+    publishedAt:
+      publishStatus === 'published'
+        ? form.publishedAt || new Date().toISOString()
+        : form.publishedAt || undefined,
+    schemaActor: form.schemaActor.length
+      ? form.schemaActor
+      : form.leadCast.map((item) => item.name).filter(Boolean),
+    schemaDirector: form.schemaDirector.length
+      ? form.schemaDirector
+      : form.director.map((item) => item.name).filter(Boolean),
+    schemaGenre: form.schemaGenre.length ? form.schemaGenre : form.genres,
+    schemaKeywords: form.schemaKeywords.length
+      ? form.schemaKeywords
+      : [...form.secondaryKeywords, ...form.contentTags],
   });
 
-  // ── create ───────────────────────────────────────────────────────────────
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-    setFormLoading(true); setFormApiError('');
-    try {
-      const res  = await fetch('/api/superadmin/movies', {
-        method:  'POST',
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ ...buildPayload(), status: 'published' }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Create failed');
-      closePanel();
-      showToast('success', `"${form.title.trim()}" published`);
-      fetchList(1);
-    } catch (err: any) {
-      setFormApiError(err.message || 'Create failed');
-    } finally {
-      setFormLoading(false);
+  const save = async (publishStatus: MovieForm['publishStatus']) => {
+    if (!validate(publishStatus)) {
+      showToast('error', 'Please fix the highlighted fields');
+      return;
     }
-  };
-
-  // ── update ───────────────────────────────────────────────────────────────
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-    setFormLoading(true); setFormApiError('');
+    setSaving(true);
+    setApiError('');
     try {
-      const res  = await fetch(`/api/superadmin/movies/${form.id}`, {
-        method:  'PUT',
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ ...buildPayload(), status: 'published' }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Update failed');
-      closePanel();
-      showToast('success', `"${form.title.trim()}" published`);
-      fetchList(page);
-    } catch (err: any) {
-      setFormApiError(err.message || 'Update failed');
-    } finally {
-      setFormLoading(false);
-    }
-  };
-
-  // ── delete ───────────────────────────────────────────────────────────────
-  const handleDelete = async (m: MovieRow) => {
-    setConfirmDelete(null); setBusy(m.id, true);
-    try {
-      const res  = await fetch(`/api/superadmin/movies/${m.id}`, {
-        method: 'DELETE', headers: authHeaders(),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Delete failed');
-      setMovies((prev) => prev.filter((x) => x.id !== m.id));
-      setTotal((t) => t - 1);
-      showToast('success', `"${m.title}" deleted`);
-    } catch (err: any) {
-      showToast('error', err.message || 'Delete failed');
-    } finally {
-      setBusy(m.id, false);
-    }
-  };
-
-  // ── quick toggle featured ─────────────────────────────────────────────────
-  const handleToggleFeatured = async (m: MovieRow) => {
-    setBusy(m.id, true);
-    const newVal = !m.featured;
-    try {
-      const res  = await fetch(`/api/superadmin/movies/${m.id}`, {
-        method:  'PUT',
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ featured: newVal }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Update failed');
-      setMovies((prev) => prev.map((x) => x.id === m.id ? { ...x, featured: newVal } : x));
-      showToast('success', `"${m.title}" ${newVal ? 'featured' : 'unfeatured'}`);
-    } catch (err: any) {
-      showToast('error', err.message || 'Failed to update');
-    } finally {
-      setBusy(m.id, false);
-    }
-  };
-
-  // ── validate draft (title-only) ──────────────────────────────────────────
-  const validateDraft = () => {
-    const errs: Partial<Record<keyof MovieFull, string>> = {};
-    if (!form.title.trim()) errs.title = 'Title is required to save as draft';
-    setFormErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  // ── save as draft ─────────────────────────────────────────────────────────
-  const handleSaveDraft = async () => {
-    if (!validateDraft()) return;
-    setDraftLoading(true); setFormApiError('');
-    try {
-      const payload = { ...buildPayload(), status: 'draft' as const };
-      let res: Response;
-      if (panelMode === 'edit' && form.id) {
-        res = await fetch(`/api/superadmin/movies/${form.id}`, {
-          method:  'PUT',
+      const response = await fetch(
+        editingId ? `/api/superadmin/movies/${editingId}` : '/api/superadmin/movies',
+        {
+          method: editingId ? 'PUT' : 'POST',
           headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-          body:    JSON.stringify(payload),
-        });
-      } else {
-        res = await fetch('/api/superadmin/movies', {
-          method:  'POST',
-          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-          body:    JSON.stringify(payload),
-        });
+          body: JSON.stringify(buildPayload(publishStatus)),
+        }
+      );
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        if (data.errors) setErrors(data.errors);
+        throw new Error(data.error || data.message || 'Save failed');
       }
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to save draft');
-      if (panelMode === 'add') {
-        setForm((f) => ({ ...f, id: data.data._id || data.data.id, status: 'draft' }));
-        setPanelMode('edit');
-      } else {
-        setForm((f) => ({ ...f, status: 'draft' }));
-      }
-      showToast('success', `"${form.title.trim()}" saved as draft`);
-      fetchList(page);
-    } catch (err: any) {
-      setFormApiError(err.message || 'Failed to save draft');
-    } finally {
-      setDraftLoading(false);
-    }
-  };
-
-  // ── quick status toggle (draft ↔ published) ────────────────────────────────
-  const handleStatusToggle = async (m: MovieRow, newStatus: 'draft' | 'published') => {
-    if (m.status === newStatus) return;
-    setBusy(m.id, true);
-    try {
-      const res  = await fetch(`/api/superadmin/movies/${m.id}`, {
-        method:  'PUT',
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ status: newStatus }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to update status');
-      setMovies((prev) => prev.map((x) => x.id === m.id ? { ...x, status: newStatus } : x));
-      showToast('success', `"${m.title}" marked as ${newStatus}`);
-    } catch (err: any) {
-      showToast('error', err.message || 'Failed to update status');
-    } finally {
-      setBusy(m.id, false);
-    }
-  };
-
-  // ── cast helpers ──────────────────────────────────────────────────────────
-  const addCastMember = () =>
-    setField('cast', [...(form.cast || []), { name: '', role: '', character: '', image: '', celebrityId: '' }]);
-
-  const updateCast = (i: number, key: keyof ICastMember, val: string) =>
-    setField('cast', (form.cast || []).map((c, idx) => idx === i ? { ...c, [key]: val } : c));
-
-  const removeCast = (i: number) =>
-    setField('cast', (form.cast || []).filter((_, idx) => idx !== i));
-
-  // ── ticket link helpers ───────────────────────────────────────────────────
-  const addTicketLink = () =>
-    setField('ticketLinks', [...(form.ticketLinks || []), { platform: '', url: '', available: true }]);
-
-  const updateTicketLink = (i: number, key: keyof ITicketLink, val: string | boolean) =>
-    setField('ticketLinks', (form.ticketLinks || []).map((t, idx) => idx === i ? { ...t, [key]: val } : t));
-
-  const removeTicketLink = (i: number) =>
-    setField('ticketLinks', (form.ticketLinks || []).filter((_, idx) => idx !== i));
-
-  // ── pagination ────────────────────────────────────────────────────────────
-  const pageNumbers = (): (number | '...')[] => {
-    if (pages <= 7) return Array.from({ length: pages }, (_, i) => i + 1);
-    const arr: (number | '...')[] = [1];
-    if (page > 3)         arr.push('...');
-    for (let i = Math.max(2, page - 1); i <= Math.min(pages - 1, page + 1); i++) arr.push(i);
-    if (page < pages - 2) arr.push('...');
-    arr.push(pages);
-    return arr;
-  };
-
-  const skeletonRows = Array.from({ length: Math.min(limit, 8) });
-
-  const errBorder = (field: keyof MovieFull) =>
-    formErrors[field] ? 'border-red-500/60' : 'border-white/10 focus:border-yellow-500/60';
-
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value;
-    const newSlug = slugify(v || '');
-    setField('title', v);
-    if (!isSlugEditedRef.current) setField('slug', newSlug);
-  };
-
-  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    isSlugEditedRef.current = true;
-    setField('slug', e.target.value);
-  };
-
-  // language dropdown state and ref
-  const [langOpen, setLangOpen] = useState(false);
-  const langDropdownRef = useRef<HTMLDivElement | null>(null);
-
-  // rating info modal
-  const [showRatingInfo, setShowRatingInfo] = useState(false);
-
-  // image upload state
-  const [uploadingMap,     setUploadingMap]     = useState<Record<number, boolean>>({});
-  const [uploadingPoster,  setUploadingPoster]  = useState(false);
-  const [uploadingBackdrop,setUploadingBackdrop]= useState(false);
-  const [posterDragActive,  setPosterDragActive]  = useState(false);
-  const [backdropDragActive,setBackdropDragActive]= useState(false);
-  const [ogImageUpload,    setOgImageUpload]    = useState<UploadSlot>(emptySlot());
-  const [twitterImageUpload,setTwitterImageUpload]= useState<UploadSlot>(emptySlot());
-
-  // celebrity selection state
-  const [celebrities, setCelebrities] = useState<any[]>([]);
-  const [celebritySearch, setCelebritySearch] = useState('');
-  const [loadingCelebrities, setLoadingCelebrities] = useState(false);
-  const [celebritySearchError, setCelebritySearchError] = useState('');
-  const [activeCastDropdown, setActiveCastDropdown] = useState<number | null>(null);
-  const castDropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
-
-  // new cast draft form
-  const EMPTY_NEW_CAST = { name: '', role: '', character: '', image: '', celebrityId: '' };
-  const [newCast, setNewCast] = useState<ICastMember>({ ...EMPTY_NEW_CAST });
-  const [newCastDropdownOpen, setNewCastDropdownOpen] = useState(false);
-  const newCastDropdownRef = useRef<HTMLDivElement | null>(null);
-  // null = adding new, number = editing existing index
-  const [editCastIndex, setEditCastIndex] = useState<number | null>(null);
-
-  useEffect(() => {
-    function onDoc(e: MouseEvent) {
-      if (!langOpen) return;
-      if (!langDropdownRef.current) return;
-      if (!(e.target instanceof Node)) return;
-      if (!langDropdownRef.current.contains(e.target)) {
-        setLangOpen(false);
-      }
-    }
-    function onEsc(e: KeyboardEvent) {
-      if (e.key === 'Escape') setLangOpen(false);
-    }
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onEsc);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onEsc);
-    };
-  }, [langOpen]);
-
-  // Close cast dropdowns when clicking outside
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (activeCastDropdown === null) return;
-      if (!(e.target instanceof Node)) return;
-      
-      const activeDropdownRef = castDropdownRefs.current[activeCastDropdown];
-      if (activeDropdownRef && !activeDropdownRef.contains(e.target)) {
-        setActiveCastDropdown(null);
-      }
-    }
-    
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setActiveCastDropdown(null);
-      }
-    }
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [activeCastDropdown]);
-
-  // Duration input mode: 'minutes' or 'hours'
-  const [durationMode, setDurationMode] = useState<'minutes' | 'hours'>('minutes');
-  const [durationHours, setDurationHours] = useState<number | undefined>(undefined);
-  const [durationMinutes, setDurationMinutes] = useState<number | undefined>(undefined);
-
-  // keep form.duration in sync when hours/minutes change
-  useEffect(() => {
-    if (durationMode === 'hours') {
-      const h = durationHours || 0;
-      const m = durationMinutes || 0;
-      setField('duration', h * 60 + m);
-    }
-  }, [durationMode, durationHours, durationMinutes]);
-
-  // ── Image Upload Handlers ──────────────────────────────────────────────────
-
-  const movieSlug = form.slug?.trim() || (form.title?.trim() ? slugify(form.title.trim()) : 'movie');
-
-  // ── Poster ────────────────────────────────────────────────────────────────
-  const handleSelectPoster = () => {
-    const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const err = validateImageFile(file);
-      if (err) { showToast('error', err); return; }
-      setUploadingPoster(true);
-      try {
-        if (form.poster) await deleteImage(form.poster);
-        const url = await uploadImage(file, `movies/${movieSlug}/poster`);
-        setField('poster', url);
-        showToast('success', 'Poster uploaded');
-      } catch { showToast('error', 'Failed to upload poster'); }
-      finally { setUploadingPoster(false); }
-    };
-    input.click();
-  };
-
-  const handleDeletePoster = async () => {
-    if (!form.poster) return;
-    try { await deleteImage(form.poster); setField('poster', ''); showToast('success', 'Poster removed'); }
-    catch { showToast('error', 'Failed to remove poster'); }
-  };
-
-  const handleDropPoster = (e: React.DragEvent) => {
-    e.preventDefault(); setPosterDragActive(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const fakeEvent = { target: { files: [file] } } as any;
-      const input = document.createElement('input');
-      input.type = 'file'; input.accept = 'image/*';
-      Object.defineProperty(input, 'files', { value: [file] });
-      handleSelectPoster();
-    }
-  };
-
-  // ── Backdrop ──────────────────────────────────────────────────────────────
-  const handleSelectBackdrop = () => {
-    const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const err = validateImageFile(file);
-      if (err) { showToast('error', err); return; }
-      setUploadingBackdrop(true);
-      try {
-        if (form.backdrop) await deleteImage(form.backdrop);
-        const url = await uploadImage(file, `movies/${movieSlug}/backdrop`);
-        setField('backdrop', url);
-        showToast('success', 'Backdrop uploaded');
-      } catch { showToast('error', 'Failed to upload backdrop'); }
-      finally { setUploadingBackdrop(false); }
-    };
-    input.click();
-  };
-
-  const handleDeleteBackdrop = async () => {
-    if (!form.backdrop) return;
-    try { await deleteImage(form.backdrop); setField('backdrop', ''); showToast('success', 'Backdrop removed'); }
-    catch { showToast('error', 'Failed to remove backdrop'); }
-  };
-
-  // ── SEO helpers ─────────────────────────────────────────────────────────────
-  const setSeoField = <K extends keyof IMovieSEO>(k: K, v: IMovieSEO[K]) =>
-    setForm((p) => ({ ...p, seoData: { ...(p.seoData || EMPTY_MOVIE_SEO), [k]: v } }));
-
-  const handleOgImageUpload = async (file: File) => {
-    const err = validateImageFile(file);
-    if (err) { setOgImageUpload((p) => ({ ...p, error: err })); return; }
-    setOgImageUpload({ uploading: true, progress: 10, error: '' });
-    try {
-      const url = await uploadImage(file, `movies/${movieSlug}/seo`);
-      setSeoField('ogImage', url);
-      setOgImageUpload({ uploading: false, progress: 100, error: '' });
-    } catch {
-      setOgImageUpload({ uploading: false, progress: 0, error: 'Upload failed' });
-    }
-  };
-
-  const handleTwitterImageUpload = async (file: File) => {
-    const err = validateImageFile(file);
-    if (err) { setTwitterImageUpload((p) => ({ ...p, error: err })); return; }
-    setTwitterImageUpload({ uploading: true, progress: 10, error: '' });
-    try {
-      const url = await uploadImage(file, `movies/${movieSlug}/seo`);
-      setSeoField('twitterImage', url);
-      setTwitterImageUpload({ uploading: false, progress: 100, error: '' });
-    } catch {
-      setTwitterImageUpload({ uploading: false, progress: 0, error: 'Upload failed' });
-    }
-  };
-
-  // ── Gallery images ────────────────────────────────────────────────────────
-  const addGalleryImage   = () => setField('images', [...(form.images || []), '']);
-  const removeGalleryImage = (i: number) =>
-    setField('images', (form.images || []).filter((_, idx) => idx !== i));
-  const updateGalleryImage = (i: number, val: string) =>
-    setField('images', (form.images || []).map((x, idx) => idx === i ? val : x));
-
-  const handleSelectGalleryImage = (i: number) => {
-    const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const err = validateImageFile(file);
-      if (err) { showToast('error', err); return; }
-      setUploadingMap((p) => ({ ...p, [i]: true }));
-      try {
-        const old = (form.images || [])[i];
-        if (old) await deleteImage(old);
-        const url = await uploadImage(file, `movies/${movieSlug}/gallery`);
-        updateGalleryImage(i, url);
-        showToast('success', 'Image uploaded');
-      } catch { showToast('error', 'Failed to upload image'); }
-      finally { setUploadingMap((p) => ({ ...p, [i]: false })); }
-    };
-    input.click();
-  };
-
-  const handleDropGalleryImage = async (e: React.DragEvent, i: number) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (!file || !file.type.startsWith('image/')) return;
-    const err = validateImageFile(file);
-    if (err) { showToast('error', err); return; }
-    setUploadingMap((p) => ({ ...p, [i]: true }));
-    try {
-      const old = (form.images || [])[i];
-      if (old) await deleteImage(old);
-      const url = await uploadImage(file, `movies/${movieSlug}/gallery`);
-      updateGalleryImage(i, url);
-      showToast('success', 'Image uploaded');
-    } catch { showToast('error', 'Failed to upload image'); }
-    finally { setUploadingMap((p) => ({ ...p, [i]: false })); }
-  };
-
-  // ── Celebrity Management ──────────────────────────────────────────────────
-
-  const fetchCelebrities = useCallback(async (search: string = '') => {
-    setLoadingCelebrities(true);
-    setCelebritySearchError('');
-    try {
-      const params = new URLSearchParams({ 
-        limit: '20'
-      });
-      if (search.trim()) {
-        params.set('query', search.trim());
-      }
-      
-      const res = await fetch(`/api/content/celebrities/search?${params}`, {
-        headers: authHeaders()
-      });
-      
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-      
-      const data = await res.json();
-      
-      if (data.success && data.data) {
-        setCelebrities(data.data);
-        setCelebritySearchError('');
-      } else {
-        setCelebrities([]);
-        setCelebritySearchError(data.message || 'No celebrities found');
-      }
+      setEditingId(data.data.id || data.data._id);
+      setForm(hydrateForm(data.data));
+      setPanelOpen(true);
+      showToast(
+        'success',
+        publishStatus === 'published'
+          ? 'Movie published'
+          : publishStatus === 'archived'
+            ? 'Movie archived'
+            : 'Movie saved'
+      );
+      fetchMovies(page);
     } catch (error) {
-      console.error('Failed to fetch celebrities:', error);
-      setCelebrities([]);
-      setCelebritySearchError(error instanceof Error ? error.message : 'Failed to search celebrities');
+      const message = error instanceof Error ? error.message : 'Save failed';
+      setApiError(message);
+      showToast('error', message);
     } finally {
-      setLoadingCelebrities(false);
+      setSaving(false);
     }
-  }, [authHeaders]);
-
-  // Load celebrities on component mount
-  useEffect(() => {
-    fetchCelebrities();
-  }, [fetchCelebrities]);
-
-  // Handle celebrity search with debouncing
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchCelebrities(celebritySearch);
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, [celebritySearch, fetchCelebrities]);
-
-  // Handle outside click for new cast dropdown
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (newCastDropdownOpen && newCastDropdownRef.current && !newCastDropdownRef.current.contains(event.target as Node)) {
-        setNewCastDropdownOpen(false);
-      }
-    }
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') setNewCastDropdownOpen(false);
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [newCastDropdownOpen]);
-
-  const handleSelectCelebrity = (index: number, celebrity: any) => {
-    const updatedCast = [...(form.cast || [])];
-    updatedCast[index] = {
-      ...updatedCast[index],
-      name: celebrity.name,
-      image: celebrity.profileImage || '',
-      celebrityId: celebrity.id
-    };
-    setField('cast', updatedCast);
-    setActiveCastDropdown(null);
-    setCelebritySearch(''); // Clear search after selection
-    fetchCelebrities('');
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Form Tab Content
-  // ─────────────────────────────────────────────────────────────────────────
+  const openAdd = () => {
+    slugEdited.current = false;
+    setEditingId(null);
+    setForm({ ...EMPTY_FORM });
+    setErrors({});
+    setApiError('');
+    setTab('basic');
+    setPanelOpen(true);
+    setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
 
-  const renderFormTab = () => {
-    switch (formTab) {
-
-      // ── BASIC ──────────────────────────────────────────────────────────
-      case 'basic': return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          {/* Title */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-              Title <span className="text-yellow-400">*</span>
-            </label>
-            <input type="text" value={form.title}
-              onChange={handleTitleChange}
-              placeholder="e.g. Kalki 2898 AD"
-              className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${errBorder('title')}`}
-            />
-            {formErrors.title && <p className="text-red-400 text-xs mt-1 font-montserrat">{formErrors.title}</p>}
-          </div>
-
-          {/* Slug */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Slug</label>
-            <input type="text" value={form.slug || ''}
-              onChange={handleSlugChange}
-              placeholder="kalki-2898-ad"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
-          </div>
-
-          {/* Director */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Director</label>
-            <input type="text" value={form.director || ''}
-              onChange={(e) => setField('director', e.target.value)}
-              placeholder="e.g. Nag Ashwin"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
-          </div>
-
-          {/* Status */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Status</label>
-            <select value={form.status || ''}
-              onChange={(e) => setField('status', e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            >
-              <option value="">— Select status —</option>
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="announced">Announced</option>
-              <option value="filming">Filming</option>
-              <option value="post-production">Post-production</option>
-              <option value="upcoming">Upcoming</option>
-              <option value="released">Released</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-
-          {/* Language (multi-select dropdown) */}
-          <div className="relative">
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Language</label>
-            <div className="relative">
-              <button type="button" onClick={() => setLangOpen((s) => !s)}
-                className="w-full text-left px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm flex items-center justify-between"
-              >
-                <span className="truncate">
-                  {form.language && form.language.length > 0 ? form.language.join(', ') : 'Select languages'}
-                </span>
-                <Icon name={langOpen ? 'ChevronUpIcon' : 'ChevronDownIcon'} size={16} />
-              </button>
-
-              {langOpen && (
-                <div ref={langDropdownRef} className="absolute z-50 left-0 right-0 mt-2 max-h-56 overflow-y-auto rounded-lg bg-[#060316]/95 border border-white/8 p-2 backdrop-blur-sm">
-                  {LANGUAGES.map((lang) => (
-                    <label key={lang} className="flex items-center gap-3 px-3 py-2 hover:bg-white/4/10 rounded">
-                      <input type="checkbox" checked={!!(form.language || []).includes(lang)}
-                        onChange={() => {
-                          const cur = form.language || [];
-                          if (cur.includes(lang)) setField('language', cur.filter((l) => l !== lang));
-                          else setField('language', [...cur, lang]);
-                        }}
-                        className="w-4 h-4 rounded bg-white/10 border border-white/10 text-yellow-400 focus:ring-0"
-                      />
-                      <span className="text-sm font-montserrat text-white">{lang}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-            <p className="text-neutral-500 text-xs mt-1 font-montserrat">Select one or more languages (Indian + global)</p>
-          </div>
-
-          {/* Release Date */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Release Date</label>
-            <input type="date" value={form.releaseDate || ''}
-              onChange={(e) => setField('releaseDate', e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
-          </div>
-
-          {/* Duration */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Duration</label>
-            <div className="flex items-center gap-3">
-              <select value={durationMode} onChange={(e) => setDurationMode(e.target.value as any)}
-                className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm"
-              >
-                <option value="minutes">Minutes</option>
-                <option value="hours">Hours & Minutes</option>
-              </select>
-
-              {durationMode === 'minutes' ? (
-                <input type="number" value={form.duration ?? ''}
-                  onChange={(e) => setField('duration', e.target.value ? Number(e.target.value) : undefined)}
-                  placeholder="e.g. 165"
-                  className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
-              ) : (
-                <div className="flex gap-2 w-full">
-                  <input type="number" min={0} value={durationHours ?? ''}
-                    onChange={(e) => setDurationHours(e.target.value ? Number(e.target.value) : 0)}
-                    placeholder="Hours"
-                    className="w-24 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                  />
-                  <input type="number" min={0} max={59} value={durationMinutes ?? ''}
-                    onChange={(e) => setDurationMinutes(e.target.value ? Number(e.target.value) : 0)}
-                    placeholder="Minutes"
-                    className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* MPAA / Certification Rating */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Certification / Rating</label>
-            <div className="flex items-center gap-2">
-              <select value={form.mpaaRating || ''}
-                onChange={(e) => setField('mpaaRating', e.target.value)}
-                className="flex-1 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-              >
-                <option value="">— Select rating —</option>
-                <optgroup label="Indian (CBFC)">
-                  <option value="U">U</option>
-                  <option value="U/A">U/A</option>
-                  <option value="A">A</option>
-                  <option value="S">S</option>
-                </optgroup>
-                <optgroup label="MPAA (US)">
-                  <option value="G">G</option>
-                  <option value="PG">PG</option>
-                  <option value="PG-13">PG-13</option>
-                  <option value="R">R</option>
-                  <option value="NC-17">NC-17</option>
-                </optgroup>
-                <optgroup label="Other">
-                  <option value="Not Rated">Not Rated</option>
-                </optgroup>
-              </select>
-
-              <button type="button" onClick={() => setShowRatingInfo(true)}
-                className="w-9 h-9 rounded-full flex items-center justify-center bg-white/5 border border-white/8 text-white hover:bg-white/6 transition-all"
-                aria-label="Rating info"
-              >
-                <Icon name="InformationCircleIcon" size={16} />
-              </button>
-            </div>
-            <p className="text-neutral-500 text-xs mt-1 font-montserrat">Choose a certification — click the info icon to learn meanings.</p>
-
-            {showRatingInfo && (
-              <div className="fixed inset-0 z-60 flex items-center justify-center">
-                <div className="absolute inset-0 bg-black/60" onClick={() => setShowRatingInfo(false)} />
-                <div className="relative z-70 w-full max-w-2xl mx-4 bg-background/95 border border-white/8 rounded-xl p-6">
-                  <div className="flex items-start justify-between">
-                    <h3 className="text-sm font-semibold text-white font-montserrat">Rating guide</h3>
-                    <button type="button" onClick={() => setShowRatingInfo(false)} className="text-neutral-400 hover:text-white">
-                      <Icon name="XMarkIcon" size={18} />
-                    </button>
-                  </div>
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-neutral-300 font-montserrat">
-                    <div>
-                      <p className="font-semibold text-white">Indian (CBFC)</p>
-                      <ul className="mt-2 space-y-2">
-                        <li><span className="font-medium">U:</span> Suitable for all ages.</li>
-                        <li><span className="font-medium">U/A:</span> Parental guidance for children below 12; may contain mild violence or adult themes.</li>
-                        <li><span className="font-medium">A:</span> Restricted to adult audiences (18+); may contain strong language, violence, or sexual content.</li>
-                        <li><span className="font-medium">S:</span> Restricted to specialized audiences such as doctors or scientists.</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-white">MPAA (US)</p>
-                      <ul className="mt-2 space-y-2">
-                        <li><span className="font-medium">G:</span> General audiences — all ages admitted; minimal or no content.</li>
-                        <li><span className="font-medium">PG:</span> Parental guidance suggested; some material may be inappropriate for children.</li>
-                        <li><span className="font-medium">PG-13:</span> Parents strongly cautioned — some material may be inappropriate for children under 13.</li>
-                        <li><span className="font-medium">R:</span> Restricted — under 17 requires accompanying parent or adult guardian.</li>
-                        <li><span className="font-medium">NC-17:</span> No one 17 and under admitted; clearly adult content.</li>
-                        <li><span className="font-medium">Not Rated:</span> Not submitted for rating or not rated by the board.</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Toggles */}
-          <div className="flex flex-wrap items-center gap-6">
-            {(['featured', 'worldwide', 'preOrderAvailable'] as const).map((key) => (
-              <label key={key} className="flex items-center gap-2 cursor-pointer">
-                <span className="text-sm font-montserrat text-neutral-300">
-                  {key === 'preOrderAvailable' ? 'Pre-Order' : key.charAt(0).toUpperCase() + key.slice(1)}
-                </span>
-                <button type="button" onClick={() => setField(key, !form[key])}
-                  className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${form[key] ? 'bg-yellow-500' : 'bg-white/10'}`}
-                >
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${form[key] ? 'left-5' : 'left-0.5'}`} />
-                </button>
-              </label>
-            ))}
-          </div>
-        </div>
+  const openEdit = async (movie: MovieRow) => {
+    setPanelOpen(true);
+    setEditingId(movie.id);
+    setTab('basic');
+    setApiError('');
+    try {
+      const response = await fetch(`/api/superadmin/movies/${movie.id}`, {
+        headers: authHeaders(),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.error || 'Failed to load movie');
+      const hydrated = hydrateForm(data.data);
+      slugEdited.current = hydrated.slug !== slugifyMovie(hydrated.title);
+      setForm(hydrated);
+      setTimeout(
+        () => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+        50
       );
+    } catch (error) {
+      showToast('error', error instanceof Error ? error.message : 'Failed to load movie');
+      setPanelOpen(false);
+    }
+  };
 
-      // ── CONTENT ────────────────────────────────────────────────────────
-      case 'content': return (
-        <div className="space-y-8">
-          {/* Synopsis */}
-          <div>
-            <div className="mb-3">
-              <h4 className="text-sm font-semibold font-montserrat text-white">Synopsis</h4>
-              <p className="text-xs text-neutral-500 font-montserrat mt-0.5">A brief overview of the movie shown in listings and previews.</p>
-            </div>
-            <RichTextEditor
-              label=""
-              value={form.synopsis || ''}
-              onChange={(val) => setField('synopsis', val)}
-              placeholder="Write a brief movie overview..."
-            />
-          </div>
-
-          {/* Plot Summary */}
-          <div>
-            <div className="mb-3">
-              <h4 className="text-sm font-semibold font-montserrat text-white">Plot Summary</h4>
-              <p className="text-xs text-neutral-500 font-montserrat mt-0.5">A detailed description of the plot — spoilers can be included here.</p>
-            </div>
-            <RichTextEditor
-              label=""
-              value={form.plotSummary || ''}
-              onChange={(val) => setField('plotSummary', val)}
-              placeholder="Write a detailed plot description..."
-            />
-          </div>
-        </div>
+  const archiveMovie = async (movie: MovieRow, hard = false) => {
+    try {
+      const response = await fetch(
+        `/api/superadmin/movies/${movie.id}${hard ? '?hard=true' : ''}`,
+        {
+          method: 'DELETE',
+          headers: authHeaders(),
+        }
       );
+      const data = await response.json();
+      if (!response.ok || !data.success)
+        throw new Error(data.error || data.message || 'Action failed');
+      showToast('success', hard ? 'Movie deleted' : 'Movie archived');
+      fetchMovies(page);
+    } catch (error) {
+      showToast('error', error instanceof Error ? error.message : 'Action failed');
+    } finally {
+      setConfirmArchive(null);
+      setConfirmDelete(null);
+    }
+  };
 
-      // ── CAST ───────────────────────────────────────────────────────────
-      case 'cast': return (
-        <div className="space-y-5">
+  const updatePerson = (
+    key: 'leadCast' | 'supportingCast' | 'cameoCast',
+    index: number,
+    patch: Partial<PersonCredit>
+  ) => {
+    const rows = [...form[key]];
+    rows[index] = { ...rows[index], ...patch };
+    if (patch.name && !patch.slug) {
+      rows[index].slug = slugifyMovie(patch.name);
+      rows[index].profileUrl = `/celebrity-profiles/${rows[index].slug}`;
+    }
+    patchForm({ [key]: rows } as Partial<MovieForm>);
+    if (key === 'leadCast') {
+      const actorNames = rows.map((item) => item.name).filter(Boolean);
+      patchForm({
+        schemaActor: actorNames,
+        secondaryKeywords: Array.from(
+          new Set([...form.secondaryKeywords, ...actorNames.map((name) => `${name} ${form.title}`)])
+        ),
+      });
+    }
+  };
 
-          {/* ── Add / Edit Cast Member Form ───────────────────────────── */}
-          <div className={['rounded-xl border p-4 space-y-4', editCastIndex !== null ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-dashed border-white/15 bg-white/3'].join(' ')}>
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-montserrat text-neutral-400 uppercase tracking-wider font-medium">
-                <Icon name={editCastIndex !== null ? 'PencilSquareIcon' : 'PlusCircleIcon'} size={13} className="inline mr-1.5 mb-0.5" />
-                {editCastIndex !== null ? `Editing: ${newCast.name}` : 'Add Cast Member'}
-              </p>
-              {editCastIndex !== null && (
-                <button type="button"
-                  onClick={() => { setEditCastIndex(null); setNewCast({ ...EMPTY_NEW_CAST }); setCelebritySearch(''); }}
-                  className="text-xs text-neutral-500 hover:text-neutral-300 font-montserrat transition-colors"
-                >Cancel edit</button>
-              )}
+  const updateCrew = (
+    key: 'director' | 'producers' | 'writers',
+    index: number,
+    patch: Partial<CrewCredit>
+  ) => {
+    const rows = [...form[key]];
+    rows[index] = { ...rows[index], ...patch };
+    if (patch.name && !patch.slug) {
+      rows[index].slug = slugifyMovie(patch.name);
+      rows[index].profileUrl = `/celebrity-profiles/${rows[index].slug}`;
+    }
+    patchForm({ [key]: rows } as Partial<MovieForm>);
+    if (key === 'director')
+      patchForm({ schemaDirector: rows.map((item) => item.name).filter(Boolean) });
+  };
+
+  const inputClass = (field?: keyof MovieForm) =>
+    `w-full min-w-0 box-border rounded-xl border bg-white/5 px-3 py-2.5 font-montserrat text-sm text-white placeholder-neutral-600 outline-none transition-all focus:border-yellow-500/60 ${
+      field && errors[field] ? 'border-red-500/70' : 'border-white/10'
+    }`;
+
+  const Field = ({
+    field,
+    label,
+    type = 'text',
+    placeholder,
+    helper,
+  }: {
+    field: keyof MovieForm;
+    label: string;
+    type?: string;
+    placeholder?: string;
+    helper?: string;
+  }) => (
+    <div>
+      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-neutral-400 font-montserrat">
+        {label}
+      </label>
+      <input
+        type={type}
+        value={String(form[field] || '')}
+        onChange={(event) => setField(field, event.target.value as any)}
+        placeholder={placeholder}
+        className={inputClass(field)}
+      />
+      {helper && <p className="mt-1 text-xs text-neutral-500 font-montserrat">{helper}</p>}
+      {errors[field] && (
+        <p className="mt-1 text-xs text-red-400 font-montserrat">{errors[field]}</p>
+      )}
+    </div>
+  );
+
+  const TextArea = ({
+    field,
+    label,
+    rows = 3,
+    helper,
+  }: {
+    field: keyof MovieForm;
+    label: string;
+    rows?: number;
+    helper?: string;
+  }) => (
+    <div>
+      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-neutral-400 font-montserrat">
+        {label}
+      </label>
+      <textarea
+        rows={rows}
+        value={String(form[field] || '')}
+        onChange={(event) => setField(field, event.target.value as any)}
+        className={`${inputClass(field)} resize-y`}
+      />
+      {helper && <p className="mt-1 text-xs text-neutral-500 font-montserrat">{helper}</p>}
+      {errors[field] && (
+        <p className="mt-1 text-xs text-red-400 font-montserrat">{errors[field]}</p>
+      )}
+    </div>
+  );
+
+  const TagInput = ({
+    field,
+    label,
+    helper,
+  }: {
+    field: keyof MovieForm;
+    label: string;
+    helper?: string;
+  }) => (
+    <div>
+      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-neutral-400 font-montserrat">
+        {label}
+      </label>
+      <textarea
+        rows={3}
+        value={joinLines(form[field] as string[])}
+        onChange={(event) => setArray(field, event.target.value)}
+        placeholder="One per line, commas also work"
+        className={`${inputClass(field)} resize-y`}
+      />
+      {helper && <p className="mt-1 text-xs text-neutral-500 font-montserrat">{helper}</p>}
+      {errors[field] && (
+        <p className="mt-1 text-xs text-red-400 font-montserrat">{errors[field]}</p>
+      )}
+    </div>
+  );
+
+  const Toggle = ({
+    field,
+    label,
+    helper,
+  }: {
+    field: keyof MovieForm;
+    label: string;
+    helper?: string;
+  }) => (
+    <button
+      type="button"
+      onClick={() => setField(field, !form[field] as any)}
+      className={`rounded-xl border p-4 text-left transition-all ${form[field] ? 'border-yellow-500/50 bg-yellow-500/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-semibold text-white font-montserrat">{label}</span>
+        <span
+          className={`h-5 w-10 rounded-full p-0.5 transition ${form[field] ? 'bg-yellow-500' : 'bg-white/15'}`}
+        >
+          <span
+            className={`block h-4 w-4 rounded-full bg-white transition ${form[field] ? 'translate-x-5' : ''}`}
+          />
+        </span>
+      </div>
+      {helper && <p className="mt-1 text-xs text-neutral-500 font-montserrat">{helper}</p>}
+    </button>
+  );
+
+  const Card = ({ title, children }: { title: string; children: React.ReactNode }) => (
+    <section className="glass-card rounded-2xl p-5">
+      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-yellow-300 font-montserrat">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+
+  const PersonRepeater = ({
+    title,
+    field,
+  }: {
+    title: string;
+    field: 'leadCast' | 'supportingCast' | 'cameoCast';
+  }) => (
+    <Card title={title}>
+      <div className="space-y-3">
+        {form[field].map((person, index) => (
+          <div key={index} className="rounded-xl border border-white/10 bg-white/5 p-3">
+            <div className="grid gap-3 md:grid-cols-4">
+              <input
+                className={inputClass()}
+                value={person.name}
+                onChange={(event) => updatePerson(field, index, { name: event.target.value })}
+                placeholder="Celebrity name"
+              />
+              <input
+                className={inputClass()}
+                value={person.slug || ''}
+                onChange={(event) => updatePerson(field, index, { slug: event.target.value })}
+                placeholder="celebrity-slug"
+              />
+              <input
+                className={inputClass()}
+                value={person.roleName || ''}
+                onChange={(event) => updatePerson(field, index, { roleName: event.target.value })}
+                placeholder="Role / character"
+              />
+              <input
+                className={inputClass()}
+                type="number"
+                value={person.displayOrder || ''}
+                onChange={(event) =>
+                  updatePerson(field, index, { displayOrder: Number(event.target.value) })
+                }
+                placeholder="Order"
+              />
+              <input
+                className={`${inputClass()} md:col-span-2`}
+                value={person.profileUrl || ''}
+                onChange={(event) => updatePerson(field, index, { profileUrl: event.target.value })}
+                placeholder="/celebrity-profiles/slug"
+              />
+              <input
+                className={`${inputClass()} md:col-span-2`}
+                value={person.image || ''}
+                onChange={(event) => updatePerson(field, index, { image: event.target.value })}
+                placeholder="Image URL"
+              />
+              <textarea
+                className={`${inputClass()} md:col-span-4`}
+                rows={2}
+                value={person.characterDescription || ''}
+                onChange={(event) =>
+                  updatePerson(field, index, { characterDescription: event.target.value })
+                }
+                placeholder="Character description"
+              />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Celebrity picker */}
-              <div className="relative" ref={newCastDropdownRef}>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">
-                  Celebrity <span className="text-yellow-400">*</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (newCastDropdownOpen) { setNewCastDropdownOpen(false); return; }
-                    setCelebritySearch('');
-                    fetchCelebrities('');
-                    setNewCastDropdownOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2.5">
-                    {newCast.image && <img src={newCast.image} alt="" className="w-7 h-7 rounded-full object-cover" />}
-                    <span className={newCast.name ? 'text-white' : 'text-neutral-500'}>
-                      {newCast.name || 'Select celebrity...'}
-                    </span>
-                  </div>
-                  <Icon name={newCastDropdownOpen ? 'ChevronUpIcon' : 'ChevronDownIcon'} size={15} />
-                </button>
-
-                {newCastDropdownOpen && (
-                  <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl bg-[#060316]/95 border border-white/10 backdrop-blur-sm shadow-xl">
-                    <div className="p-3 border-b border-white/10">
-                      <div className="relative">
-                        <Icon name="MagnifyingGlassIcon" size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
-                        <input
-                          autoFocus
-                          type="text"
-                          value={celebritySearch}
-                          onChange={(e) => setCelebritySearch(e.target.value)}
-                          placeholder="Search celebrities..."
-                          className="w-full pl-7 pr-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
-                        />
-                        {loadingCelebrities && <Icon name="ArrowPathIcon" size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 animate-spin" />}
-                      </div>
-                    </div>
-                    <div className="max-h-52 overflow-y-auto">
-                      {celebrities.length > 0 ? celebrities.map((cel) => (
-                        <button key={cel.id} type="button"
-                          onClick={() => {
-                            setNewCast(p => ({ ...p, name: cel.name, image: cel.profileImage || '', celebrityId: cel.id }));
-                            setNewCastDropdownOpen(false);
-                            setCelebritySearch('');
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/10 transition-all text-left"
-                        >
-                          {cel.profileImage ? (
-                            <img src={cel.profileImage} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-neutral-700 flex-shrink-0 flex items-center justify-center">
-                              <Icon name="UserIcon" size={15} className="text-neutral-400" />
-                            </div>
-                          )}
-                          <p className="text-white text-sm font-montserrat truncate">{cel.name}</p>
-                        </button>
-                      )) : (
-                        <div className="px-4 py-4 text-neutral-500 text-sm font-montserrat text-center">
-                          {loadingCelebrities ? (
-                            <span className="flex items-center justify-center gap-2">
-                              <Icon name="ArrowPathIcon" size={14} className="animate-spin" /> Loading...
-                            </span>
-                          ) : celebritySearchError ? (
-                            <span className="text-red-400">{celebritySearchError}</span>
-                          ) : (
-                            'No celebrities found'
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Role */}
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Role</label>
-                <select
-                  value={newCast.role || ''}
-                  onChange={(e) => setNewCast(p => ({ ...p, role: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                >
-                  <option value="">Select role...</option>
-                  <option value="Lead">Lead</option>
-                  <option value="Supporting">Supporting</option>
-                  <option value="Cameo">Cameo</option>
-                  <option value="Guest">Guest Appearance</option>
-                  <option value="Voice">Voice Actor</option>
-                </select>
-              </div>
-
-              {/* Character Name */}
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Character Name</label>
-                <input
-                  type="text"
-                  value={newCast.character || ''}
-                  onChange={(e) => setNewCast(p => ({ ...p, character: e.target.value }))}
-                  placeholder="e.g. Bhairava, Karna"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-                />
-              </div>
-            </div>
-
-            {/* Add / Save button */}
-            <div className="flex justify-end gap-2">
-              {editCastIndex !== null && (
-                <button
-                  type="button"
-                  onClick={() => { setEditCastIndex(null); setNewCast({ ...EMPTY_NEW_CAST }); setCelebritySearch(''); }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 font-montserrat text-sm transition-all"
-                >
-                  Cancel
-                </button>
-              )}
+            <div className="mt-3 flex justify-end">
               <button
                 type="button"
-                disabled={!newCast.name}
-                onClick={() => {
-                  if (!newCast.name) return;
-                  if (editCastIndex !== null) {
-                    // save edit
-                    const updated = [...(form.cast || [])];
-                    updated[editCastIndex] = { ...newCast };
-                    setField('cast', updated);
-                    setEditCastIndex(null);
-                  } else {
-                    // add new
-                    setField('cast', [...(form.cast || []), { ...newCast }]);
-                  }
-                  setNewCast({ ...EMPTY_NEW_CAST });
-                  setCelebritySearch('');
-                }}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-montserrat font-semibold text-sm transition-all"
-              >
-                {editCastIndex !== null
-                  ? <><Icon name="CheckIcon" size={14} /> Save Changes</>
-                  : <><Icon name="PlusIcon" size={14} /> Add to Cast</>
+                onClick={() =>
+                  patchForm({
+                    [field]: form[field].filter((_, i) => i !== index),
+                  } as Partial<MovieForm>)
                 }
+                className="text-xs text-red-300 hover:text-red-200"
+              >
+                Remove
               </button>
             </div>
           </div>
+        ))}
+        <button
+          type="button"
+          onClick={() =>
+            patchForm({
+              [field]: [
+                ...form[field],
+                {
+                  name: '',
+                  slug: '',
+                  profileUrl: '',
+                  image: '',
+                  roleName: '',
+                  characterDescription: '',
+                  displayOrder: form[field].length + 1,
+                },
+              ],
+            } as Partial<MovieForm>)
+          }
+          className="rounded-lg border border-white/10 px-3 py-2 text-sm text-neutral-300 hover:bg-white/10"
+        >
+          Add {title}
+        </button>
+      </div>
+    </Card>
+  );
 
-          {/* ── Cast List ─────────────────────────────────────────────── */}
-          {(form.cast || []).length === 0 ? (
-            <div className="py-8 flex flex-col items-center gap-2 text-center">
-              <Icon name="UsersIcon" size={36} className="text-neutral-700" />
-              <p className="text-neutral-500 font-montserrat text-sm">No cast members added yet.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-xs font-montserrat text-neutral-500 uppercase tracking-wider mb-3">
-                {(form.cast || []).length} cast member{(form.cast || []).length !== 1 ? 's' : ''}
-              </p>
-              {(form.cast || []).map((member, i) => {
-                const roleBadgeColor: Record<string, string> = {
-                  Lead: 'bg-yellow-500/15 text-yellow-400',
-                  Supporting: 'bg-blue-500/15 text-blue-400',
-                  Cameo: 'bg-purple-500/15 text-purple-400',
-                  Guest: 'bg-green-500/15 text-green-400',
-                  Voice: 'bg-pink-500/15 text-pink-400',
-                };
-                const badgeCls = roleBadgeColor[member.role || ''] || 'bg-white/10 text-neutral-400';
-                return (
-                  <div key={i} className={['flex items-center gap-3 px-4 py-3 rounded-xl border group transition-all', editCastIndex === i ? 'bg-yellow-500/8 border-yellow-500/30' : 'bg-white/5 border-white/8 hover:border-white/15'].join(' ')}>
-                    {/* Avatar */}
-                    {member.image ? (
-                      <img src={member.image} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-white/10" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-neutral-700 flex-shrink-0 flex items-center justify-center ring-2 ring-white/10">
-                        <Icon name="UserIcon" size={16} className="text-neutral-400" />
-                      </div>
-                    )}
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-montserrat font-medium truncate">{member.name}</p>
-                      {member.character && (
-                        <p className="text-neutral-500 text-xs font-montserrat truncate">as {member.character}</p>
-                      )}
-                    </div>
-                    {/* Role badge */}
-                    {member.role && (
-                      <span className={`text-xs font-montserrat px-2 py-0.5 rounded-full flex-shrink-0 ${badgeCls}`}>{member.role}</span>
-                    )}
-                    {/* Edit */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditCastIndex(i);
-                        setNewCast({ ...member });
-                        setCelebritySearch('');
-                        fetchCelebrities('');
-                        setNewCastDropdownOpen(false);
-                        // scroll form into view
-                        const el = newCastDropdownRef.current?.closest('.space-y-5');
-                        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }}
-                      className="ml-1 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all flex-shrink-0"
-                    >
-                      <Icon name="PencilSquareIcon" size={13} />
-                    </button>
-                    {/* Remove */}
-                    <button
-                      type="button"
-                      onClick={() => { removeCast(i); if (editCastIndex === i) { setEditCastIndex(null); setNewCast({ ...EMPTY_NEW_CAST }); } }}
-                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all flex-shrink-0"
-                    >
-                      <Icon name="XMarkIcon" size={13} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-        </div>
-      );
-
-      // ── DETAILS ────────────────────────────────────────────────────────
-      case 'details': return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          {/* Studio */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Studio</label>
-            <input type="text" value={form.studio || ''}
-              onChange={(e) => setField('studio', e.target.value)}
-              placeholder="e.g. Hombale Films"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
-          </div>
-
-          {/* Trailer */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Trailer URL</label>
-            <input type="url" value={form.trailer || ''}
-              onChange={(e) => setField('trailer', e.target.value)}
-              placeholder="https://youtube.com/watch?v=..."
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
-          </div>
-
-          {/* Budget */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Budget (₹ Crore)</label>
-            <input type="number" value={form.budget ?? ''}
-              onChange={(e) => setField('budget', e.target.value ? Number(e.target.value) : undefined)}
-              placeholder="e.g. 600"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
-          </div>
-
-          {/* Box Office Projection */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Box Office Projection (₹ Crore)</label>
-            <input type="number" value={form.boxOfficeProjection ?? ''}
-              onChange={(e) => setField('boxOfficeProjection', e.target.value ? Number(e.target.value) : undefined)}
-              placeholder="e.g. 1200"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
-          </div>
-
-          {/* Anticipation Score */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Anticipation Score (0–10)</label>
+  const CrewRepeater = ({
+    title,
+    field,
+  }: {
+    title: string;
+    field: 'director' | 'producers' | 'writers';
+  }) => (
+    <Card title={title}>
+      <div className="space-y-3">
+        {form[field].map((person, index) => (
+          <div
+            key={index}
+            className="grid gap-3 rounded-xl border border-white/10 bg-white/5 p-3 md:grid-cols-4"
+          >
             <input
-              type="number"
-              min={0}
-              max={10}
-              step={0.1}
-              value={form.anticipationScore ?? ''}
-              onChange={(e) => {
-                const raw = e.target.value;
-                if (raw === '') {
-                  setField('anticipationScore', undefined);
-                  setFormErrors((p) => { const copy = { ...p }; delete copy.anticipationScore; return copy; });
-                  return;
+              className={inputClass()}
+              value={person.name}
+              onChange={(event) => updateCrew(field, index, { name: event.target.value })}
+              placeholder="Name"
+            />
+            <input
+              className={inputClass()}
+              value={person.slug || ''}
+              onChange={(event) => updateCrew(field, index, { slug: event.target.value })}
+              placeholder="slug"
+            />
+            <input
+              className={inputClass()}
+              value={person.profileUrl || ''}
+              onChange={(event) => updateCrew(field, index, { profileUrl: event.target.value })}
+              placeholder="Profile URL"
+            />
+            <div className="flex gap-2">
+              <input
+                className={inputClass()}
+                value={person.image || ''}
+                onChange={(event) => updateCrew(field, index, { image: event.target.value })}
+                placeholder="Image URL"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  patchForm({
+                    [field]: form[field].filter((_, i) => i !== index),
+                  } as Partial<MovieForm>)
                 }
-                const n = Number(raw);
-                if (Number.isNaN(n)) return;
-                // If out of range, clamp and set an error message
-                if (n < 0 || n > 10) {
-                  const clamped = Math.min(10, Math.max(0, n));
-                  setField('anticipationScore', clamped);
-                  setFormErrors((p) => ({ ...p, anticipationScore: 'Score must be between 0 and 10' }));
-                } else {
-                  setField('anticipationScore', n);
-                  setFormErrors((p) => { const copy = { ...p }; delete copy.anticipationScore; return copy; });
-                }
-              }}
-              onBlur={() => {
-                // Ensure final value is within bounds
-                const val = form.anticipationScore;
-                if (typeof val === 'number') {
-                  const clamped = Math.min(10, Math.max(0, val));
-                  if (clamped !== val) {
-                    setField('anticipationScore', clamped);
-                    setFormErrors((p) => ({ ...p, anticipationScore: 'Score must be between 0 and 10' }));
-                  }
-                }
-              }}
-              placeholder="e.g. 9.2"
-              className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border ${formErrors.anticipationScore ? 'border-red-500/60' : 'border-white/10'} text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm`}
-            />
-            {formErrors.anticipationScore && (
-              <p className="text-red-400 text-xs mt-1 font-montserrat">{formErrors.anticipationScore}</p>
-            )}
-          </div>
-
-          {/* Original Language */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Original Language</label>
-            <input type="text" value={form.originalLanguage || ''}
-              onChange={(e) => setField('originalLanguage', e.target.value)}
-              placeholder="e.g. Telugu"
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
-          </div>
-
-          {/* Genre (comma-separated) */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Genre (comma-separated)</label>
-            <textarea value={joinComma(form.genre)} rows={2}
-              onChange={(e) => setField('genre', splitComma(e.target.value))}
-              placeholder={"Action, Sci-Fi, Adventure"}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-          </div>
-
-          {/* Regions (comma-separated) */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Regions (comma-separated)</label>
-            <textarea value={joinComma(form.regions)} rows={2}
-              onChange={(e) => setField('regions', splitComma(e.target.value))}
-              placeholder={"India, US, UK"}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-          </div>
-
-          {/* Writers (comma-separated) */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Writers (comma-separated)</label>
-            <textarea value={joinComma(form.writers)} rows={2}
-              onChange={(e) => setField('writers', splitComma(e.target.value))}
-              placeholder={"Nag Ashwin, Abhijeet Kumar"}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-          </div>
-
-          {/* Producers (comma-separated) */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Producers (comma-separated)</label>
-            <textarea value={joinComma(form.producers)} rows={2}
-              onChange={(e) => setField('producers', splitComma(e.target.value))}
-              placeholder={"Vijay Kiragandur"}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-          </div>
-
-          {/* Subtitles (comma-separated) */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Subtitles (comma-separated)</label>
-            <textarea value={joinComma(form.subtitles)} rows={2}
-              onChange={(e) => setField('subtitles', splitComma(e.target.value))}
-              placeholder={"English, Hindi, Tamil"}
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-          </div>
-
-          {/* Production Notes */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Production Notes</label>
-            <textarea value={form.productionNotes || ''} rows={3}
-              onChange={(e) => setField('productionNotes', e.target.value)}
-              placeholder="Any additional production information..."
-              className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm resize-none"
-            />
-          </div>
-
-          {/* Ticket Links */}
-          <div className="md:col-span-2 space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider">Ticket Links</label>
-              <button type="button" onClick={addTicketLink}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 text-sm font-montserrat transition-all"
+                className="rounded-lg border border-red-500/30 px-3 text-xs text-red-300"
               >
-                <Icon name="PlusIcon" size={13} /> Add Link
+                Remove
               </button>
             </div>
-            {(form.ticketLinks || []).map((link, i) => (
-              <div key={i} className="grid grid-cols-5 gap-2 items-center p-3 rounded-xl bg-white/5 border border-white/10">
-                <input type="text" value={link.platform}
-                  onChange={(e) => updateTicketLink(i, 'platform', e.target.value)}
-                  placeholder="BookMyShow"
-                  className="col-span-1 px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() =>
+            patchForm({
+              [field]: [...form[field], { name: '', slug: '', profileUrl: '', image: '' }],
+            } as Partial<MovieForm>)
+          }
+          className="rounded-lg border border-white/10 px-3 py-2 text-sm text-neutral-300 hover:bg-white/10"
+        >
+          Add {title}
+        </button>
+      </div>
+    </Card>
+  );
+
+  const MediaField = ({
+    field,
+    label,
+    folder,
+  }: {
+    field: keyof MovieForm;
+    label: string;
+    folder: string;
+  }) => (
+    <div>
+      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-neutral-400">
+        {label}
+      </label>
+      <div className="flex gap-2">
+        <input
+          className={inputClass(field)}
+          value={String(form[field] || '')}
+          onChange={(event) => setField(field, event.target.value as any)}
+          placeholder="https://..."
+        />
+        <button
+          type="button"
+          onClick={() => selectImage(field, folder)}
+          className="rounded-xl border border-white/10 px-3 text-sm text-neutral-200 hover:bg-white/10"
+          disabled={uploadingField === field}
+        >
+          {uploadingField === field ? 'Uploading' : 'Upload'}
+        </button>
+      </div>
+      {errors[field] && <p className="mt-1 text-xs text-red-400">{errors[field]}</p>}
+    </div>
+  );
+
+  const renderTab = () => {
+    if (tab === 'basic')
+      return (
+        <div className="space-y-5">
+          <Card title="Identity">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field field="title" label="Title" placeholder="Movie title" />
+              <Field field="originalTitle" label="Original Title" />
+              <div>
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-neutral-400">
+                  Slug
+                </label>
+                <input
+                  className={inputClass('slug')}
+                  value={form.slug}
+                  onChange={(event) => {
+                    slugEdited.current = true;
+                    setField('slug', slugifyMovie(event.target.value) as any);
+                  }}
                 />
-                <input type="url" value={link.url}
-                  onChange={(e) => updateTicketLink(i, 'url', e.target.value)}
-                  placeholder="https://..."
-                  className="col-span-3 px-2.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-xs"
+                {errors.slug && <p className="mt-1 text-xs text-red-400">{errors.slug}</p>}
+              </div>
+              <Field field="tagline" label="Tagline" />
+              <div className="md:col-span-2">
+                <TextArea
+                  field="excerpt"
+                  label="Excerpt"
+                  helper="Used in cards, SEO defaults, and article schema."
                 />
-                <div className="flex items-center justify-between gap-1">
-                  <button type="button" onClick={() => updateTicketLink(i, 'available', !link.available)}
-                    className={`w-8 h-4 rounded-full transition-all relative shrink-0 ${link.available ? 'bg-yellow-500' : 'bg-white/10'}`}
+              </div>
+            </div>
+          </Card>
+          <Card title="Classification">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-neutral-400">
+                  Movie Status
+                </label>
+                <select
+                  value={form.status}
+                  onChange={(event) => setField('status', event.target.value as any)}
+                  className={inputClass('status')}
+                >
+                  {MOVIE_STATUSES.map((item) => (
+                    <option key={item} value={item}>
+                      {labelize(item)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Field field="movieType" label="Movie Type" placeholder="Feature Film" />
+              <Field field="originalLanguage" label="Original Language" />
+              <TagInput field="languages" label="Languages" />
+              <Field field="country" label="Country" />
+              <TagInput field="genres" label="Genres" />
+              <TagInput field="subgenres" label="Subgenres" />
+              <Field field="certification" label="Certification" placeholder="UA, PG-13" />
+              <div className="grid grid-cols-2 gap-2">
+                <Field field="runtimeValue" label="Runtime" type="number" />
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-neutral-400">
+                    Unit
+                  </label>
+                  <select
+                    value={form.runtimeUnit}
+                    onChange={(event) => setField('runtimeUnit', event.target.value as any)}
+                    className={inputClass()}
                   >
-                    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${link.available ? 'left-4' : 'left-0.5'}`} />
-                  </button>
-                  <button type="button" onClick={() => removeTicketLink(i)}
-                    className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
-                  >
-                    <Icon name="XMarkIcon" size={12} />
-                  </button>
+                    <option value="minutes">Minutes</option>
+                    <option value="hours">Hours</option>
+                  </select>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          </Card>
+          <Card title="Editorial Flags">
+            <div className="grid gap-3 md:grid-cols-3">
+              <Toggle
+                field="isFeatured"
+                label="Featured"
+                helper="Used by public hero and featured APIs."
+              />
+              <Toggle
+                field="isTrending"
+                label="Trending"
+                helper="Used by listing sections and filters."
+              />
+              <Toggle
+                field="isEditorPick"
+                label="Editor Pick"
+                helper="Used by public editorial sections."
+              />
+            </div>
+          </Card>
         </div>
       );
 
-      // ── IMAGES ─────────────────────────────────────────────────────────
-      case 'images': {
-        const canUpload = !!form.title.trim();
-        return (
-        <div className="space-y-6">
-
-          {/* Upload path notice */}
-          {!canUpload ? (
-            <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
-              <Icon name="ExclamationTriangleIcon" size={16} className="text-amber-400 mt-0.5 shrink-0" />
-              <p className="text-amber-300 text-xs font-montserrat leading-relaxed">
-                <span className="font-semibold">Enter the movie title first.</span>{' '}
-                Images will be organised in a dedicated folder once the title is filled.
-              </p>
+    if (tab === 'release')
+      return (
+        <div className="space-y-5">
+          <Card title="Release Timing">
+            <div className="grid gap-4 md:grid-cols-3">
+              <Field field="releaseDate" label="Release Date" type="date" />
+              <Field
+                field="releaseDateText"
+                label="Release Date Text"
+                placeholder="Expected in 2026"
+              />
+              <Field field="releaseYear" label="Release Year" type="number" />
+              <Field field="theatricalReleaseDate" label="Theatrical Release Date" type="date" />
+              <Field field="ottReleaseDate" label="OTT Release Date" type="date" />
+              <div>
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-neutral-400">
+                  Availability Status
+                </label>
+                <select
+                  value={form.availabilityStatus}
+                  onChange={(event) => setField('availabilityStatus', event.target.value as any)}
+                  className={inputClass('availabilityStatus')}
+                >
+                  {AVAILABILITY_STATUSES.map((item) => (
+                    <option key={item} value={item}>
+                      {labelize(item)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          ) : (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20">
-              <Icon name="FolderIcon" size={14} className="text-green-400 shrink-0" />
-              <p className="text-green-300 text-xs font-montserrat truncate">
-                Upload path: <span className="font-semibold">movies / {movieSlug}</span>
-              </p>
+          </Card>
+          <Card title="Availability">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field field="ottPlatform" label="OTT Platform" />
+              <Field field="streamingPlatform" label="Streaming Platform" />
+              <Field field="preorderOrWatchlistUrl" label="Preorder / Watchlist URL" />
+              <Field field="ticketBookingUrl" label="Ticket Booking URL" />
+              <div className="md:col-span-2">
+                <TextArea field="whereToWatchText" label="Where To Watch Text" />
+              </div>
+              <TagInput field="releaseCountries" label="Release Countries" />
+              <TagInput field="releaseLanguages" label="Release Languages" />
+              <TagInput field="dubbedLanguages" label="Dubbed Languages" />
+              <div className="grid gap-3 md:grid-cols-2">
+                <Toggle field="worldwideRelease" label="Worldwide Release" />
+                <Toggle field="indiaRelease" label="India Release" />
+              </div>
+            </div>
+          </Card>
+        </div>
+      );
+
+    if (tab === 'cast')
+      return (
+        <div className="space-y-5">
+          <PersonRepeater title="Lead Cast" field="leadCast" />
+          <PersonRepeater title="Supporting Cast" field="supportingCast" />
+          <PersonRepeater title="Cameo Cast" field="cameoCast" />
+          <div className="grid gap-5 xl:grid-cols-3">
+            <CrewRepeater title="Director" field="director" />
+            <CrewRepeater title="Producers" field="producers" />
+            <CrewRepeater title="Writers" field="writers" />
+          </div>
+          <Card title="Crew Departments">
+            <div className="grid gap-4 md:grid-cols-3">
+              {(
+                [
+                  'screenplay',
+                  'storyBy',
+                  'musicDirector',
+                  'cinematographer',
+                  'editor',
+                  'productionDesigner',
+                  'costumeDesigner',
+                  'actionDirector',
+                  'choreographer',
+                  'castingDirector',
+                  'productionCompanies',
+                ] as Array<keyof MovieForm>
+              ).map((field) => (
+                <TagInput key={field} field={field} label={labelize(String(field))} />
+              ))}
+              <Field field="distributor" label="Distributor" />
+              <Field field="ottPartner" label="OTT Partner" />
+            </div>
+          </Card>
+        </div>
+      );
+
+    if (tab === 'story')
+      return (
+        <div className="space-y-5">
+          <Card title="Core Story">
+            <div className="space-y-4">
+              <RichTextEditor
+                label={
+                  <>
+                    Synopsis <span className="text-yellow-400">*</span>
+                  </>
+                }
+                value={form.synopsis}
+                onChange={(value) => setField('synopsis', value as any)}
+              />
+              <RichTextEditor
+                label="Plot Summary"
+                value={form.plotSummary}
+                onChange={(value) => setField('plotSummary', value as any)}
+              />
+              <RichTextEditor
+                label="Storyline"
+                value={form.storyline}
+                onChange={(value) => setField('storyline', value as any)}
+              />
+              <RichTextEditor
+                label="Premise"
+                value={form.premise}
+                onChange={(value) => setField('premise', value as any)}
+              />
+              <RichTextEditor
+                label="Official Description"
+                value={form.officialDescription}
+                onChange={(value) => setField('officialDescription', value as any)}
+              />
+            </div>
+          </Card>
+          <Card title="Preview Angles">
+            <div className="space-y-4">
+              <RichTextEditor
+                label="What To Expect"
+                value={form.whatToExpect}
+                onChange={(value) => setField('whatToExpect', value as any)}
+              />
+              <RichTextEditor
+                label="Trailer Breakdown"
+                value={form.trailerBreakdown}
+                onChange={(value) => setField('trailerBreakdown', value as any)}
+              />
+              <RichTextEditor
+                label="Cast Performance Expectations"
+                value={form.castPerformanceExpectations}
+                onChange={(value) => setField('castPerformanceExpectations', value as any)}
+              />
+              <RichTextEditor
+                label="Why This Movie Is Important"
+                value={form.whyThisMovieIsImportant}
+                onChange={(value) => setField('whyThisMovieIsImportant', value as any)}
+              />
+              <RichTextEditor
+                label="Audience Buzz"
+                value={form.audienceBuzz}
+                onChange={(value) => setField('audienceBuzz', value as any)}
+              />
+              <TagInput field="similarMovies" label="Similar Movies" />
+              <RichTextEditor
+                label="Final Preview Note"
+                value={form.finalPreviewNote}
+                onChange={(value) => setField('finalPreviewNote', value as any)}
+              />
+              <Toggle field="spoilerWarning" label="Spoiler Warning" />
+              {form.spoilerWarning && (
+                <RichTextEditor
+                  label="Spoiler Content"
+                  value={form.spoilerContent}
+                  onChange={(value) => setField('spoilerContent', value as any)}
+                />
+              )}
+            </div>
+          </Card>
+        </div>
+      );
+
+    if (tab === 'media')
+      return (
+        <div className="space-y-5">
+          <Card title="Images">
+            <div className="grid gap-4 md:grid-cols-2">
+              <MediaField field="posterImage" label="Poster Image" folder="poster" />
+              <Field field="posterImageAlt" label="Poster Image Alt" />
+              <Field field="posterImageCaption" label="Poster Caption" />
+              <MediaField field="backdropImage" label="Backdrop Image" folder="backdrop" />
+              <MediaField field="featuredImage" label="Featured Image" folder="featured" />
+              <MediaField field="trailerThumbnail" label="Trailer Thumbnail" folder="trailer" />
+            </div>
+          </Card>
+          <Card title="Gallery">
+            <div className="space-y-3">
+              {form.galleryImages.map((item, index) => (
+                <div
+                  key={index}
+                  className="grid gap-3 rounded-xl border border-white/10 bg-white/5 p-3 md:grid-cols-5"
+                >
+                  {(
+                    ['url', 'alt', 'caption', 'credit', 'sourceUrl'] as Array<keyof GalleryImage>
+                  ).map((field) => (
+                    <input
+                      key={field}
+                      value={item[field] || ''}
+                      onChange={(event) => {
+                        const rows = [...form.galleryImages];
+                        rows[index] = { ...rows[index], [field]: event.target.value };
+                        patchForm({ galleryImages: rows });
+                      }}
+                      className={inputClass()}
+                      placeholder={labelize(field)}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      patchForm({ galleryImages: form.galleryImages.filter((_, i) => i !== index) })
+                    }
+                    className="text-left text-xs text-red-300 md:col-span-5"
+                  >
+                    Remove gallery item
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  patchForm({
+                    galleryImages: [
+                      ...form.galleryImages,
+                      { url: '', alt: '', caption: '', credit: '', sourceUrl: '' },
+                    ],
+                  })
+                }
+                className="rounded-lg border border-white/10 px-3 py-2 text-sm text-neutral-300 hover:bg-white/10"
+              >
+                Add Gallery Image
+              </button>
+            </div>
+          </Card>
+          <Card title="Video & Embeds">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field field="trailerUrl" label="Trailer URL" />
+              <Field field="teaserUrl" label="Teaser URL" />
+              <Field field="videoEmbedUrl" label="Video Embed URL" />
+              <Field field="youtubeVideoId" label="YouTube Video ID" />
+              <Field
+                field="trailerDuration"
+                label="Trailer Duration"
+                placeholder="PT2M30S or 2:30"
+              />
+              <Field field="trailerPublishedAt" label="Trailer Published At" type="date" />
+              <TagInput field="officialClipUrls" label="Official Clip URLs" />
+              <Field field="instagramEmbedUrl" label="Instagram Embed URL" />
+              <Field field="xEmbedUrl" label="X Embed URL" />
+            </div>
+          </Card>
+        </div>
+      );
+
+    if (tab === 'production')
+      return (
+        <Card title="Production Details">
+          <div className="grid gap-4 md:grid-cols-3">
+            {(
+              [
+                'productionStatus',
+                'filmingStartDate',
+                'filmingEndDate',
+                'budget',
+                'boxOfficeCollection',
+                'productionCompany',
+                'distributorName',
+                'musicLabel',
+                'aspectRatio',
+                'soundMix',
+                'color',
+                'primaryFilmingLanguage',
+              ] as Array<keyof MovieForm>
+            ).map((field) =>
+              field === 'filmingStartDate' || field === 'filmingEndDate' ? (
+                <Field key={field} field={field} label={labelize(field)} type="date" />
+              ) : (
+                <Field key={field} field={field} label={labelize(field)} />
+              )
+            )}
+            <TagInput field="filmingLocations" label="Filming Locations" />
+          </div>
+        </Card>
+      );
+
+    if (tab === 'sources')
+      return (
+        <div className="space-y-5">
+          <Card title="External Links">
+            <div className="grid gap-4 md:grid-cols-3">
+              {(
+                [
+                  'officialWebsite',
+                  'imdbUrl',
+                  'wikipediaUrl',
+                  'platformUrl',
+                  'youtubeTrailerUrl',
+                  'pressReleaseUrl',
+                ] as Array<keyof MovieForm>
+              ).map((field) => (
+                <Field key={field} field={field} label={labelize(field)} />
+              ))}
+            </div>
+          </Card>
+          <Card title="Primary Source">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field field="sourceType" label="Source Type" />
+              <Field field="sourceName" label="Source Name" />
+              <Field field="sourceUrl" label="Source URL" />
+              <Field field="sourcePublishedAt" label="Source Published At" type="date" />
+              <Toggle field="isSourceVerified" label="Source Verified" />
+              <Field field="sourceCreditText" label="Source Credit Text" />
+              <div className="md:col-span-2">
+                <TextArea field="factCheckNotes" label="Fact Check Notes" rows={4} />
+              </div>
+            </div>
+          </Card>
+          <Card title="Additional References">
+            <div className="space-y-3">
+              {form.additionalReferences.map((item, index) => (
+                <div
+                  key={index}
+                  className="grid gap-3 rounded-xl border border-white/10 bg-white/5 p-3 md:grid-cols-4"
+                >
+                  <input
+                    className={inputClass()}
+                    value={item.title || ''}
+                    onChange={(event) => {
+                      const rows = [...form.additionalReferences];
+                      rows[index] = { ...rows[index], title: event.target.value };
+                      patchForm({ additionalReferences: rows });
+                    }}
+                    placeholder="Title"
+                  />
+                  <input
+                    className={inputClass()}
+                    value={item.url || ''}
+                    onChange={(event) => {
+                      const rows = [...form.additionalReferences];
+                      rows[index] = { ...rows[index], url: event.target.value };
+                      patchForm({ additionalReferences: rows });
+                    }}
+                    placeholder="URL"
+                  />
+                  <input
+                    className={inputClass()}
+                    value={item.sourceName || ''}
+                    onChange={(event) => {
+                      const rows = [...form.additionalReferences];
+                      rows[index] = { ...rows[index], sourceName: event.target.value };
+                      patchForm({ additionalReferences: rows });
+                    }}
+                    placeholder="Source"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      patchForm({
+                        additionalReferences: form.additionalReferences.filter(
+                          (_, i) => i !== index
+                        ),
+                      })
+                    }
+                    className="rounded-lg border border-red-500/30 px-3 text-xs text-red-300"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  patchForm({
+                    additionalReferences: [
+                      ...form.additionalReferences,
+                      { title: '', url: '', sourceName: '' },
+                    ],
+                  })
+                }
+                className="rounded-lg border border-white/10 px-3 py-2 text-sm text-neutral-300 hover:bg-white/10"
+              >
+                Add Reference
+              </button>
+            </div>
+          </Card>
+        </div>
+      );
+
+    if (tab === 'seo')
+      return (
+        <div className="space-y-5">
+          <Card title="Search Metadata">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field field="focusKeyword" label="Focus Keyword" />
+              <TagInput field="secondaryKeywords" label="Secondary Keywords" />
+              <div>
+                <Field field="metaTitle" label="Meta Title" />
+                <p
+                  className={`mt-1 text-xs ${form.metaTitle.length > 60 ? 'text-amber-300' : 'text-neutral-500'}`}
+                >
+                  {form.metaTitle.length}/60 characters
+                </p>
+              </div>
+              <div>
+                <TextArea field="metaDescription" label="Meta Description" rows={3} />
+                <p
+                  className={`mt-1 text-xs ${form.metaDescription.length > 160 ? 'text-amber-300' : 'text-neutral-500'}`}
+                >
+                  {form.metaDescription.length}/160 characters
+                </p>
+              </div>
+              <Field field="canonicalUrl" label="Canonical URL" />
+              <TagInput field="contentTags" label="Content Tags" />
+              <Field field="breadcrumbTitle" label="Breadcrumb Title" />
+              <div className="grid gap-3 md:grid-cols-2">
+                <Toggle field="robotsIndex" label="Robots Index" />
+                <Toggle field="robotsFollow" label="Robots Follow" />
+              </div>
+            </div>
+          </Card>
+          <Card title="Social Metadata">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field field="ogTitle" label="OG Title" />
+              <TextArea field="ogDescription" label="OG Description" />
+              <MediaField field="ogImage" label="OG Image" folder="seo" />
+              <Field field="twitterTitle" label="Twitter Title" />
+              <TextArea field="twitterDescription" label="Twitter Description" />
+              <MediaField field="twitterImage" label="Twitter Image" folder="seo" />
+            </div>
+          </Card>
+          {seoWarnings.length > 0 && (
+            <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4">
+              <p className="mb-2 text-sm font-semibold text-amber-200">SEO helper warnings</p>
+              <ul className="space-y-1 text-xs text-amber-100/80">
+                {seoWarnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
             </div>
           )}
-
-          {/* ── Poster ── */}
-          <div>
-            <p className="text-white text-sm font-montserrat font-semibold mb-1">Poster</p>
-            <p className="text-neutral-500 text-xs font-montserrat mb-3">Portrait-orientation cover image shown in listings and cards.</p>
-            <div
-              onDragOver={(e) => { e.preventDefault(); setPosterDragActive(true); }}
-              onDragLeave={(e) => { e.preventDefault(); setPosterDragActive(false); }}
-              onDrop={(e) => { setPosterDragActive(false); if (canUpload) handleDropPoster(e); }}
-              className={`relative rounded-2xl border-2 overflow-hidden transition-all group ${
-                posterDragActive
-                  ? 'border-yellow-400/60 bg-yellow-500/5'
-                  : form.poster
-                    ? 'border-white/10 hover:border-yellow-500/30'
-                    : 'border-dashed border-white/15 hover:border-yellow-500/40 hover:bg-yellow-500/5'
-              }`}
-            >
-              {uploadingPoster ? (
-                <div className="h-52 flex flex-col items-center justify-center gap-3">
-                  <Icon name="ArrowPathIcon" size={28} className="text-yellow-400 animate-spin" />
-                  <p className="text-yellow-400 text-xs font-montserrat">Uploading…</p>
-                </div>
-              ) : form.poster ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={form.poster} alt="poster" className="w-full max-h-72 object-cover" />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                    <button type="button" onClick={handleSelectPoster} disabled={!canUpload}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500 text-black text-xs font-bold font-montserrat hover:bg-yellow-400 transition-all disabled:opacity-50">
-                      <Icon name="ArrowUpTrayIcon" size={13} /> Replace
-                    </button>
-                    <button type="button" onClick={handleDeletePoster}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-montserrat hover:bg-red-500/30 hover:text-red-300 transition-all">
-                      <Icon name="TrashIcon" size={13} /> Remove
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <button type="button" onClick={() => canUpload && handleSelectPoster()}
-                  disabled={!canUpload}
-                  className={`w-full h-52 flex flex-col items-center justify-center gap-2 transition-colors ${
-                    canUpload ? 'text-neutral-600 hover:text-yellow-400 cursor-pointer' : 'text-neutral-700 cursor-not-allowed'
-                  }`}
-                >
-                  <Icon name="ArrowUpTrayIcon" size={28} />
-                  <p className="text-xs font-montserrat">Click or drop to upload poster</p>
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="border-t border-white/10" />
-
-          {/* ── Backdrop ── */}
-          <div>
-            <p className="text-white text-sm font-montserrat font-semibold mb-1">Backdrop</p>
-            <p className="text-neutral-500 text-xs font-montserrat mb-3">Wide landscape image used as page hero / banner background.</p>
-            <div
-              onDragOver={(e) => { e.preventDefault(); setBackdropDragActive(true); }}
-              onDragLeave={(e) => { e.preventDefault(); setBackdropDragActive(false); }}
-              onDrop={(e) => { setBackdropDragActive(false); if (canUpload) { e.preventDefault(); const file = e.dataTransfer.files?.[0]; if (file && file.type.startsWith('image/')) handleSelectBackdrop(); } }}
-              className={`relative rounded-2xl border-2 overflow-hidden transition-all group ${
-                backdropDragActive
-                  ? 'border-yellow-400/60 bg-yellow-500/5'
-                  : form.backdrop
-                    ? 'border-white/10 hover:border-yellow-500/30'
-                    : 'border-dashed border-white/15 hover:border-yellow-500/40 hover:bg-yellow-500/5'
-              }`}
-            >
-              {uploadingBackdrop ? (
-                <div className="h-44 flex flex-col items-center justify-center gap-3">
-                  <Icon name="ArrowPathIcon" size={28} className="text-yellow-400 animate-spin" />
-                  <p className="text-yellow-400 text-xs font-montserrat">Uploading…</p>
-                </div>
-              ) : form.backdrop ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={form.backdrop} alt="backdrop" className="w-full max-h-52 object-cover" />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                    <button type="button" onClick={handleSelectBackdrop} disabled={!canUpload}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500 text-black text-xs font-bold font-montserrat hover:bg-yellow-400 transition-all disabled:opacity-50">
-                      <Icon name="ArrowUpTrayIcon" size={13} /> Replace
-                    </button>
-                    <button type="button" onClick={handleDeleteBackdrop}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-montserrat hover:bg-red-500/30 hover:text-red-300 transition-all">
-                      <Icon name="TrashIcon" size={13} /> Remove
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <button type="button" onClick={() => canUpload && handleSelectBackdrop()}
-                  disabled={!canUpload}
-                  className={`w-full h-44 flex flex-col items-center justify-center gap-2 transition-colors ${
-                    canUpload ? 'text-neutral-600 hover:text-yellow-400 cursor-pointer' : 'text-neutral-700 cursor-not-allowed'
-                  }`}
-                >
-                  <Icon name="ArrowUpTrayIcon" size={28} />
-                  <p className="text-xs font-montserrat">Click or drop to upload backdrop</p>
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="border-t border-white/10" />
-
-          {/* ── Gallery Images ── */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <div>
-                <p className="text-white text-sm font-montserrat font-semibold">Gallery Images</p>
-                <p className="text-neutral-500 text-xs font-montserrat mt-0.5">Additional stills, BTS photos, or promo images · Upload or paste a URL</p>
-              </div>
-              <button type="button" onClick={addGalleryImage}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/20 font-montserrat text-sm font-medium transition-all">
-                <Icon name="PlusIcon" size={14} /> Add Slot
-              </button>
-            </div>
-
-            {(form.images || []).length === 0 ? (
-              <button type="button" onClick={() => canUpload && addGalleryImage()}
-                disabled={!canUpload}
-                className={`mt-3 w-full py-14 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center gap-3 group ${
-                  canUpload
-                    ? 'border-white/10 hover:border-yellow-500/40 hover:bg-yellow-500/5 cursor-pointer'
-                    : 'border-white/5 opacity-40 cursor-not-allowed'
-                }`}
-              >
-                <div className="p-4 rounded-full bg-white/5 group-hover:bg-yellow-500/10 transition-all">
-                  <Icon name="PhotoIcon" size={28} className="text-neutral-600 group-hover:text-yellow-400 transition-colors" />
-                </div>
-                <div className="text-center">
-                  <p className="text-neutral-400 text-sm font-montserrat font-medium group-hover:text-white transition-colors">Click to add first image</p>
-                  <p className="text-neutral-600 text-xs font-montserrat mt-0.5">or drag &amp; drop files onto any image slot</p>
-                </div>
-              </button>
-            ) : (
-              <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {(form.images || []).map((img, i) => {
-                  const isUploading = !!uploadingMap[i];
-                  return (
-                    <div key={i}
-                      onDrop={(e) => handleDropGalleryImage(e, i)}
-                      onDragOver={(e) => e.preventDefault()}
-                      className={`relative rounded-2xl border transition-all overflow-hidden group ${
-                        isUploading
-                          ? 'border-yellow-500/50 bg-yellow-500/5'
-                          : img
-                            ? 'border-white/10 bg-white/3 hover:border-yellow-500/30'
-                            : 'border-dashed border-white/15 bg-white/3 hover:border-yellow-500/40 hover:bg-yellow-500/5'
-                      }`}
-                    >
-                      {/* Primary badge */}
-                      {i === 0 && (
-                        <span className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full bg-yellow-500 text-black text-xs font-bold font-montserrat shadow-lg">
-                          Primary
-                        </span>
-                      )}
-                      {/* Remove */}
-                      {(form.images || []).length > 1 && (
-                        <button type="button" onClick={() => removeGalleryImage(i)}
-                          className="absolute top-3 right-3 z-10 p-1.5 rounded-lg bg-black/60 text-red-400 hover:bg-red-500/20 transition-all opacity-0 group-hover:opacity-100">
-                          <Icon name="TrashIcon" size={13} />
-                        </button>
-                      )}
-                      {/* Preview */}
-                      <div className="relative w-full min-h-44">
-                        {isUploading ? (
-                          <div className="w-full h-44 flex flex-col items-center justify-center gap-3">
-                            <Icon name="ArrowPathIcon" size={28} className="text-yellow-400 animate-spin" />
-                            <p className="text-yellow-400 text-xs font-montserrat font-medium">Uploading…</p>
-                          </div>
-                        ) : img ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={img} alt={`gallery-${i}`} className="w-full h-auto object-contain" />
-                        ) : (
-                          <button type="button" onClick={() => canUpload && handleSelectGalleryImage(i)}
-                            disabled={!canUpload}
-                            className={`w-full h-44 flex flex-col items-center justify-center gap-2 transition-colors ${
-                              canUpload ? 'text-neutral-600 hover:text-yellow-400 cursor-pointer' : 'text-neutral-700 cursor-not-allowed'
-                            }`}
-                          >
-                            <Icon name="ArrowUpTrayIcon" size={28} />
-                            <p className="text-xs font-montserrat">Click or drop to upload</p>
-                          </button>
-                        )}
-                        {/* Replace overlay */}
-                        {img && !isUploading && canUpload && (
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <button type="button" onClick={() => handleSelectGalleryImage(i)}
-                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500 text-black text-xs font-bold font-montserrat hover:bg-yellow-400 transition-all">
-                              <Icon name="ArrowUpTrayIcon" size={13} /> Replace
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      {/* URL input row */}
-                      <div className="px-3 py-3 border-t border-white/10 bg-black/20 flex items-center gap-2">
-                        <input type="url" value={img}
-                          onChange={(e) => updateGalleryImage(i, e.target.value)}
-                          placeholder="Paste URL or upload above…"
-                          className="flex-1 min-w-0 bg-transparent text-white text-xs font-montserrat placeholder-neutral-600 focus:outline-none truncate"
-                        />
-                        <button type="button" onClick={() => handleSelectGalleryImage(i)}
-                          disabled={isUploading || !canUpload}
-                          className="shrink-0 p-1.5 rounded-lg bg-yellow-500/15 text-yellow-400 hover:bg-yellow-500/30 transition-all disabled:opacity-40">
-                          <Icon name="ArrowUpTrayIcon" size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-                {/* Add another ghost card */}
-                <button type="button" onClick={addGalleryImage}
-                  className="rounded-2xl border-2 border-dashed border-white/10 hover:border-yellow-500/40 hover:bg-yellow-500/5 transition-all flex flex-col items-center justify-center gap-2 h-full min-h-[220px] text-neutral-600 hover:text-yellow-400 group">
-                  <div className="p-3 rounded-full bg-white/5 group-hover:bg-yellow-500/10 transition-all">
-                    <Icon name="PlusIcon" size={20} />
-                  </div>
-                  <p className="text-xs font-montserrat">Add image</p>
-                </button>
-              </div>
-            )}
-          </div>
-
         </div>
       );
-      }
 
-      // ── SEO ────────────────────────────────────────────────────────────
-      case 'seo': {
-        const seo    = form.seoData || EMPTY_MOVIE_SEO;
-        const setSeo = <K extends keyof IMovieSEO>(k: K, v: IMovieSEO[K]) => setSeoField(k, v);
-
-        const metaTitleLen = (seo.metaTitle       || '').length;
-        const metaDescLen  = (seo.metaDescription || '').length;
-        const titleScore   = metaTitleLen === 0 ? 'empty' : metaTitleLen <= 60  ? 'good' : 'long';
-        const descScore    = metaDescLen  === 0 ? 'empty' : metaDescLen  <= 160 ? 'good' : 'long';
-        const scoreColor   = (s: string) =>
-          s === 'good' ? 'text-emerald-400' : s === 'long' ? 'text-amber-400' : 'text-neutral-600';
-        const scoreLabel   = (s: string, len: number, max: number) =>
-          s === 'empty' ? 'Not set' : s === 'good' ? `${len}/${max} ✓ Good` : `${len}/${max} — Too long`;
-
-        const filledCount = [seo.focusKeyword, seo.metaTitle, seo.metaDescription, seo.canonicalUrl,
-          seo.ogTitle, seo.ogImage, seo.twitterTitle, seo.twitterImage, seo.schemaType].filter(Boolean).length;
-        const filledPct = Math.round((filledCount / 9) * 100);
-
-        return (
-          <div className="space-y-7">
-
-            {/* Score bar */}
-            <div className="flex items-center gap-4 px-4 py-3 rounded-2xl bg-yellow-500/5 border border-yellow-500/20">
-              <Icon name="MagnifyingGlassIcon" size={18} className="text-yellow-400 shrink-0" />
-              <div className="flex-1">
-                <p className="text-white text-sm font-montserrat font-semibold">SEO Configuration</p>
-                <p className="text-neutral-500 text-xs font-montserrat mt-0.5">Fill all fields for maximum Google discoverability</p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-yellow-400 text-xs font-montserrat font-bold">{filledPct}%</p>
-                <p className="text-neutral-600 text-xs font-montserrat">filled</p>
-              </div>
+    if (tab === 'schema')
+      return (
+        <div className="space-y-5">
+          <Card title="Schema Toggles">
+            <div className="grid gap-3 md:grid-cols-3">
+              <Toggle field="enableMovieSchema" label="Movie Schema" />
+              <Toggle field="enableArticleSchema" label="Article Schema" />
+              <Toggle field="enableVideoObjectSchema" label="VideoObject Schema" />
             </div>
+          </Card>
+          <Card title="Movie & Article Schema">
+            <div className="grid gap-4 md:grid-cols-2">
+              {(
+                [
+                  'schemaMovieName',
+                  'schemaMovieDescription',
+                  'schemaMovieImage',
+                  'schemaReleaseDate',
+                  'schemaCountryOfOrigin',
+                  'schemaDuration',
+                  'schemaArticleHeadline',
+                  'schemaArticleDescription',
+                  'schemaArticleSection',
+                  'publisherName',
+                  'publisherLogo',
+                  'mainEntityOfPage',
+                ] as Array<keyof MovieForm>
+              ).map((field) =>
+                field.toLowerCase().includes('description') ? (
+                  <TextArea key={field} field={field} label={labelize(field)} />
+                ) : (
+                  <Field
+                    key={field}
+                    field={field}
+                    label={labelize(field)}
+                    type={field.toLowerCase().includes('date') ? 'date' : 'text'}
+                  />
+                )
+              )}
+              <TagInput field="schemaDirector" label="Schema Director" />
+              <TagInput field="schemaActor" label="Schema Actor" />
+              <TagInput field="schemaGenre" label="Schema Genre" />
+              <TagInput field="schemaKeywords" label="Schema Keywords" />
+            </div>
+          </Card>
+          <Card title="Video Schema">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field field="schemaVideoName" label="Schema Video Name" />
+              <TextArea field="schemaVideoDescription" label="Schema Video Description" />
+              <Field field="schemaVideoThumbnail" label="Schema Video Thumbnail" />
+              <Field field="schemaVideoUploadDate" label="Schema Video Upload Date" type="date" />
+              <Field
+                field="schemaVideoDuration"
+                label="Schema Video Duration"
+                placeholder="PT2M30S"
+              />
+            </div>
+            {form.enableVideoObjectSchema &&
+              (!form.schemaVideoName ||
+                !form.schemaVideoThumbnail ||
+                !form.schemaVideoUploadDate) && (
+                <p className="mt-3 text-xs text-amber-300">
+                  VideoObject schema is enabled. Add video name, thumbnail, and upload date for best
+                  results.
+                </p>
+              )}
+          </Card>
+        </div>
+      );
 
-            <div className="border-t border-white/8" />
-
-            {/* On-Page SEO */}
-            <section>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                <p className="text-sm font-semibold text-white font-montserrat">On-Page SEO</p>
-              </div>
-              <p className="text-xs text-neutral-500 font-montserrat mb-4">Directly impacts your Google search snippet.</p>
-              <div className="space-y-4">
-
-                {/* Focus keyword */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Focus Keyword</label>
-                  <input
-                    type="text" value={seo.focusKeyword || ''}
-                    onChange={(e) => setSeo('focusKeyword', e.target.value)}
-                    placeholder="e.g. Dhanush upcoming movie 2026"
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
-                  />
-                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">The single phrase you most want to rank for.</p>
-                </div>
-
-                {/* Meta title */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider">Meta Title</label>
-                    <span className={`text-[10px] font-montserrat ${scoreColor(titleScore)}`}>
-                      {scoreLabel(titleScore, metaTitleLen, 60)}
-                    </span>
-                  </div>
-                  <input
-                    type="text" value={seo.metaTitle || ''}
-                    onChange={(e) => setSeo('metaTitle', e.target.value)}
-                    placeholder={`${form.title || 'Movie Title'} — Celebrity Persona`}
-                    className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all ${
-                      titleScore === 'long' ? 'border-amber-500/40 focus:border-amber-500/60' :
-                      titleScore === 'good' ? 'border-emerald-500/30 focus:border-emerald-500/60' : 'border-white/10 focus:border-yellow-500/60'
-                    }`}
-                  />
-                  <div className="mt-1.5 h-1 rounded-full bg-white/8 overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${
-                      titleScore === 'good' ? 'bg-emerald-500' : titleScore === 'long' ? 'bg-amber-500' : 'bg-neutral-700'
-                    }`} style={{ width: `${Math.min(100, (metaTitleLen / 60) * 100)}%` }} />
-                  </div>
-                </div>
-
-                {/* Meta description */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-medium text-neutral-400 font-montserrat uppercase tracking-wider">Meta Description (140–160 chars)</label>
-                    <span className={`text-[10px] font-montserrat ${scoreColor(descScore)}`}>
-                      {scoreLabel(descScore, metaDescLen, 160)}
-                    </span>
-                  </div>
-                  <textarea
-                    rows={3} value={seo.metaDescription || ''}
-                    onChange={(e) => setSeo('metaDescription', e.target.value)}
-                    placeholder="A short, compelling description for Google search results. Include the focus keyword naturally."
-                    className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-white placeholder-neutral-600 focus:outline-none font-montserrat text-sm transition-all resize-none ${
-                      descScore === 'long' ? 'border-amber-500/40 focus:border-amber-500/60' :
-                      descScore === 'good' ? 'border-emerald-500/30 focus:border-emerald-500/60' : 'border-white/10 focus:border-yellow-500/60'
-                    }`}
-                  />
-                  <div className="mt-1.5 h-1 rounded-full bg-white/8 overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${
-                      descScore === 'good' ? 'bg-emerald-500' : descScore === 'long' ? 'bg-amber-500' : 'bg-neutral-700'
-                    }`} style={{ width: `${Math.min(100, (metaDescLen / 160) * 100)}%` }} />
-                  </div>
-                </div>
-
-                {/* Secondary keywords */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Secondary Keywords (one per line)</label>
-                  <textarea
-                    rows={3} value={joinLines(seo.keywords)}
-                    onChange={(e) => setSeo('keywords', splitLines(e.target.value))}
-                    placeholder={"upcoming hindi movies 2026\nbollywood action film\nleading actor movie"}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
-                  />
-                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">{(seo.keywords || []).length} keywords</p>
-                </div>
-
-                {/* Canonical URL */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Canonical URL</label>
-                  <input
-                    type="url" value={seo.canonicalUrl || ''}
-                    onChange={(e) => setSeo('canonicalUrl', e.target.value)}
-                    placeholder={`https://yoursite.com/upcoming-movies/${form.slug || 'movie-slug'}`}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
-                  />
-                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Prevents duplicate-content penalties. Leave blank to use the page URL.</p>
-                </div>
-              </div>
-            </section>
-
-            <div className="border-t border-white/8" />
-
-            {/* Open Graph */}
-            <section>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="w-2 h-2 rounded-full bg-blue-400" />
-                <p className="text-sm font-semibold text-white font-montserrat">Open Graph (Facebook / LinkedIn)</p>
-              </div>
-              <p className="text-xs text-neutral-500 font-montserrat mb-4">Controls how the page looks when shared on social media.</p>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Title</label>
-                  <input
-                    type="text" value={seo.ogTitle || ''}
-                    onChange={(e) => setSeo('ogTitle', e.target.value)}
-                    placeholder={seo.metaTitle || `${form.title || 'Movie Title'} — Celebrity Persona`}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Description</label>
-                  <textarea
-                    rows={2} value={seo.ogDescription || ''}
-                    onChange={(e) => setSeo('ogDescription', e.target.value)}
-                    placeholder={seo.metaDescription || 'A compelling description for social sharing…'}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">OG Image</label>
-                  <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all mb-2 ${
-                    ogImageUpload.uploading ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
-                  }`}>
-                    <input type="file" accept="image/*" className="sr-only" disabled={ogImageUpload.uploading}
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleOgImageUpload(f); e.target.value = ''; }}
-                    />
-                    {ogImageUpload.uploading ? (
-                      <><span className="text-yellow-400 text-sm font-montserrat">Uploading…</span>
-                        <div className="ml-auto h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
-                          <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${ogImageUpload.progress}%` }} />
-                        </div>
-                      </>
-                    ) : (
-                      <><span className="text-2xl">🖼️</span>
-                        <div>
-                          <p className="text-sm text-white font-montserrat font-medium">Upload OG Image</p>
-                          <p className="text-xs text-neutral-500 font-montserrat">Uploads to Firebase · 1200 × 630 px recommended</p>
-                        </div>
-                        {seo.ogImage && <span className="ml-auto text-[10px] text-emerald-400 font-montserrat">✓ Set</span>}
-                      </>
-                    )}
-                  </label>
-                  {ogImageUpload.error && <p className="text-red-400 text-xs font-montserrat mb-2">{ogImageUpload.error}</p>}
-                  <input
-                    type="url" value={seo.ogImage || ''}
-                    onChange={(e) => setSeo('ogImage', e.target.value)}
-                    placeholder="Or paste an image URL (https://…)"
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
-                  />
-                  {seo.ogImage && (
-                    <div className="mt-2 relative rounded-xl overflow-hidden border border-white/10 h-28 bg-black/20">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={seo.ogImage} alt="OG preview" className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => setSeo('ogImage', '')}
-                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-red-500/80 transition-all">✕</button>
-                    </div>
-                  )}
-                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to default to the movie poster.</p>
-                </div>
-              </div>
-            </section>
-
-            <div className="border-t border-white/8" />
-
-            {/* Twitter / X Card */}
-            <section>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="w-2 h-2 rounded-full bg-sky-400" />
-                <p className="text-sm font-semibold text-white font-montserrat">Twitter / X Card</p>
-              </div>
-              <p className="text-xs text-neutral-500 font-montserrat mb-4">Controls appearance in Twitter / X previews.</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-2 font-montserrat uppercase tracking-wider">Card Type</label>
-                  <div className="flex gap-3">
-                    {(['summary', 'summary_large_image'] as const).map((type) => (
-                      <button key={type} type="button"
-                        onClick={() => setSeo('twitterCard', type)}
-                        className={`flex-1 px-3 py-2.5 rounded-xl border text-xs font-montserrat font-medium transition-all ${
-                          seo.twitterCard === type
-                            ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
-                            : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:bg-white/10'
-                        }`}>
-                        {type === 'summary' ? '□  Summary' : '▬  Large Image'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Creator Handle</label>
-                  <input
-                    type="text" value={seo.twitterCreator || ''}
-                    onChange={(e) => setSeo('twitterCreator', e.target.value)}
-                    placeholder="@handle"
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Title</label>
-                  <input
-                    type="text" value={seo.twitterTitle || ''}
-                    onChange={(e) => setSeo('twitterTitle', e.target.value)}
-                    placeholder={seo.metaTitle || form.title || 'Movie Title'}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
-                  />
-                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to inherit Meta Title.</p>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Description</label>
-                  <textarea
-                    rows={2} value={seo.twitterDescription || ''}
-                    onChange={(e) => setSeo('twitterDescription', e.target.value)}
-                    placeholder={seo.metaDescription || 'Description shown in Twitter card preview…'}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
-                  />
-                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to inherit Meta Description.</p>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Twitter Image</label>
-                  <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all mb-2 ${
-                    twitterImageUpload.uploading ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
-                  }`}>
-                    <input type="file" accept="image/*" className="sr-only" disabled={twitterImageUpload.uploading}
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTwitterImageUpload(f); e.target.value = ''; }}
-                    />
-                    {twitterImageUpload.uploading ? (
-                      <><span className="text-yellow-400 text-sm font-montserrat">Uploading…</span>
-                        <div className="ml-auto h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
-                          <div className="h-full bg-yellow-500 rounded-full transition-all" style={{ width: `${twitterImageUpload.progress}%` }} />
-                        </div>
-                      </>
-                    ) : (
-                      <><span className="text-2xl">🐦</span>
-                        <div>
-                          <p className="text-sm text-white font-montserrat font-medium">Upload Twitter Image</p>
-                          <p className="text-xs text-neutral-500 font-montserrat">Uploads to Firebase · min 120×120; large card: 1200×600 px</p>
-                        </div>
-                        {seo.twitterImage && <span className="ml-auto text-[10px] text-emerald-400 font-montserrat">✓ Set</span>}
-                      </>
-                    )}
-                  </label>
-                  {twitterImageUpload.error && <p className="text-red-400 text-xs font-montserrat mb-2">{twitterImageUpload.error}</p>}
-                  <input
-                    type="url" value={seo.twitterImage || ''}
-                    onChange={(e) => setSeo('twitterImage', e.target.value)}
-                    placeholder={seo.ogImage || 'Or paste an image URL (https://…)'}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
-                  />
-                  {seo.twitterImage && (
-                    <div className="mt-2 relative rounded-xl overflow-hidden border border-white/10 h-28 bg-black/20">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={seo.twitterImage} alt="Twitter image preview" className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => setSeo('twitterImage', '')}
-                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-red-500/80 transition-all">✕</button>
-                    </div>
-                  )}
-                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to fall back to OG Image.</p>
-                </div>
-              </div>
-            </section>
-
-            <div className="border-t border-white/8" />
-
-            {/* Structured Data */}
-            <section>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="w-2 h-2 rounded-full bg-purple-400" />
-                <p className="text-sm font-semibold text-white font-montserrat">Structured Data (Schema.org)</p>
-              </div>
-              <p className="text-xs text-neutral-500 font-montserrat mb-4">Enables rich results and enhanced snippets in Google.</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Schema Type</label>
-                  <select
-                    value={seo.schemaType || 'Movie'}
-                    onChange={(e) => setSeo('schemaType', e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm cursor-pointer"
-                  >
-                    {['Movie', 'VideoObject', 'CreativeWork', 'Article'].map((t) => (
-                      <option key={t} value={t} style={{ background: '#2b1433' }}>{t}</option>
-                    ))}
-                  </select>
-                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Use Movie for theatrical releases, VideoObject for streaming.</p>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Genre / Section</label>
-                  <input
-                    type="text" value={seo.articleSection || ''}
-                    onChange={(e) => setSeo('articleSection', e.target.value)}
-                    placeholder="Action, Drama, Thriller…"
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Director / Author Name</label>
-                  <input
-                    type="text" value={seo.authorName || ''}
-                    onChange={(e) => setSeo('authorName', e.target.value)}
-                    placeholder="e.g. S.S. Rajamouli"
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Director / Author URL</label>
-                  <input
-                    type="url" value={seo.authorUrl || ''}
-                    onChange={(e) => setSeo('authorUrl', e.target.value)}
-                    placeholder="https://example.com/directors/ss-rajamouli"
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Related Topics (one per line)</label>
-                  <textarea
-                    rows={3} value={joinLines(seo.relatedTopics)}
-                    onChange={(e) => setSeo('relatedTopics', splitLines(e.target.value))}
-                    placeholder={"Prabhas\nDeepika Padukone\nfuturistic Hindi film"}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none"
-                  />
-                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Used for semantic SEO connections.</p>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-neutral-400 mb-1.5 font-montserrat uppercase tracking-wider">Custom JSON-LD (optional)</label>
-                  <textarea
-                    rows={5} value={seo.structuredData || ''}
-                    onChange={(e) => setSeo('structuredData', e.target.value)}
-                    placeholder={'{\n  "@context": "https://schema.org",\n  "@type": "Movie",\n  "name": "Movie Title"\n}'}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm transition-all resize-none font-mono"
-                  />
-                  <p className="text-neutral-600 text-xs mt-1 font-montserrat">Leave blank to auto-generate from movie data.</p>
-                </div>
-              </div>
-            </section>
-
-            <div className="border-t border-white/8" />
-
-            {/* Robots / Crawlability */}
-            <section>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="w-2 h-2 rounded-full bg-red-400" />
-                <p className="text-sm font-semibold text-white font-montserrat">Robots / Crawlability</p>
-              </div>
-              <p className="text-xs text-neutral-500 font-montserrat mb-4">Controls what Googlebot and other crawlers are allowed to do on this page.</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className={`p-4 rounded-2xl border transition-all ${
-                  seo.robotsIndex !== false ? 'bg-emerald-500/8 border-emerald-500/25' : 'bg-red-500/8 border-red-500/20'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold font-montserrat text-white">Index this page</p>
-                      <p className="text-xs text-neutral-500 font-montserrat mt-0.5">Allow Google to include it in search results</p>
-                    </div>
-                    <button type="button" onClick={() => setSeo('robotsIndex', !(seo.robotsIndex !== false))}
-                      className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${
-                        seo.robotsIndex !== false ? 'bg-emerald-500' : 'bg-white/10'
-                      }`}>
-                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
-                        seo.robotsIndex !== false ? 'left-5' : 'left-0.5'
-                      }`} />
-                    </button>
-                  </div>
-                  <p className={`text-[10px] font-montserrat mt-2 font-semibold ${
-                    seo.robotsIndex !== false ? 'text-emerald-400' : 'text-red-400'
-                  }`}>{seo.robotsIndex !== false ? 'index' : 'noindex'}</p>
-                </div>
-                <div className={`p-4 rounded-2xl border transition-all ${
-                  seo.robotsFollow !== false ? 'bg-emerald-500/8 border-emerald-500/25' : 'bg-amber-500/8 border-amber-500/20'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold font-montserrat text-white">Follow links</p>
-                      <p className="text-xs text-neutral-500 font-montserrat mt-0.5">Allow crawlers to follow links on this page</p>
-                    </div>
-                    <button type="button" onClick={() => setSeo('robotsFollow', !(seo.robotsFollow !== false))}
-                      className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${
-                        seo.robotsFollow !== false ? 'bg-emerald-500' : 'bg-white/10'
-                      }`}>
-                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
-                        seo.robotsFollow !== false ? 'left-5' : 'left-0.5'
-                      }`} />
-                    </button>
-                  </div>
-                  <p className={`text-[10px] font-montserrat mt-2 font-semibold ${
-                    seo.robotsFollow !== false ? 'text-emerald-400' : 'text-amber-400'
-                  }`}>{seo.robotsFollow !== false ? 'follow' : 'nofollow'}</p>
-                </div>
-              </div>
-              <div className="mt-3 px-3 py-2 rounded-xl bg-black/30 border border-white/8">
-                <p className="text-[10px] text-neutral-500 font-montserrat">Generated tag preview:</p>
-                <code className="text-xs text-yellow-300/80 font-mono">
-                  {`<meta name="robots" content="${seo.robotsIndex !== false ? 'index' : 'noindex'}, ${seo.robotsFollow !== false ? 'follow' : 'nofollow'}" />`}
-                </code>
-              </div>
-            </section>
-
+    return (
+      <Card title="Publishing Controls">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-neutral-400">
+              Publish Status
+            </label>
+            <select
+              value={form.publishStatus}
+              onChange={(event) => setField('publishStatus', event.target.value as any)}
+              className={inputClass('publishStatus')}
+            >
+              {PUBLISH_STATUSES.map((item) => (
+                <option key={item} value={item}>
+                  {labelize(item)}
+                </option>
+              ))}
+            </select>
           </div>
-        );
-      }
-      default: return null;
-    }
+          <Field field="publishedAt" label="Published At" type="date" />
+          <Field field="scheduledAt" label="Scheduled At" type="date" />
+          <Field field="authorName" label="Author Name" />
+          <Field field="reviewerName" label="Reviewer Name" />
+          <Field field="readingTime" label="Reading Time" type="number" />
+        </div>
+        <div className="mt-5 flex flex-wrap gap-3">
+          {form.slug && (
+            <a
+              href={`/upcoming-movies/${form.slug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-200 hover:bg-white/10"
+            >
+              Preview
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={() => save('draft')}
+            disabled={saving}
+            className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-200 hover:bg-white/10 disabled:opacity-60"
+          >
+            Save Draft
+          </button>
+          <button
+            type="button"
+            onClick={() => save('published')}
+            disabled={saving}
+            className="rounded-xl bg-yellow-500 px-4 py-2 text-sm font-semibold text-black hover:bg-yellow-400 disabled:opacity-60"
+          >
+            Publish
+          </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={() => save('archived')}
+              disabled={saving}
+              className="rounded-xl border border-amber-500/30 px-4 py-2 text-sm text-amber-200 hover:bg-amber-500/10 disabled:opacity-60"
+            >
+              Archive
+            </button>
+          )}
+        </div>
+      </Card>
+    );
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────────────────────────────────
+  const dashboardStats = [
+    {
+      label: 'Total Movies',
+      value: total.toLocaleString(),
+      icon: 'FilmIcon',
+      color: 'from-blue-500/20 to-blue-600/20',
+      border: 'border-blue-500/30',
+    },
+    {
+      label: 'Published',
+      value: movies.filter((movie) => movie.publishStatus === 'published').length.toString(),
+      icon: 'CheckBadgeIcon',
+      color: 'from-emerald-500/20 to-emerald-600/20',
+      border: 'border-emerald-500/30',
+    },
+    {
+      label: 'Trending',
+      value: movies.filter((movie) => movie.isTrending).length.toString(),
+      icon: 'FireIcon',
+      color: 'from-red-500/20 to-red-600/20',
+      border: 'border-red-500/30',
+    },
+    {
+      label: 'Featured',
+      value: movies.filter((movie) => movie.isFeatured).length.toString(),
+      icon: 'StarIcon',
+      color: 'from-yellow-500/20 to-yellow-600/20',
+      border: 'border-yellow-500/30',
+    },
+  ];
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-
-      {/* Toast */}
       {toast && (
-        <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-xl border backdrop-blur-md ${
-          toast.type === 'success'
-            ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-            : 'bg-red-500/15 border-red-500/30 text-red-400'
-        }`}>
-          <Icon name={toast.type === 'success' ? 'CheckCircleIcon' : 'ExclamationCircleIcon'} size={20} />
-          <span className="text-sm font-medium font-montserrat">{toast.message}</span>
+        <div
+          className={`fixed right-6 top-6 z-50 rounded-2xl border px-5 py-4 text-sm shadow-xl backdrop-blur ${toast.type === 'success' ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200' : 'border-red-500/30 bg-red-500/15 text-red-200'}`}
+        >
+          {toast.message}
         </div>
       )}
 
-      {/* Stats */}
-      {!panelMode && (
+      {!panelOpen && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {(() => {
-            const now = new Date();
-            const RELEASED_STATUSES = ['Released', 'Now Showing', 'Now Playing', 'In Theatres', 'In Theaters'];
-            const isRel = (m: MovieRow) => {
-              if (RELEASED_STATUSES.some(s => s.toLowerCase() === (m.status || '').toLowerCase())) return true;
-              if (m.releaseDate) { const d = new Date(m.releaseDate); if (!isNaN(d.getTime()) && d <= now) return true; }
-              return false;
-            };
-            const upcomingCount = movies.filter(m => !isRel(m)).length;
-            const releasedCount = movies.filter(m => isRel(m)).length;
-            return [
-              { label: 'Total',      value: total,          icon: 'FilmIcon',       color: 'text-yellow-400'  },
-              { label: 'Published',  value: movies.filter(m => m.status === 'published').length, icon: 'CheckBadgeIcon', color: 'text-emerald-400' },
-              { label: 'Upcoming',   value: upcomingCount,  icon: 'CalendarIcon',   color: 'text-sky-400'     },
-              { label: 'Released',   value: releasedCount,  icon: 'SparklesIcon',   color: 'text-purple-400'  },
-            ];
-          })().map((s) => (
-            <div key={s.label} className="glass-card rounded-2xl p-5">
-              <Icon name={s.icon as any} size={20} className={s.color} />
-              <p className="font-playfair text-3xl font-bold text-white mt-3">
-                {loading ? <span className="block h-8 w-10 rounded bg-white/10 animate-pulse" /> : s.value}
-              </p>
-              <p className="text-neutral-400 text-sm font-montserrat mt-1">{s.label}</p>
+          {dashboardStats.map((stat) => (
+            <div
+              key={stat.label}
+              className={`glass-card rounded-2xl p-5 border ${stat.border} bg-gradient-to-br ${stat.color}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-neutral-400 text-xs font-montserrat uppercase tracking-wider truncate">
+                    {stat.label}
+                  </p>
+                  <p className="text-2xl font-bold text-white font-montserrat mt-1">{stat.value}</p>
+                </div>
+                <Icon name={stat.icon} size={24} className="text-yellow-400 shrink-0" />
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Controls */}
       <div className="glass-card rounded-2xl p-5">
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="flex-1 relative">
-            <Icon name="MagnifyingGlassIcon" size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500" />
-            <input
-              type="text" value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && fetchList(1)}
-              placeholder="Search by title, director..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-yellow-500/60 font-montserrat text-sm"
-            />
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-white font-montserrat">Upcoming Movies</h2>
+            <p className="text-sm text-neutral-500 font-montserrat mt-0.5">
+              Manage movie database entries, publishing state, SEO metadata, and public listing
+              data.
+            </p>
           </div>
-          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); fetchList(1); }}
-            className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer w-full md:w-44"
-          >
-            <option value="" style={{ background: '#2b1433' }}>All statuses</option>
-            <option value="published"    style={{ background: '#2b1433' }}>Published</option>
-            <option value="draft"        style={{ background: '#2b1433' }}>Draft</option>
-            <option value="announced"    style={{ background: '#2b1433' }}>Announced</option>
-            <option value="filming"      style={{ background: '#2b1433' }}>Filming</option>
-            <option value="post-production" style={{ background: '#2b1433' }}>Post-production</option>
-            <option value="upcoming"     style={{ background: '#2b1433' }}>Upcoming</option>
-            <option value="released"     style={{ background: '#2b1433' }}>Released</option>
-            <option value="cancelled"    style={{ background: '#2b1433' }}>Cancelled</option>
-          </select>
-          <select value={limit} onChange={(e) => fetchList(1, Number(e.target.value))}
-            className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-montserrat text-sm focus:outline-none focus:border-yellow-500/60 cursor-pointer"
-          >
-            {PAGE_SIZES.map((s) => <option key={s} value={s}>{s} / page</option>)}
-          </select>
-          <button onClick={() => fetchList(page)} disabled={loading} title="Refresh"
-            className="px-3 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-40"
-          >
-            <Icon name="ArrowPathIcon" size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
-          {panelMode ? (
-            <button onClick={closePanel}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-neutral-300 font-semibold font-montserrat text-sm hover:bg-white/20 transition-all"
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative">
+              <Icon
+                name="MagnifyingGlassIcon"
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500"
+              />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') fetchMovies(1);
+                }}
+                placeholder="Search title, cast, director..."
+                className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 font-montserrat text-sm text-white placeholder-neutral-600 outline-none transition-all focus:border-yellow-500/60 sm:w-72"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 font-montserrat text-sm text-white outline-none focus:border-yellow-500/60"
             >
-              <Icon name="ChevronLeftIcon" size={16} /> Back to List
+              <option value="">All movie statuses</option>
+              {MOVIE_STATUSES.map((item) => (
+                <option key={item} value={item}>
+                  {labelize(item)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={publishFilter}
+              onChange={(event) => setPublishFilter(event.target.value)}
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 font-montserrat text-sm text-white outline-none focus:border-yellow-500/60"
+            >
+              <option value="">All publish states</option>
+              {PUBLISH_STATUSES.map((item) => (
+                <option key={item} value={item}>
+                  {labelize(item)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => fetchMovies(1)}
+              className="rounded-xl bg-white/5 px-4 py-2.5 font-montserrat text-sm font-medium text-neutral-300 transition-all hover:bg-white/10 hover:text-white"
+            >
+              Filter
             </button>
-          ) : (
-            <button onClick={openAdd}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all"
+            <button
+              type="button"
+              onClick={openAdd}
+              className="flex items-center justify-center gap-2 rounded-xl bg-yellow-500 px-4 py-2.5 font-montserrat text-sm font-semibold text-black transition-all hover:bg-yellow-400"
             >
               <Icon name="PlusIcon" size={16} /> Add Movie
             </button>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Error */}
-      {!panelMode && fetchError && (
-        <div className="glass-card rounded-2xl p-4 border border-red-500/20 bg-red-500/10 flex items-center gap-3">
-          <Icon name="ExclamationCircleIcon" size={18} className="text-red-400 shrink-0" />
-          <p className="text-red-400 text-sm font-montserrat flex-1">{fetchError}</p>
-          <button onClick={() => fetchList(1)} className="text-xs text-yellow-400 hover:underline font-montserrat">Retry</button>
+      <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="grid grid-cols-12 border-b border-white/10 px-4 py-3 font-montserrat text-xs uppercase tracking-wider text-neutral-500">
+          <span className="col-span-5">Movie</span>
+          <span className="col-span-2 hidden md:block">Release</span>
+          <span className="col-span-3 md:col-span-2">Status</span>
+          <span className="col-span-2 hidden lg:block">Flags</span>
+          <span className="col-span-4 md:col-span-3 lg:col-span-1 text-right">Actions</span>
+        </div>
+        {loading ? (
+          <div className="space-y-3 p-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="h-16 animate-pulse rounded-xl bg-white/5" />
+            ))}
+          </div>
+        ) : movies.length === 0 ? (
+          <div className="p-10 text-center">
+            <Icon name="FilmIcon" size={36} className="mx-auto mb-3 text-neutral-600" />
+            <p className="font-montserrat text-neutral-400">No movies found.</p>
+            <button
+              type="button"
+              onClick={openAdd}
+              className="mt-3 font-montserrat text-sm text-yellow-400 hover:underline"
+            >
+              + Add the first movie
+            </button>
+          </div>
+        ) : (
+          movies.map((movie) => (
+            <div
+              key={movie.id}
+              className="grid grid-cols-12 items-center gap-3 border-b border-white/5 px-4 py-4 font-montserrat text-sm transition-all last:border-0 hover:bg-white/[0.03]"
+            >
+              <div className="col-span-5 min-w-0">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="relative hidden h-12 w-9 shrink-0 overflow-hidden rounded-lg bg-white/5 sm:block">
+                    {movie.posterImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={movie.posterImage} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <Icon
+                        name="FilmIcon"
+                        size={16}
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-neutral-600"
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-white">{movie.title}</p>
+                    <p className="truncate text-xs text-neutral-500">/{movie.slug}</p>
+                    <p className="mt-1 hidden truncate text-xs text-neutral-500 sm:block">
+                      {(movie.genres || []).slice(0, 3).join(', ') || 'No genres'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="col-span-2 hidden text-neutral-300 md:block">
+                {movie.releaseDateText ||
+                  toDateInput(movie.releaseDate) ||
+                  movie.releaseYear ||
+                  'TBA'}
+              </div>
+              <div className="col-span-3 md:col-span-2">
+                <span
+                  className={`rounded-full px-2 py-1 text-xs ${STATUS_COLORS[movie.publishStatus || 'draft'] || 'bg-white/10 text-neutral-300'}`}
+                >
+                  {labelize(movie.publishStatus || 'draft')}
+                </span>
+                <span
+                  className={`ml-2 hidden rounded-full px-2 py-1 text-xs xl:inline ${STATUS_COLORS[movie.status || 'announced'] || 'bg-blue-500/15 text-blue-200'}`}
+                >
+                  {labelize(movie.status || 'announced')}
+                </span>
+              </div>
+              <div className="col-span-2 hidden flex-wrap gap-1 lg:flex">
+                {movie.isFeatured && (
+                  <span className="rounded-full bg-yellow-500/15 px-2 py-1 text-xs text-yellow-200">
+                    Featured
+                  </span>
+                )}
+                {movie.isTrending && (
+                  <span className="rounded-full bg-red-500/15 px-2 py-1 text-xs text-red-200">
+                    Trending
+                  </span>
+                )}
+                {movie.isEditorPick && (
+                  <span className="rounded-full bg-purple-500/15 px-2 py-1 text-xs text-purple-200">
+                    Pick
+                  </span>
+                )}
+              </div>
+              <div className="col-span-4 md:col-span-3 lg:col-span-1 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => openEdit(movie)}
+                  title="Edit"
+                  className="rounded-lg border border-white/10 p-2 text-neutral-300 hover:bg-white/10"
+                >
+                  <Icon name="PencilIcon" size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmArchive(movie)}
+                  title="Archive"
+                  className="rounded-lg border border-amber-500/30 p-2 text-amber-200 hover:bg-amber-500/10"
+                >
+                  <Icon name="ArchiveBoxIcon" size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(movie)}
+                  title="Delete"
+                  className="rounded-lg border border-red-500/30 p-2 text-red-300 hover:bg-red-500/10"
+                >
+                  <Icon name="TrashIcon" size={15} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {pages > 1 && (
+        <div className="flex justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => fetchMovies(page - 1)}
+            disabled={page <= 1}
+            className="rounded-lg border border-white/10 px-3 py-2 text-sm text-neutral-300 disabled:opacity-40"
+          >
+            Prev
+          </button>
+          <span className="px-3 py-2 text-sm text-neutral-400">
+            Page {page} of {pages}
+          </span>
+          <button
+            type="button"
+            onClick={() => fetchMovies(page + 1)}
+            disabled={page >= pages}
+            className="rounded-lg border border-white/10 px-3 py-2 text-sm text-neutral-300 disabled:opacity-40"
+          >
+            Next
+          </button>
         </div>
       )}
 
-      {/* ── Inline Panel ── */}
-      {panelMode && (
-        <div ref={panelRef} className="glass-card rounded-2xl border border-yellow-500/20 overflow-hidden">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-4 border-b border-white/10">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="p-2.5 rounded-xl bg-yellow-500/10 shrink-0">
-                <Icon name={panelMode === 'add' ? 'PlusCircleIcon' : 'PencilSquareIcon'} size={20} className="text-yellow-400" />
+      {panelOpen && (
+        <div
+          ref={panelRef}
+          className="glass-card rounded-2xl border border-yellow-500/20 overflow-hidden"
+        >
+          <div className="flex flex-col gap-4 border-b border-white/10 bg-yellow-500/5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-montserrat text-[10px] uppercase tracking-[0.3em] text-yellow-300/80">
+                Upcoming Movies
+              </p>
+              <h3 className="mt-1 font-montserrat text-lg font-bold text-white">
+                {editingId ? 'Edit Upcoming Movie' : 'Create Upcoming Movie'}
+              </h3>
+              <p className="font-montserrat text-sm text-neutral-500">
+                Every field here feeds public pages, filters, SEO, schema, or internal workflow.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => save('draft')}
+                disabled={saving}
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 font-montserrat text-sm text-neutral-200 transition-all hover:bg-white/10 disabled:opacity-60"
+              >
+                Save Draft
+              </button>
+              <button
+                type="button"
+                onClick={() => save('published')}
+                disabled={saving}
+                className="rounded-xl bg-yellow-500 px-4 py-2 font-montserrat text-sm font-semibold text-black transition-all hover:bg-yellow-400 disabled:opacity-60"
+              >
+                {saving ? 'Saving...' : 'Publish'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPanelOpen(false)}
+                className="rounded-xl bg-white/5 p-2 text-neutral-400 transition-all hover:bg-white/10 hover:text-white"
+                title="Close"
+              >
+                <Icon name="XMarkIcon" size={18} />
+              </button>
+            </div>
+          </div>
+
+          {apiError && (
+            <div className="mx-5 mt-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 font-montserrat text-sm text-red-200">
+              {apiError}
+            </div>
+          )}
+
+          <div className="border-b border-white/8 px-5 pt-5">
+            <div className="flex gap-2 overflow-x-auto pb-4">
+              {TABS.map((item) => (
+                <button
+                  type="button"
+                  key={item.key}
+                  onClick={() => setTab(item.key)}
+                  className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 font-montserrat text-sm transition-all ${
+                    tab === item.key
+                      ? 'border-yellow-500/50 bg-yellow-500/15 text-yellow-200'
+                      : 'border-white/10 bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <Icon name={item.icon} size={15} />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-5">{renderTab()}</div>
+        </div>
+      )}
+
+      {(confirmArchive || confirmDelete) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="glass-card w-full max-w-md rounded-3xl border border-red-500/20 p-8 shadow-2xl">
+            <div className="flex items-start gap-4">
+              <div className="rounded-2xl bg-red-500/15 p-3 text-red-300">
+                <Icon name={confirmDelete ? 'TrashIcon' : 'ArchiveBoxIcon'} size={24} />
               </div>
-              <div className="min-w-0">
-                <h3 className="font-playfair text-base sm:text-lg font-bold text-white truncate">
-                  {panelMode === 'add' ? 'Add Movie' : `Editing — ${form.title || '...'}`}
+              <div>
+                <h3 className="font-montserrat text-lg font-bold text-white">
+                  {confirmDelete ? 'Delete movie?' : 'Archive movie?'}
                 </h3>
-                <p className="text-neutral-500 text-xs font-montserrat">
-                  {panelMode === 'add' ? 'Fill in movie details across tabs' : 'Update movie details'}
+                <p className="mt-2 font-montserrat text-sm leading-6 text-neutral-400">
+                  {confirmDelete
+                    ? 'Hard delete is permanent. Use only if this record should be removed completely.'
+                    : 'Archived movies are hidden publicly and remain editable in the dashboard.'}
                 </p>
               </div>
             </div>
-            <button onClick={closePanel} className="p-2 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all self-end sm:self-auto">
-              <Icon name="XMarkIcon" size={18} />
-            </button>
-          </div>
-
-          {loadingDetail ? (
-            <div className="flex items-center justify-center py-20 gap-3">
-              <Icon name="ArrowPathIcon" size={24} className="text-yellow-400 animate-spin" />
-              <span className="text-neutral-400 font-montserrat text-sm">Loading movie...</span>
-            </div>
-          ) : (
-            <form onSubmit={panelMode === 'add' ? handleCreate : handleUpdate}>
-              {/* Tabs */}
-              <div className="flex gap-1 px-6 pt-5 pb-1 overflow-x-auto border-b border-white/10">
-                {TABS.map((t) => (
-                  <button key={t.key} type="button" onClick={() => setFormTab(t.key)}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-sm font-medium font-montserrat whitespace-nowrap transition-all ${
-                      formTab === t.key ? 'bg-yellow-500 text-black' : 'text-neutral-400 hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    <Icon name={t.icon as any} size={13} />
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Content */}
-              <div className="px-6 py-5 min-h-[360px]">
-                {formApiError && (
-                  <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                    <p className="text-red-400 text-sm font-montserrat text-center">{formApiError}</p>
-                  </div>
-                )}
-                {renderFormTab()}
-              </div>
-
-              {/* Footer */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-4 border-t border-white/10">
-                <div className="flex items-center gap-3">
-                  <p className="text-neutral-600 text-xs font-montserrat">* Required fields</p>
-                  {form.status && (
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-montserrat capitalize ${
-                      STATUS_COLORS[form.status] || 'bg-neutral-500/20 text-neutral-400'
-                    }`}>
-                      {form.status}
-                    </span>
-                  )}
-                </div>
-                <div className="flex gap-3 sm:ml-auto">
-                  <button type="button" onClick={closePanel}
-                    className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button type="button" onClick={handleSaveDraft} disabled={draftLoading || formLoading}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-semibold font-montserrat text-sm hover:bg-yellow-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {draftLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
-                    {draftLoading ? 'Saving Draft...' : 'Save as Draft'}
-                  </button>
-                  <button type="submit" disabled={formLoading || draftLoading}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-500 text-black font-semibold font-montserrat text-sm hover:bg-yellow-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {formLoading && <Icon name="ArrowPathIcon" size={14} className="animate-spin" />}
-                    {formLoading
-                      ? (panelMode === 'add' ? 'Publishing...' : 'Saving...')
-                      : (panelMode === 'add' ? 'Publish Movie' : 'Save & Publish')}
-                  </button>
-                </div>
-              </div>
-            </form>
-          )}
-        </div>
-      )}
-
-      {/* Tables — split into Upcoming vs Released */}
-      {!panelMode && (() => {
-        const now = new Date();
-        const RELEASED_STATUSES = ['Released', 'Now Showing', 'Now Playing', 'In Theatres', 'In Theaters'];
-
-        const isReleased = (m: MovieRow) => {
-          if (RELEASED_STATUSES.some(s => s.toLowerCase() === (m.status || '').toLowerCase())) return true;
-          if (m.releaseDate) {
-            const d = new Date(m.releaseDate);
-            if (!isNaN(d.getTime()) && d <= now) return true;
-          }
-          return false;
-        };
-
-        const upcomingMovies = movies.filter(m => !isReleased(m));
-        const releasedMovies = movies.filter(m => isReleased(m));
-
-        const MovieTableRows = ({ rows, emptyLabel }: { rows: MovieRow[]; emptyLabel: string }) => (
-          <>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="py-12 text-center">
-                  <Icon name="FilmIcon" size={32} className="mx-auto mb-2 text-neutral-700" />
-                  <p className="text-neutral-500 font-montserrat text-sm">{emptyLabel}</p>
-                </td>
-              </tr>
-            ) : (
-              rows.map((m) => (
-                <tr key={m.id} className={`border-b border-white/5 hover:bg-white/5 transition-colors ${busyMap[m.id] ? 'opacity-50 pointer-events-none' : ''}`}>
-                  {/* Movie */}
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-3">
-                      {m.poster ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={m.poster} alt={m.title} className="w-9 h-12 rounded-lg object-cover shrink-0 border border-white/10" />
-                      ) : (
-                        <div className="w-9 h-12 rounded-lg bg-yellow-500/10 flex items-center justify-center shrink-0">
-                          <Icon name="FilmIcon" size={14} className="text-yellow-400" />
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-white font-medium font-montserrat text-sm leading-tight line-clamp-1 max-w-[240px]">{m.title}</p>
-                        <p className="text-neutral-600 text-xs font-montserrat mt-0.5">
-                          {Array.isArray(m.language) ? m.language.join('·') : (m.language || '—')}{m.duration ? ` · ${m.duration} min` : ''}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  {/* Director */}
-                  <td className="py-3.5 px-3 hidden md:table-cell">
-                    <p className="text-neutral-300 text-sm font-montserrat">{m.director || '—'}</p>
-                  </td>
-                  {/* Status */}
-                  <td className="py-3.5 px-3 hidden sm:table-cell">
-                    <div className="flex flex-col gap-1.5">
-                      {m.status && m.status !== 'draft' && m.status !== 'published' && (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-montserrat capitalize ${
-                          STATUS_COLORS[m.status] || 'bg-neutral-500/10 text-neutral-400'
-                        }`}>{m.status}</span>
-                      )}
-                      <div className="inline-flex rounded-lg overflow-hidden border border-white/10">
-                        <button
-                          onClick={() => handleStatusToggle(m, 'draft')}
-                          disabled={!!busyMap[m.id]}
-                          title="Set to Draft"
-                          className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
-                            (m.status || 'draft') === 'draft'
-                              ? 'bg-yellow-500/25 text-yellow-300'
-                              : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
-                          }`}
-                        >Draft</button>
-                        <button
-                          onClick={() => handleStatusToggle(m, 'published')}
-                          disabled={!!busyMap[m.id]}
-                          title="Set to Published"
-                          className={`px-2.5 py-1 text-xs font-medium font-montserrat transition-all disabled:opacity-50 ${
-                            m.status === 'published'
-                              ? 'bg-emerald-500/25 text-emerald-300'
-                              : 'bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300'
-                          }`}
-                        >Published</button>
-                      </div>
-                    </div>
-                  </td>
-                  {/* Release Date */}
-                  <td className="py-3.5 px-3 hidden lg:table-cell">
-                    <p className="text-neutral-400 text-xs font-montserrat">{formatDate(m.releaseDate)}</p>
-                  </td>
-                  {/* Featured */}
-                  <td className="py-3.5 px-3 hidden sm:table-cell">
-                    <button onClick={() => handleToggleFeatured(m)} title={m.featured ? 'Unfeature' : 'Feature'}
-                      className={`w-10 h-5 rounded-full transition-all relative ${m.featured ? 'bg-yellow-500' : 'bg-white/10'}`}
-                    >
-                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${m.featured ? 'left-5' : 'left-0.5'}`} />
-                    </button>
-                  </td>
-                  {/* Actions */}
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-1.5">
-                      <button onClick={() => openEdit(m)} title="Edit"
-                        className="p-2 rounded-lg bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-all">
-                        <Icon name="PencilSquareIcon" size={14} />
-                      </button>
-                      <button onClick={() => setConfirmDelete(m)} title="Delete"
-                        className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all">
-                        <Icon name="TrashIcon" size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </>
-        );
-
-        const TableHead = () => (
-          <thead>
-            <tr className="border-b border-white/10">
-              <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Movie</th>
-              <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden md:table-cell">Director</th>
-              <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Status</th>
-              <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden lg:table-cell">Release Date</th>
-              <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider hidden sm:table-cell">Featured</th>
-              <th className="text-left py-3 px-3 text-neutral-500 text-xs font-medium font-montserrat uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-        );
-
-        return (
-          <div className="space-y-6">
-            {/* ── Upcoming Movies ── */}
-            <div className="glass-card rounded-2xl p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-5">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="w-8 h-8 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center">
-                    <Icon name="CalendarIcon" size={16} className="text-sky-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-playfair text-xl font-bold text-white">Upcoming Movies</h3>
-                    <p className="text-neutral-500 text-xs font-montserrat">Release date is in the future or not yet set</p>
-                  </div>
-                  {!loading && (
-                    <span className="ml-1 px-2.5 py-0.5 rounded-full text-xs font-semibold font-montserrat bg-sky-500/15 text-sky-400 border border-sky-500/30">
-                      {upcomingMovies.length}
-                    </span>
-                  )}
-                </div>
-                {!loading && (
-                  <span className="text-neutral-500 text-xs font-montserrat shrink-0">
-                    {upcomingMovies.length} movie{upcomingMovies.length !== 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <TableHead />
-                  <tbody>
-                    {loading
-                      ? skeletonRows.map((_, i) => (
-                          <tr key={i} className="border-b border-white/5">
-                            {[220, 130, 100, 90, 60, 70].map((w, j) => (
-                              <td key={j} className="py-3.5 px-3">
-                                <div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: w }} />
-                              </td>
-                            ))}
-                          </tr>
-                        ))
-                      : <MovieTableRows rows={upcomingMovies} emptyLabel="No upcoming movies found" />
-                    }
-                  </tbody>
-                </table>
-              </div>
-
-              {!loading && upcomingMovies.length === 0 && !fetchError && (
-                <div className="mt-4 text-center">
-                  <button onClick={openAdd} className="text-yellow-400 text-sm font-montserrat hover:underline">
-                    + Add an upcoming movie
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* ── Released Movies ── */}
-            <div className="glass-card rounded-2xl p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-5">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
-                    <Icon name="CheckBadgeIcon" size={16} className="text-emerald-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-playfair text-xl font-bold text-white">Already Released</h3>
-                    <p className="text-neutral-500 text-xs font-montserrat">Release date has passed or marked as released</p>
-                  </div>
-                  {!loading && (
-                    <span className="ml-1 px-2.5 py-0.5 rounded-full text-xs font-semibold font-montserrat bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                      {releasedMovies.length}
-                    </span>
-                  )}
-                </div>
-                {!loading && (
-                  <span className="text-neutral-500 text-xs font-montserrat shrink-0">
-                    {releasedMovies.length} movie{releasedMovies.length !== 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <TableHead />
-                  <tbody>
-                    {loading
-                      ? skeletonRows.slice(0, 3).map((_, i) => (
-                          <tr key={i} className="border-b border-white/5">
-                            {[220, 130, 100, 90, 60, 70].map((w, j) => (
-                              <td key={j} className="py-3.5 px-3">
-                                <div className="h-5 rounded-lg bg-white/10 animate-pulse" style={{ width: w }} />
-                              </td>
-                            ))}
-                          </tr>
-                        ))
-                      : <MovieTableRows rows={releasedMovies} emptyLabel="No released movies on this page" />
-                    }
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Pagination (shared — applies to the full result set) */}
-            {pages > 1 && (
-              <div className="glass-card rounded-2xl px-6 py-4">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <p className="text-neutral-500 text-xs font-montserrat order-2 sm:order-1">
-                    Page {page} of {pages} &middot; {total} total
-                  </p>
-                  <div className="flex items-center gap-1.5 order-1 sm:order-2">
-                    <button onClick={() => fetchList(1)} disabled={page <= 1 || loading}
-                      className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30">
-                      <Icon name="ChevronDoubleLeftIcon" size={14} />
-                    </button>
-                    <button onClick={() => fetchList(page - 1)} disabled={page <= 1 || loading}
-                      className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30">
-                      <Icon name="ChevronLeftIcon" size={14} />
-                    </button>
-                    {pageNumbers().map((n, i) =>
-                      n === '...'
-                        ? <span key={`d${i}`} className="px-1.5 text-neutral-600 font-montserrat text-sm">…</span>
-                        : (
-                          <button key={n} onClick={() => fetchList(n as number)} disabled={loading}
-                            className={`w-8 h-8 rounded-lg text-sm font-medium font-montserrat transition-all ${n === page ? 'bg-yellow-500 text-black' : 'bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10'}`}>
-                            {n}
-                          </button>
-                        )
-                    )}
-                    <button onClick={() => fetchList(page + 1)} disabled={page >= pages || loading}
-                      className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30">
-                      <Icon name="ChevronRightIcon" size={14} />
-                    </button>
-                    <button onClick={() => fetchList(pages)} disabled={page >= pages || loading}
-                      className="p-2 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30">
-                      <Icon name="ChevronDoubleRightIcon" size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Delete confirmation */}
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="glass-card rounded-3xl p-8 max-w-md w-full space-y-5 border border-red-500/20">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-red-500/10">
-                <Icon name="ExclamationTriangleIcon" size={26} className="text-red-400" />
-              </div>
-              <div>
-                <h3 className="font-playfair text-xl font-bold text-white">Delete Movie</h3>
-                <p className="text-neutral-400 text-sm font-montserrat mt-0.5">This action cannot be undone.</p>
-              </div>
-            </div>
-            <p className="text-neutral-300 font-montserrat text-sm leading-relaxed">
-              Permanently delete <span className="text-white font-semibold">"{confirmDelete.title}"</span>?
-            </p>
-            <div className="flex gap-3 pt-1">
-              <button onClick={() => setConfirmDelete(null)}
-                className="flex-1 py-3 rounded-xl bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-montserrat text-sm font-medium transition-all">
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmArchive(null);
+                  setConfirmDelete(null);
+                }}
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 font-montserrat text-sm text-neutral-300 transition-all hover:bg-white/10"
+              >
                 Cancel
               </button>
-              <button onClick={() => handleDelete(confirmDelete)}
-                className="flex-1 py-3 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 font-montserrat text-sm font-medium transition-all border border-red-500/20">
-                Delete Movie
-              </button>
+              {confirmArchive && (
+                <button
+                  type="button"
+                  onClick={() => archiveMovie(confirmArchive)}
+                  className="rounded-xl bg-amber-500 px-4 py-2 font-montserrat text-sm font-semibold text-black transition-all hover:bg-amber-400"
+                >
+                  Archive
+                </button>
+              )}
+              {confirmDelete && (
+                <button
+                  type="button"
+                  onClick={() => archiveMovie(confirmDelete, true)}
+                  className="rounded-xl bg-red-500 px-4 py-2 font-montserrat text-sm font-semibold text-white transition-all hover:bg-red-400"
+                >
+                  Delete
+                </button>
+              )}
             </div>
           </div>
         </div>
